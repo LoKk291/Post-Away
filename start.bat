@@ -1,0 +1,3 @@
+@echo off
+echo Iniciando Post-Away Automator...
+start "" "%~dp0electron\electron.exe" "%~dp0\"
