@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readFolder: (folderPath) => ipcRenderer.invoke('read-folder', folderPath),
   compressFolder: (folderPath) => ipcRenderer.invoke('compress-folder', folderPath),
   getSession: () => ipcRenderer.invoke('get-session'),
-  saveSession: (data) => ipcRenderer.invoke('save-session', data)
+  saveSession: (data) => ipcRenderer.invoke('save-session', data),
+  fillPatreon: (data) => ipcRenderer.invoke('fill-patreon', data)
 });

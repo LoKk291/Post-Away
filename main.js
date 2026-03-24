@@ -2,9 +2,50 @@ const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
+const http = require('http');
 
 let mainWindow;
 const sessionFile = path.join(app.getPath('userData'), 'session.json');
+
+// HTTP SSE Server to securely communicate with the Chrome Extension
+let localServer = null;
+let sseClients = [];
+
+function startLocalServer() {
+  localServer = http.createServer((req, res) => {
+    // Basic CORS for SSE
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200);
+      return res.end();
+    }
+
+    if (req.url === '/events' && req.method === 'GET') {
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      });
+      res.write('retry: 3000\n\n'); 
+      sseClients.push(res);
+
+      req.on('close', () => {
+        sseClients = sseClients.filter(c => c !== res);
+      });
+    } else {
+      res.writeHead(404);
+      res.end();
+    }
+  });
+
+  // Bind exclusively to loopback 127.0.0.1 for high security (prevents any external access)
+  localServer.listen(3333, '127.0.0.1', () => {
+    console.log("Local SSE Server running securely on 127.0.0.1:3333");
+  });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -14,11 +55,11 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
     }
   });
-
   mainWindow.loadFile('index.html');
 }
 
 app.whenReady().then(() => {
+  startLocalServer();
   createWindow();
 
   app.on('activate', () => {
@@ -31,6 +72,14 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+// Cleanly close server to avoid ghost ports
+app.on('before-quit', () => {
+  sseClients.forEach(c => c.end());
+  if (localServer) {
+    localServer.close();
   }
 });
 
@@ -54,18 +103,10 @@ function saveSession(data) {
   }
 }
 
-ipcMain.handle('get-session', () => {
-  return loadSession();
-});
-
-ipcMain.handle('save-session', (event, data) => {
-  saveSession(data);
-});
-
+ipcMain.handle('get-session', () => loadSession());
+ipcMain.handle('save-session', (event, data) => saveSession(data));
 ipcMain.handle('select-folder', async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory']
-  });
+  const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
   if (result.canceled) return null;
   return result.filePaths[0];
 });
@@ -80,8 +121,7 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
         const subPath = path.join(folderPath, item.name);
         const folderName = item.name;
         
-        let character = "";
-        let anime = "";
+        let character = "", anime = "";
         const match = folderName.match(/(.*?)\s*-\s*\[(.*?)\]/);
         if (match) {
           character = match[1].trim();
@@ -95,10 +135,9 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
         let thumbnail = null;
         try {
           const files = fs.readdirSync(subPath);
-          const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-          const imageFiles = files.filter(f => imageExtensions.includes(path.extname(f).toLowerCase()));
+          const ext = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+          const imageFiles = files.filter(f => ext.includes(path.extname(f).toLowerCase()));
           imagesCount = imageFiles.length;
-          
           if (imageFiles.length > 0) {
             thumbnail = "file://" + path.join(subPath, imageFiles[0]).replace(/\\/g, '/');
           }
@@ -109,14 +148,7 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
 
         posts.push({
           id: Buffer.from(subPath).toString('base64'),
-          folderName,
-          path: subPath,
-          character,
-          anime,
-          imagesCount,
-          title,
-          tags,
-          thumbnail
+          folderName, path: subPath, character, anime, imagesCount, title, tags, thumbnail
         });
       }
     }
@@ -127,25 +159,21 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
   }
 });
 
+// Broadcast payload to SSE Clients
+ipcMain.handle('fill-patreon', (event, data) => {
+  const payload = JSON.stringify(data);
+  sseClients.forEach(res => res.write(`data: ${payload}\n\n`));
+  return { success: true, receivers: sseClients.length };
+});
+
 ipcMain.handle('compress-folder', async (event, folderPath) => {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const parentDir = path.dirname(folderPath);
     const folderName = path.basename(folderPath);
-    const winrarPath = 'C:\\Program Files\\WinRAR\\Rar.exe';
-    const archiveName = `${folderName}.rar`;
-    const archivePath = path.join(parentDir, archiveName);
+    const archivePath = path.join(parentDir, `${folderName}.rar`);
 
-    execFile(winrarPath, ['a', '-ep1', archivePath, folderPath], (error, stdout, stderr) => {
-      if (error) {
-        console.warn("WinRAR executed with message:", error.message);
-        if (fs.existsSync(archivePath)) {
-          resolve({ success: true, warning: error.message });
-        } else {
-          resolve({ success: false, error: error.message, details: stderr });
-        }
-      } else {
-        resolve({ success: true });
-      }
+    execFile('C:\\Program Files\\WinRAR\\Rar.exe', ['a', '-ep1', archivePath, folderPath], (error, stdout, stderr) => {
+      resolve(error && !fs.existsSync(archivePath) ? { success: false, error: error.message } : { success: true });
     });
   });
 });

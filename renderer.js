@@ -105,7 +105,8 @@ async function loadFolderData(folderPath) {
                 </div>
             </div>
 
-            <div class="card-actions">
+            <div class="card-actions" style="flex-direction: column;">
+                <button class="btn primary-btn btn-autofill" title="Autorellenar los datos en una pestaña abierta de Patreon usando la extensión de Brave.">Autorellenar en Patreon</button>
                 <button class="btn secondary-btn btn-compress">Pendiente de Compresión...</button>
             </div>
         `;
@@ -136,6 +137,27 @@ async function loadFolderData(folderPath) {
             setTimeout(() => btnCopyTags.style.color = '', 1500);
         });
 
+        // Extension Auto-Fill Event
+        const btnAutofill = card.querySelector('.btn-autofill');
+        btnAutofill.addEventListener('click', async () => {
+            const originalText = btnAutofill.textContent;
+            btnAutofill.textContent = "Enviando...";
+            const res = await window.electronAPI.fillPatreon({ title: post.title, tags: post.tags });
+            
+            if (res.receivers > 0) {
+                btnAutofill.textContent = "¡Enviado a Brave!";
+                btnAutofill.style.background = "var(--success-color)";
+            } else {
+                btnAutofill.textContent = "No hay extensión conectada";
+                btnAutofill.style.background = "#eab308";
+            }
+            
+            setTimeout(() => {
+                btnAutofill.textContent = originalText;
+                btnAutofill.style.background = "";
+            }, 3000);
+        });
+
         const btnCompress = card.querySelector('.btn-compress');
         btnCompress.addEventListener('click', async () => {
             btnCompress.textContent = "Comprimiendo manualmente...";
@@ -157,7 +179,6 @@ async function loadFolderData(folderPath) {
         cardsElements.push({ post, btnCompress });
     });
     
-    // Start background sequential compression without waiting for the promise!
     startBackgroundCompression(cardsElements, thisRun);
 }
 
