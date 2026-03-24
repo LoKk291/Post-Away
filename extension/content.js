@@ -239,6 +239,7 @@ function connect() {
                 const t = c.textContent.trim().toLowerCase();
                 if (t === 'attachment' || t === 'attachments' || t === 'adjunto' || t === 'adjuntos' || t.includes('upload attachment')) {
                     const btn = c.closest('button') || c.closest('[role="button"]') || c.closest('a') || c.closest('div') || c;
+                    fetch('http://127.0.0.1:3333/trigger-macro', { method: 'POST' }).catch(() => {});
                     simulateClick(btn);
                     return true;
                 }
@@ -247,6 +248,7 @@ function connect() {
             const fileInputs = Array.from(document.querySelectorAll('input[type="file"]'));
             const genericInput = fileInputs.find(i => (!i.accept || !i.accept.includes('image')));
             if (genericInput) {
+                fetch('http://127.0.0.1:3333/trigger-macro', { method: 'POST' }).catch(() => {});
                 genericInput.click();
                 return true;
             }

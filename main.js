@@ -14,12 +14,34 @@ let sseClients = [];
 function startLocalServer() {
   localServer = http.createServer((req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
       res.writeHead(200);
       return res.end();
+    }
+
+    if (req.method === 'POST' && req.url === '/trigger-macro') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ok: true}));
+      
+      const { exec } = require('child_process');
+      const fs = require('fs');
+      const path = require('path');
+      const vbsCode = `
+Set shell = CreateObject("WScript.Shell")
+WScript.Sleep 1000
+shell.SendKeys "^v"
+WScript.Sleep 400
+shell.SendKeys "{ENTER}"
+      `.trim();
+      const tmpPath = path.join(require('os').tmpdir(), 'post_away_upload.vbs');
+      fs.writeFileSync(tmpPath, vbsCode);
+      exec(`cscript //nologo "${tmpPath}"`, (err) => {
+          if (err) console.error("VBS Auto-Upload Error:", err);
+      });
+      return;
     }
 
     if (req.url === '/events' && req.method === 'GET') {
@@ -187,36 +209,7 @@ ipcMain.handle('copy-clipboard', (event, text) => {
 });
 
 ipcMain.handle('trigger-auto-upload', (event, filePath) => {
-  const { exec } = require('child_process');
-  const fs = require('fs');
-  const path = require('path');
-  
   require('electron').clipboard.writeText(filePath);
-  
-  const vbsCode = `
-Set shell = CreateObject("WScript.Shell")
-WScript.Sleep 1000
-success = False
-For i = 1 To 40
-    If shell.AppActivate("www.patreon.com desea abrir") Or shell.AppActivate("desea abrir") Or shell.AppActivate("Abrir") Or shell.AppActivate("Open") Then
-        success = True
-        Exit For
-    End If
-    WScript.Sleep 500
-Next
-If success Then WScript.Sleep 600
-
-shell.SendKeys "^v"
-WScript.Sleep 600
-shell.SendKeys "{ENTER}"
-  `.trim();
-  
-  const tmpPath = path.join(require('os').tmpdir(), 'post_away_upload.vbs');
-  fs.writeFileSync(tmpPath, vbsCode);
-  
-  exec(`cscript //nologo "${tmpPath}"`, (err) => {
-      if (err) console.error("VBS Auto-Upload Error:", err);
-  });
   return true;
 });
 
