@@ -80,6 +80,8 @@ function connect() {
                     el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
                     await new Promise(r => setTimeout(r, 100)); 
                 }
+                document.body.click();
+                await new Promise(r => setTimeout(r, 200));
                 break; 
             }
         }
@@ -112,33 +114,57 @@ function connect() {
                     return; 
                 }
 
-                let collectionInput = null;
+                let listContainer = null;
                 const popovers = Array.from(document.querySelectorAll('[role="dialog"], [role="listbox"], [role="menu"]')).filter(el => el.offsetParent !== null);
                 if (popovers.length > 0) {
-                    collectionInput = popovers[popovers.length - 1].querySelector('input[type="text"], input[type="search"]');
+                    listContainer = popovers[popovers.length - 1];
                 }
 
-                if (collectionInput) {
-                    setNativeValue(collectionInput, originalName);
-                    await new Promise(r => setTimeout(r, 600)); 
-                    
-                    const allCandidates = Array.from(document.querySelectorAll('label, li, [role="option"], [role="menuitem"]')).filter(el => {
-                        if (!el.offsetParent) return false; 
-                        const isLabelWithCheckbox = el.tagName.toLowerCase() === 'label' && el.querySelector('input[type="checkbox"], svg');
-                        const isOption = el.getAttribute('role') === 'option' || el.getAttribute('role') === 'menuitem' || el.tagName.toLowerCase() === 'li';
-                        if (!isLabelWithCheckbox && !isOption) return false;
-                        const text = el.textContent.trim().toLowerCase();
-                        if (text.startsWith("create ") || text.startsWith("crear ") || text.includes('+ create') || text.includes('añadir "') || text.includes('add "')) return false;
-                        return true;
-                    });
+                if (!listContainer) {
+                    document.body.click();
+                    return;
+                }
 
-                    let currentSearch = originalName.toLowerCase();
+                let collectionInput = listContainer.querySelector('input[type="text"], input[type="search"]');
+
+                const performSearch = async (container) => {
                     let foundMatch = null;
-                    while (currentSearch.length > 2) { 
-                        foundMatch = allCandidates.find(el => el.textContent.trim().toLowerCase().includes(currentSearch));
+                    let currentSearch = originalName.toLowerCase();
+                    let lastScroll = -1;
+                    let scrollAttemptsWithoutProgress = 0;
+                    
+                    while (!foundMatch && scrollAttemptsWithoutProgress < 15) {
+                        const allCandidates = Array.from(container.querySelectorAll('label, li, [role="option"], [role="menuitem"]')).filter(el => {
+                            if (!el.offsetParent) return false; 
+                            const isLabelWithCheckbox = el.tagName.toLowerCase() === 'label' && el.querySelector('input[type="checkbox"], svg');
+                            const isOption = el.getAttribute('role') === 'option' || el.getAttribute('role') === 'menuitem' || el.tagName.toLowerCase() === 'li';
+                            if (!isLabelWithCheckbox && !isOption) return false;
+                            const text = el.textContent.trim().toLowerCase();
+                            if (text.startsWith("create ") || text.startsWith("crear ") || text.includes('+ create') || text.includes('añadir "') || text.includes('add "')) return false;
+                            return true;
+                        });
+
+                        let tempSearch = currentSearch;
+                        while (tempSearch.length > 2) { 
+                            foundMatch = allCandidates.find(el => el.textContent.trim().toLowerCase().includes(tempSearch));
+                            if (foundMatch) break;
+                            tempSearch = tempSearch.slice(0, -1);
+                        }
+
                         if (foundMatch) break;
-                        currentSearch = currentSearch.slice(0, -1);
+
+                        if (container.scrollTop === lastScroll && lastScroll !== -1) {
+                            scrollAttemptsWithoutProgress++;
+                            await new Promise(r => setTimeout(r, 200));
+                        } else {
+                            scrollAttemptsWithoutProgress = 0;
+                        }
+
+                        lastScroll = container.scrollTop;
+                        container.scrollTop += 300;
+                        await new Promise(r => setTimeout(r, 100)); 
                     }
+                    
                     if (foundMatch) {
                         const cb = foundMatch.querySelector('input[type="checkbox"]');
                         const isChecked = cb ? cb.checked : (foundMatch.getAttribute('aria-selected') === 'true' || foundMatch.getAttribute('aria-checked') === 'true');
@@ -148,63 +174,14 @@ function connect() {
                         document.body.click();
                         console.warn(`Post-Away: No se encontró la colección "${originalName}".`);
                     }
+                };
+
+                if (collectionInput) {
+                    setNativeValue(collectionInput, originalName);
+                    await new Promise(r => setTimeout(r, 600)); 
+                    await performSearch(listContainer);
                 } else {
-                    let listContainer = document.querySelector('[role="listbox"], ul[role="menu"]');
-                    if (!listContainer && popovers.length > 0) listContainer = popovers[popovers.length - 1];
-                    
-                    if (listContainer) {
-                        let foundMatch = null;
-                        let currentSearch = originalName.toLowerCase();
-                        let lastScroll = -1;
-                        let scrollAttemptsWithoutProgress = 0;
-                        
-                        while (!foundMatch && scrollAttemptsWithoutProgress < 15) {
-                            const allCandidates = Array.from(listContainer.querySelectorAll('label, li, [role="option"], [role="menuitem"]')).filter(el => {
-                                if (!el.offsetParent) return false; 
-                                const isLabelWithCheckbox = el.tagName.toLowerCase() === 'label' && el.querySelector('input[type="checkbox"], svg');
-                                const isOption = el.getAttribute('role') === 'option' || el.getAttribute('role') === 'menuitem' || el.tagName.toLowerCase() === 'li';
-                                if (!isLabelWithCheckbox && !isOption) return false;
-                                const text = el.textContent.trim().toLowerCase();
-                                if (text.startsWith("create ") || text.startsWith("crear ") || text.includes('+ create') || text.includes('añadir "') || text.includes('add "')) return false;
-                                return true;
-                            });
-
-                            let tempSearch = currentSearch;
-                            while (tempSearch.length > 2) { 
-                                foundMatch = allCandidates.find(el => el.textContent.trim().toLowerCase().includes(tempSearch));
-                                if (foundMatch) break;
-                                tempSearch = tempSearch.slice(0, -1);
-                            }
-
-                            if (foundMatch) {
-                                break;
-                            }
-
-                            if (listContainer.scrollTop === lastScroll && lastScroll !== -1) {
-                                scrollAttemptsWithoutProgress++;
-                                await new Promise(r => setTimeout(r, 200));
-                            } else {
-                                scrollAttemptsWithoutProgress = 0;
-                            }
-
-                            lastScroll = listContainer.scrollTop;
-                            listContainer.scrollTop += 300;
-                            await new Promise(r => setTimeout(r, 100));
-                        }
-                        
-                        if (foundMatch) {
-                            const cb = foundMatch.querySelector('input[type="checkbox"]');
-                            const isChecked = cb ? cb.checked : (foundMatch.getAttribute('aria-selected') === 'true' || foundMatch.getAttribute('aria-checked') === 'true');
-                            if (!isChecked) foundMatch.click();
-                            setTimeout(() => document.body.click(), 100);
-                        } else {
-                            document.body.click();
-                            console.warn(`Post-Away: No se encontró la colección "${originalName}".`);
-                        }
-                    } else {
-                        document.body.click();
-                        console.warn(`Post-Away: No se encontró la colección "${originalName}".`);
-                    }
+                    await performSearch(listContainer);
                 }
             };
             await searchAndSelectCollection(data.anime);
@@ -265,20 +242,47 @@ function connect() {
         }
 
         // 5. Autoclick Attachments Menu to load OS Upload Dialog!
-        const attemptAttachmentClick = () => {
-            const simulateClick = (element) => {
-                ['pointerdown', 'mousedown', 'mouseup', 'pointerup', 'click'].forEach(eventType => {
-                    element.dispatchEvent(new MouseEvent(eventType, { bubbles: true, cancelable: true, view: window, buttons: 1 }));
-                });
-            };
+        const runFileUploadOverlay = (elementToClick) => {
+            const overlay = document.createElement('div');
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100vw';
+            overlay.style.height = '100vh';
+            overlay.style.backgroundColor = 'transparent';
+            overlay.style.zIndex = '999999';
+            overlay.style.cursor = 'pointer';
             
+            document.body.appendChild(overlay);
+
+            const performUpload = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                document.body.removeChild(overlay);
+                
+                if (elementToClick.tagName.toLowerCase() === 'input' && elementToClick.type === 'file') {
+                    elementToClick.click();
+                } else {
+                    elementToClick.click();
+                    ['pointerdown', 'mousedown', 'mouseup', 'pointerup', 'click'].forEach(eventType => {
+                        elementToClick.dispatchEvent(new MouseEvent(eventType, { bubbles: true, cancelable: true, view: window, buttons: 1 }));
+                    });
+                }
+            };
+            overlay.addEventListener('click', performUpload);
+
+            const x = Math.floor(window.screenX + (window.outerWidth / 2));
+            const y = Math.floor(window.screenY + (window.outerHeight / 2));
+            fetch(`http://127.0.0.1:3333/trigger-macro?x=${x}&y=${y}`, { method: 'POST' }).catch(() => {});
+        };
+
+        const attemptAttachmentClick = () => {
             let candidates = Array.from(document.querySelectorAll('button, div[role="button"], [role="menuitem"], span, a, p'));
             for (const c of candidates) {
                 const t = c.textContent.trim().toLowerCase();
                 if (t === 'attachment' || t === 'attachments' || t === 'adjunto' || t === 'adjuntos' || t.includes('upload attachment')) {
                     const btn = c.closest('button') || c.closest('[role="button"]') || c.closest('a') || c.closest('div') || c;
-                    fetch('http://127.0.0.1:3333/trigger-macro', { method: 'POST' }).catch(() => {});
-                    simulateClick(btn);
+                    runFileUploadOverlay(btn);
                     return true;
                 }
             }
@@ -286,8 +290,7 @@ function connect() {
             const fileInputs = Array.from(document.querySelectorAll('input[type="file"]'));
             const genericInput = fileInputs.find(i => (!i.accept || !i.accept.includes('image')));
             if (genericInput) {
-                fetch('http://127.0.0.1:3333/trigger-macro', { method: 'POST' }).catch(() => {});
-                genericInput.click();
+                runFileUploadOverlay(genericInput);
                 return true;
             }
             return false;

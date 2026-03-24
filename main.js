@@ -22,24 +22,53 @@ function startLocalServer() {
       return res.end();
     }
 
-    if (req.method === 'POST' && req.url === '/trigger-macro') {
+    if (req.method === 'POST' && req.url.startsWith('/trigger-macro')) {
+      const parsedUrl = new URL(req.url, 'http://127.0.0.1');
+      const x = parsedUrl.searchParams.get('x') || 960;
+      const y = parsedUrl.searchParams.get('y') || 540;
+
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ok: true}));
       
       const { exec } = require('child_process');
       const fs = require('fs');
       const path = require('path');
-      const vbsCode = `
-Set shell = CreateObject("WScript.Shell")
-WScript.Sleep 1000
-shell.SendKeys "^v"
-WScript.Sleep 400
-shell.SendKeys "{ENTER}"
+      const psCode = `
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -TypeDefinition '
+using System.Runtime.InteropServices;
+public class Mouse {
+    [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, int dwExtraInfo);
+}
+'
+$filePath = [System.Windows.Forms.Clipboard]::GetText()
+$dirPath = [System.IO.Path]::GetDirectoryName($filePath)
+$fileName = [System.IO.Path]::GetFileName($filePath)
+
+[System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(${x}, ${y})
+Start-Sleep -Milliseconds 200
+[Mouse]::mouse_event(0x02, 0, 0, 0, 0)
+[Mouse]::mouse_event(0x04, 0, 0, 0, 0)
+Start-Sleep -Milliseconds 1500
+
+[System.Windows.Forms.Clipboard]::SetText($dirPath)
+[System.Windows.Forms.SendKeys]::SendWait("^v")
+Start-Sleep -Milliseconds 600
+[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+Start-Sleep -Milliseconds 600
+
+[System.Windows.Forms.Clipboard]::SetText($fileName)
+[System.Windows.Forms.SendKeys]::SendWait("^v")
+Start-Sleep -Milliseconds 600
+[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
+
+Start-Sleep -Milliseconds 500
+[System.Windows.Forms.Clipboard]::SetText($filePath)
       `.trim();
-      const tmpPath = path.join(require('os').tmpdir(), 'post_away_upload.vbs');
-      fs.writeFileSync(tmpPath, vbsCode);
-      exec(`cscript //nologo "${tmpPath}"`, (err) => {
-          if (err) console.error("VBS Auto-Upload Error:", err);
+      const tmpPath = path.join(require('os').tmpdir(), 'post_away_upload.ps1');
+      fs.writeFileSync(tmpPath, psCode);
+      exec(`powershell -Sta -ExecutionPolicy Bypass -WindowStyle Hidden -File "${tmpPath}"`, (err) => {
+          if (err) console.error("PS Auto-Upload Error:", err);
       });
       return;
     }
