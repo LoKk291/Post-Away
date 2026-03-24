@@ -120,53 +120,91 @@ function connect() {
 
                 if (collectionInput) {
                     setNativeValue(collectionInput, originalName);
-                    await new Promise(r => setTimeout(r, 300)); 
+                    await new Promise(r => setTimeout(r, 600)); 
+                    
+                    const allCandidates = Array.from(document.querySelectorAll('label, li, [role="option"], [role="menuitem"]')).filter(el => {
+                        if (!el.offsetParent) return false; 
+                        const isLabelWithCheckbox = el.tagName.toLowerCase() === 'label' && el.querySelector('input[type="checkbox"], svg');
+                        const isOption = el.getAttribute('role') === 'option' || el.getAttribute('role') === 'menuitem' || el.tagName.toLowerCase() === 'li';
+                        if (!isLabelWithCheckbox && !isOption) return false;
+                        const text = el.textContent.trim().toLowerCase();
+                        if (text.startsWith("create ") || text.startsWith("crear ") || text.includes('+ create') || text.includes('añadir "') || text.includes('add "')) return false;
+                        return true;
+                    });
+
+                    let currentSearch = originalName.toLowerCase();
+                    let foundMatch = null;
+                    while (currentSearch.length > 2) { 
+                        foundMatch = allCandidates.find(el => el.textContent.trim().toLowerCase().includes(currentSearch));
+                        if (foundMatch) break;
+                        currentSearch = currentSearch.slice(0, -1);
+                    }
+                    if (foundMatch) {
+                        const cb = foundMatch.querySelector('input[type="checkbox"]');
+                        const isChecked = cb ? cb.checked : (foundMatch.getAttribute('aria-selected') === 'true' || foundMatch.getAttribute('aria-checked') === 'true');
+                        if (!isChecked) foundMatch.click();
+                        setTimeout(() => document.body.click(), 100);
+                    } else {
+                        document.body.click();
+                        console.warn(`Post-Away: No se encontró la colección "${originalName}".`);
+                    }
                 } else {
                     let listContainer = document.querySelector('[role="listbox"], ul[role="menu"]');
                     if (!listContainer && popovers.length > 0) listContainer = popovers[popovers.length - 1];
                     
                     if (listContainer) {
+                        let foundMatch = null;
+                        let currentSearch = originalName.toLowerCase();
                         let lastScroll = -1;
-                        while(listContainer.scrollTop !== lastScroll) {
+                        let scrollAttemptsWithoutProgress = 0;
+                        
+                        while (!foundMatch && scrollAttemptsWithoutProgress < 15) {
+                            const allCandidates = Array.from(listContainer.querySelectorAll('label, li, [role="option"], [role="menuitem"]')).filter(el => {
+                                if (!el.offsetParent) return false; 
+                                const isLabelWithCheckbox = el.tagName.toLowerCase() === 'label' && el.querySelector('input[type="checkbox"], svg');
+                                const isOption = el.getAttribute('role') === 'option' || el.getAttribute('role') === 'menuitem' || el.tagName.toLowerCase() === 'li';
+                                if (!isLabelWithCheckbox && !isOption) return false;
+                                const text = el.textContent.trim().toLowerCase();
+                                if (text.startsWith("create ") || text.startsWith("crear ") || text.includes('+ create') || text.includes('añadir "') || text.includes('add "')) return false;
+                                return true;
+                            });
+
+                            let tempSearch = currentSearch;
+                            while (tempSearch.length > 2) { 
+                                foundMatch = allCandidates.find(el => el.textContent.trim().toLowerCase().includes(tempSearch));
+                                if (foundMatch) break;
+                                tempSearch = tempSearch.slice(0, -1);
+                            }
+
+                            if (foundMatch) {
+                                break;
+                            }
+
+                            if (listContainer.scrollTop === lastScroll && lastScroll !== -1) {
+                                scrollAttemptsWithoutProgress++;
+                                await new Promise(r => setTimeout(r, 200));
+                            } else {
+                                scrollAttemptsWithoutProgress = 0;
+                            }
+
                             lastScroll = listContainer.scrollTop;
                             listContainer.scrollTop += 300;
-                            await new Promise(r => setTimeout(r, 30));
+                            await new Promise(r => setTimeout(r, 100));
                         }
-                        listContainer.scrollTop = 0; 
+                        
+                        if (foundMatch) {
+                            const cb = foundMatch.querySelector('input[type="checkbox"]');
+                            const isChecked = cb ? cb.checked : (foundMatch.getAttribute('aria-selected') === 'true' || foundMatch.getAttribute('aria-checked') === 'true');
+                            if (!isChecked) foundMatch.click();
+                            setTimeout(() => document.body.click(), 100);
+                        } else {
+                            document.body.click();
+                            console.warn(`Post-Away: No se encontró la colección "${originalName}".`);
+                        }
+                    } else {
+                        document.body.click();
+                        console.warn(`Post-Away: No se encontró la colección "${originalName}".`);
                     }
-                }
-
-                const allCandidates = Array.from(document.querySelectorAll('label, li, [role="option"], [role="menuitem"]')).filter(el => {
-                    if (!el.offsetParent) return false; 
-                    
-                    const isLabelWithCheckbox = el.tagName.toLowerCase() === 'label' && el.querySelector('input[type="checkbox"], svg');
-                    const isOption = el.getAttribute('role') === 'option' || el.getAttribute('role') === 'menuitem' || el.tagName.toLowerCase() === 'li';
-                    
-                    if (!isLabelWithCheckbox && !isOption) return false;
-
-                    const text = el.textContent.trim().toLowerCase();
-                    if (text.startsWith("create ") || text.startsWith("crear ") || text.includes('+ create') || text.includes('añadir "') || text.includes('add "')) return false;
-
-                    return true;
-                });
-
-                let currentSearch = originalName.toLowerCase();
-                let foundMatch = null;
-
-                while (currentSearch.length > 2) { 
-                    foundMatch = allCandidates.find(el => el.textContent.trim().toLowerCase().includes(currentSearch));
-                    if (foundMatch) break;
-                    currentSearch = currentSearch.slice(0, -1);
-                }
-                
-                if (foundMatch) {
-                    const cb = foundMatch.querySelector('input[type="checkbox"]');
-                    const isChecked = cb ? cb.checked : (foundMatch.getAttribute('aria-selected') === 'true' || foundMatch.getAttribute('aria-checked') === 'true');
-                    if (!isChecked) foundMatch.click();
-                    setTimeout(() => document.body.click(), 100);
-                } else {
-                    document.body.click();
-                    console.warn(`Post-Away: No se encontró la colección "${originalName}".`);
                 }
             };
             await searchAndSelectCollection(data.anime);
