@@ -2,6 +2,7 @@ let currentSession = {
     lastFolder: null,
     donePosts: {}
 };
+let currentCompressionRun = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     currentSession = await window.electronAPI.getSession() || { lastFolder: null, donePosts: {} };
@@ -44,6 +45,11 @@ async function loadFolderData(folderPath) {
     }
 
     postsGrid.innerHTML = '';
+    const cardsElements = [];
+    
+    // Set a new unique run token
+    const thisRun = Symbol();
+    currentCompressionRun = thisRun;
     
     posts.forEach(post => {
         const card = document.createElement('div');
@@ -81,16 +87,26 @@ async function loadFolderData(folderPath) {
             
             <div class="info-group">
                 <div class="info-label">Título para Patreon</div>
-                <div class="info-value title-value">${post.title}</div>
+                <div class="info-value-container">
+                    <div class="info-value title-value">${post.title}</div>
+                    <button class="copy-btn copy-title" title="Copiar Título">
+                        <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                    </button>
+                </div>
             </div>
             
             <div class="info-group">
                 <div class="info-label">Tags Generados</div>
-                <div class="info-value tags-value">${post.tags}</div>
+                <div class="info-value-container">
+                    <div class="info-value tags-value">${post.tags}</div>
+                    <button class="copy-btn copy-tags" title="Copiar Tags">
+                        <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                    </button>
+                </div>
             </div>
 
             <div class="card-actions">
-                <button class="btn secondary-btn btn-compress">Crear .rar</button>
+                <button class="btn secondary-btn btn-compress">Pendiente de Compresión...</button>
             </div>
         `;
 
@@ -105,11 +121,24 @@ async function loadFolderData(folderPath) {
             }
             await saveSession();
         });
+        
+        const btnCopyTitle = card.querySelector('.copy-title');
+        btnCopyTitle.addEventListener('click', () => {
+            navigator.clipboard.writeText(post.title);
+            btnCopyTitle.style.color = 'var(--success-color)';
+            setTimeout(() => btnCopyTitle.style.color = '', 1500);
+        });
+
+        const btnCopyTags = card.querySelector('.copy-tags');
+        btnCopyTags.addEventListener('click', () => {
+            navigator.clipboard.writeText(post.tags);
+            btnCopyTags.style.color = 'var(--success-color)';
+            setTimeout(() => btnCopyTags.style.color = '', 1500);
+        });
 
         const btnCompress = card.querySelector('.btn-compress');
         btnCompress.addEventListener('click', async () => {
-            const originalText = btnCompress.textContent;
-            btnCompress.textContent = "Comprimiendo...";
+            btnCompress.textContent = "Comprimiendo manualmente...";
             btnCompress.disabled = true;
 
             const result = await window.electronAPI.compressFolder(post.path);
@@ -118,17 +147,44 @@ async function loadFolderData(folderPath) {
                 btnCompress.textContent = "¡Comprimido!";
                 btnCompress.style.background = "var(--success-color)";
             } else {
-                alert("Error al comprimir: " + result.error + "\\nAsegúrate de que WinRAR está instalado y accesible en C:\\\\Program Files\\\\WinRAR\\\\Rar.exe.");
-                btnCompress.textContent = "Error";
-            }
-
-            setTimeout(() => {
-                btnCompress.textContent = originalText;
+                alert("Error al comprimir: " + result.error);
+                btnCompress.textContent = "Reintentar";
                 btnCompress.disabled = false;
-                btnCompress.style.background = "";
-            }, 3000);
+            }
         });
 
         postsGrid.appendChild(card);
+        cardsElements.push({ post, btnCompress });
     });
+    
+    // Start background sequential compression without waiting for the promise!
+    startBackgroundCompression(cardsElements, thisRun);
+}
+
+async function startBackgroundCompression(elements, runToken) {
+    for (const item of elements) {
+        if (currentCompressionRun !== runToken) return;
+        
+        const { post, btnCompress } = item;
+        
+        if (btnCompress.disabled || btnCompress.textContent === "¡Comprimido!" || btnCompress.textContent === "¡Comprimido en 2do plano!") continue;
+
+        btnCompress.textContent = "Generando .rar autom. ...";
+        btnCompress.disabled = true;
+
+        const result = await window.electronAPI.compressFolder(post.path);
+        
+        if (currentCompressionRun !== runToken) return;
+
+        if (result.success) {
+            btnCompress.textContent = "¡Comprimido en 2do plano!";
+            btnCompress.disabled = true;
+            btnCompress.style.background = "var(--success-color)";
+            btnCompress.style.opacity = "0.7";
+        } else {
+            console.error("Error comprimiendo", post.path, result.error);
+            btnCompress.textContent = "Reintentar comprimir";
+            btnCompress.disabled = false;
+        }
+    }
 }
