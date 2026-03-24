@@ -13,24 +13,11 @@ let sseClients = [];
 
 function startLocalServer() {
   localServer = http.createServer((req, res) => {
-    // Basic CORS for SSE & Ready/Done pings
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
-      res.writeHead(200);
-      return res.end();
-    }
-
-    if (req.url === '/ready' && req.method === 'POST') {
-      if (mainWindow) mainWindow.webContents.send('auto-queue-ready');
-      res.writeHead(200);
-      return res.end();
-    }
-
-    if (req.url === '/done' && req.method === 'POST') {
-      if (mainWindow) mainWindow.webContents.send('auto-queue-done');
       res.writeHead(200);
       return res.end();
     }
@@ -44,8 +31,19 @@ function startLocalServer() {
       res.write('retry: 3000\n\n'); 
       sseClients.push(res);
 
+      // TCP Lifecycle hook circumvents all browser adblockers and network shields natively linking the tab state
+      if (mainWindow) {
+        setTimeout(() => {
+            mainWindow.webContents.send('auto-queue-ready');
+        }, 100); 
+      }
+
       req.on('close', () => {
         sseClients = sseClients.filter(c => c !== res);
+        // Emits auto-queue-done implicitly when the patreon tab undergoes URL navigation post-publish
+        if (mainWindow) {
+            mainWindow.webContents.send('auto-queue-done');
+        }
       });
     } else {
       res.writeHead(404);
@@ -178,7 +176,9 @@ ipcMain.handle('fill-patreon', (event, data) => {
 });
 
 ipcMain.handle('open-patreon', () => {
-  require('electron').shell.openExternal('https://www.patreon.com/posts/new');
+  require('electron').shell.openExternal('https://www.patreon.com/posts/new').catch(e => {
+    require('child_process').exec('start https://www.patreon.com/posts/new');
+  });
 });
 
 ipcMain.handle('compress-folder', async (event, folderPath) => {

@@ -6,6 +6,84 @@ let currentCompressionRun = null;
 let currentPosts = [];
 let autoQueue = [];
 let isAutoRunning = false;
+let totalAutoQueueSize = 0;
+let ignoreNextDone = false;
+
+function highlightActivePost(postId) {
+    document.querySelectorAll('.post-card').forEach(c => c.classList.remove('active-upload'));
+    if (postId) {
+        const cb = document.querySelector(`.done-checkbox[data-id="${postId}"]`);
+        if (cb) {
+            const card = cb.closest('.post-card');
+            card.classList.add('active-upload');
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+}
+
+function updateAutoProgressUI() {
+    const progressBlock = document.getElementById('auto-progress');
+    const nameEl = document.getElementById('auto-current-name');
+    const indexEl = document.getElementById('auto-current-index');
+    
+    if (isAutoRunning && autoQueue.length > 0) {
+        progressBlock.style.display = 'block';
+        nameEl.textContent = autoQueue[0].folderName;
+        indexEl.textContent = totalAutoQueueSize - autoQueue.length + 1;
+    } else {
+        progressBlock.style.display = 'none';
+        highlightActivePost(null);
+    }
+}
+
+function updateGlobalRarStatus(elements) {
+    const rarStatus = document.getElementById('rar-status');
+    const btnAutoAll = document.getElementById('btn-auto-all');
+    if (!rarStatus) return;
+    let completed = 0;
+    for (const item of elements) {
+        if (item.btnCompress.textContent.includes("Comprimido")) {
+            completed++;
+            if (item.btnAutofill) {
+                item.btnAutofill.disabled = false;
+                item.btnAutofill.style.opacity = '1';
+                item.btnAutofill.title = "Autorellenar en Patreon Web";
+            }
+        } else {
+            if (item.btnAutofill) {
+                item.btnAutofill.disabled = true;
+                item.btnAutofill.style.opacity = '0.5';
+                item.btnAutofill.title = "Deshabilitado hasta que el .rar termine";
+            }
+        }
+    }
+    
+    if (completed >= elements.length && elements.length > 0) {
+        rarStatus.style.background = 'rgba(16, 185, 129, 0.2)';
+        rarStatus.style.color = '#6ee7b7';
+        rarStatus.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+        rarStatus.innerHTML = `✅ ¡Todos los .rar están listos! (${completed}/${elements.length})`;
+        if (btnAutoAll) {
+            btnAutoAll.disabled = false;
+            btnAutoAll.style.opacity = '1';
+            btnAutoAll.style.cursor = 'pointer';
+        }
+    } else if (elements.length > 0) {
+        rarStatus.style.background = 'rgba(234, 179, 8, 0.2)';
+        rarStatus.style.color = '#fde047';
+        rarStatus.style.borderColor = 'rgba(234, 179, 8, 0.5)';
+        rarStatus.innerHTML = `⏳ Generando archivos .rar en segundo plano... (<span id="rar-count">${completed}</span>/<span id="rar-total">${elements.length}</span>)`;
+        if (btnAutoAll) {
+            btnAutoAll.disabled = true;
+            btnAutoAll.style.opacity = '0.5';
+            btnAutoAll.style.cursor = 'not-allowed';
+        }
+    } else {
+        rarStatus.innerHTML = "";
+        rarStatus.style.background = "transparent";
+        rarStatus.style.border = "none";
+    }
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     currentSession = await window.electronAPI.getSession() || { lastFolder: null, donePosts: {} };
@@ -32,8 +110,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         autoQueue = currentPosts.filter(p => !currentSession.donePosts[p.id]);
         if (autoQueue.length === 0) return alert('No hay posts pendientes.');
         
+        if (document.getElementById('btn-auto-all').disabled) return alert('Por favor espera a que todos los .rar se terminen de generar.');
+        totalAutoQueueSize = autoQueue.length;
         isAutoRunning = true;
+        
+        document.getElementById('auto-total').textContent = totalAutoQueueSize;
+        updateAutoProgressUI();
+        highlightActivePost(autoQueue[0].id);
+        
         window.electronAPI.openPatreon();
+    });
+
+    document.getElementById('btn-auto-skip').addEventListener('click', () => {
+        if (!isAutoRunning || autoQueue.length === 0) return;
+        ignoreNextDone = true;
+        autoQueue.shift();
+        
+        if (autoQueue.length > 0) {
+            updateAutoProgressUI();
+            highlightActivePost(autoQueue[0].id);
+            window.electronAPI.openPatreon();
+        } else {
+            isAutoRunning = false;
+            updateAutoProgressUI();
+            alert("¡Haz saltado el último post. Automatización finalizada!");
+        }
+    });
+
+    document.getElementById('btn-auto-stop').addEventListener('click', () => {
+        isAutoRunning = false;
+        autoQueue = [];
+        updateAutoProgressUI();
+    });
+
+    document.getElementById('btn-toggle-all').addEventListener('click', () => {
+        const checkboxes = Array.from(document.querySelectorAll('.done-checkbox'));
+        if (checkboxes.length === 0) return;
+        const checkedCount = checkboxes.filter(cb => cb.checked).length;
+        const targetState = checkedCount < checkboxes.length / 2;
+        checkboxes.forEach(cb => {
+            if (cb.checked !== targetState) cb.click();
+        });
     });
 
     window.electronAPI.onAutoQueueReady(async () => {
@@ -49,6 +166,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     window.electronAPI.onAutoQueueDone(() => {
+        if (ignoreNextDone) {
+            ignoreNextDone = false;
+            return;
+        }
         if (!isAutoRunning || autoQueue.length === 0) return;
         const post = autoQueue.shift();
         
@@ -56,9 +177,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (checkbox && !checkbox.checked) checkbox.click();
         
         if (autoQueue.length > 0) {
-            setTimeout(() => window.electronAPI.openPatreon(), 1500);
+            updateAutoProgressUI();
+            highlightActivePost(autoQueue[0].id);
+            setTimeout(() => window.electronAPI.openPatreon(), 100);
         } else {
             isAutoRunning = false;
+            updateAutoProgressUI();
             alert("¡Súper Automatización finalizada! Todas las publicaciones están subidas.");
         }
     });
@@ -76,6 +200,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             await loadFolderData(folder);
         }
     });
+
+    document.getElementById('btn-clear').addEventListener('click', async () => {
+        if (!confirm('¿Estás seguro de que quieres limpiar toda la grilla de posts? Esto removerá la carpeta actual y reiniciará tu panel.')) return;
+        
+        currentSession.lastFolder = null;
+        currentSession.donePosts = {};
+        await saveSession();
+        
+        currentPosts = [];
+        autoQueue = [];
+        isAutoRunning = false;
+        
+        document.getElementById('btn-clear').style.display = 'none';
+        document.getElementById('global-settings').classList.add('hidden');
+        document.getElementById('path-indicator').classList.add('hidden');
+        document.querySelector('.grid-actions').style.display = 'none';
+        document.getElementById('posts-grid').innerHTML = `
+            <div class="empty-state">
+                Selecciona una carpeta para comenzar a organizar tus posts.
+            </div>
+        `;
+    });
 });
 
 async function saveSession() {
@@ -89,6 +235,8 @@ async function loadFolderData(folderPath) {
     
     pathIndicator.classList.remove('hidden');
     document.getElementById('global-settings').classList.remove('hidden');
+    document.getElementById('btn-clear').style.display = 'block';
+    document.querySelector('.grid-actions').style.display = 'flex';
     currentPathSpan.textContent = folderPath;
     
     postsGrid.innerHTML = '<div class="empty-state">Escaneando carpeta...</div>';
@@ -203,6 +351,7 @@ async function loadFolderData(folderPath) {
         // Extension Auto-Fill Event
         const btnAutofill = card.querySelector('.btn-autofill');
         btnAutofill.addEventListener('click', async () => {
+            if (btnAutofill.disabled) return alert('Debes esperar a que el .rar asociado termine de generarse para subir a Patreon.');
             const originalText = btnAutofill.textContent;
             btnAutofill.textContent = "Enviando...";
             
@@ -241,6 +390,7 @@ async function loadFolderData(folderPath) {
             if (result.success) {
                 btnCompress.textContent = "¡Comprimido!";
                 btnCompress.style.background = "var(--success-color)";
+                updateGlobalRarStatus(cardsElements);
             } else {
                 alert("Error al comprimir: " + result.error);
                 btnCompress.textContent = "Reintentar";
@@ -249,9 +399,10 @@ async function loadFolderData(folderPath) {
         });
 
         postsGrid.appendChild(card);
-        cardsElements.push({ post, btnCompress });
+        cardsElements.push({ post, btnCompress, btnAutofill });
     });
     
+    updateGlobalRarStatus(cardsElements);
     startBackgroundCompression(cardsElements, thisRun);
 }
 
@@ -261,7 +412,7 @@ async function startBackgroundCompression(elements, runToken) {
         
         const { post, btnCompress } = item;
         
-        if (btnCompress.disabled || btnCompress.textContent === "¡Comprimido!" || btnCompress.textContent === "¡Comprimido en 2do plano!") continue;
+        if (btnCompress.disabled || btnCompress.textContent.includes("Comprimido")) continue;
 
         btnCompress.textContent = "Generando .rar autom. ...";
         btnCompress.disabled = true;
@@ -275,6 +426,7 @@ async function startBackgroundCompression(elements, runToken) {
             btnCompress.disabled = true;
             btnCompress.style.background = "var(--success-color)";
             btnCompress.style.opacity = "0.7";
+            updateGlobalRarStatus(elements);
         } else {
             console.error("Error comprimiendo", post.path, result.error);
             btnCompress.textContent = "Reintentar comprimir";

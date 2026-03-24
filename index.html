@@ -13,7 +13,8 @@
     <div class="app-container">
         <header class="glass-header">
             <h1>Post-Away Automator</h1>
-            <div class="actions">
+            <div class="actions" style="display: flex; gap: 1rem;">
+                <button id="btn-clear" class="btn" style="border: 1px solid rgba(248, 113, 113, 0.4); background: rgba(248, 113, 113, 0.1); color: #fca5a5; display: none; transition: all 0.2s;" onmouseover="this.style.background='rgba(248, 113, 113, 0.2)'" onmouseout="this.style.background='rgba(248, 113, 113, 0.1)'">🧹 Limpiar Sesión</button>
                 <button id="btn-select" class="btn primary-btn">Seleccionar Carpeta Principal</button>
             </div>
         </header>
@@ -47,9 +48,24 @@
                         <span class="info-value title-value" style="font-size: 1.25rem;" id="stat-images">0</span>
                     </div>
                 </div>
-                <button id="btn-auto-all" class="btn primary-btn" style="width: 100%; margin-top: 1.5rem; background: linear-gradient(135deg, #10b981, #059669); font-size: 1.1rem; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);">🚀 Iniciar Súper Automatización (Cola de Pendientes)</button>
+                <div id="rar-status" style="margin-top: 1.5rem; padding: 0.75rem; border-radius: 8px; font-weight: 500; font-size: 0.95rem; text-align: center; background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.5); transition: all 0.3s ease;">
+                    ⏳ Esperando carpetas...
+                </div>
+                <!-- Súper Automatización UI Progreso -->
+                <div id="auto-progress" style="margin-top: 1rem; padding: 1rem; border-radius: 8px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.4); display: none; text-align: center;">
+                    <h3 style="color: #c084fc; margin-bottom: 0.5rem; font-size: 1rem; text-shadow: 0 0 8px rgba(168, 85, 247, 0.5);">🚀 Súper Automatización en curso</h3>
+                    <div style="color: white; font-size: 0.95rem; margin-bottom: 1rem;">
+                        Subiendo a Patreon: <strong id="auto-current-name" style="color: #e9d5ff;">---</strong> (<span id="auto-current-index">0</span>/<span id="auto-total">0</span>)
+                    </div>
+                    <button id="btn-auto-skip" class="btn" style="background: transparent; border: 1px solid #c084fc; color: #c084fc; padding: 0.4rem 0.8rem; margin-right: 0.5rem; transition: all 0.2s;">⏭️ Omitir / Siguiente Post</button>
+                    <button id="btn-auto-stop" class="btn" style="background: transparent; border: 1px solid #ef4444; color: #ef4444; padding: 0.4rem 0.8rem; transition: all 0.2s;">🛑 Detener</button>
+                </div>
+                <button id="btn-auto-all" class="btn primary-btn" style="width: 100%; margin-top: 1rem; background: linear-gradient(135deg, #10b981, #059669); font-size: 1.1rem; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4); opacity: 0.5; cursor: not-allowed;" disabled>🚀 Iniciar Súper Automatización (Cola de Pendientes)</button>
             </section>
-            
+            <div class="grid-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 style="margin: 0; font-size: 1.25rem; font-weight: 500; color: #fff;">Posts Detectados</h2>
+                <button id="btn-toggle-all" class="btn" style="border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: #fff; font-size: 0.9rem; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;">☑️ Marcar / Desmarcar Todos</button>
+            </div>
             <div id="posts-grid" class="posts-grid">
                 <div class="empty-state">
                     Selecciona una carpeta para comenzar a organizar tus posts.

@@ -398,3 +398,11 @@ h1 {
 ::-webkit-calendar-picker-indicator:hover {
     opacity: 1;
 }
+
+.post-card.active-upload {
+    border: 2px solid #a855f7 !important; 
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4) !important;
+    transform: scale(1.02);
+    transition: all 0.3s ease;
+    z-index: 10;
+}
