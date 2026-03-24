@@ -156,6 +156,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.electronAPI.onAutoQueueReady(async () => {
         if (!isAutoRunning || autoQueue.length === 0) return;
         const post = autoQueue[0];
+        const rarPath = post.path + '.rar';
+        await window.electronAPI.triggerAutoUpload(rarPath);
         await window.electronAPI.fillPatreon({ 
             title: post.title, 
             tags: post.tags,
@@ -357,6 +359,9 @@ async function loadFolderData(folderPath) {
             
             const scheduleDate = document.getElementById('global-date').value;
             const scheduleTime = document.getElementById('global-time').value;
+
+            const rarPath = post.path + '.rar';
+            await window.electronAPI.triggerAutoUpload(rarPath);
 
             const res = await window.electronAPI.fillPatreon({ 
                 title: post.title, 

@@ -181,6 +181,45 @@ ipcMain.handle('open-patreon', () => {
   });
 });
 
+ipcMain.handle('copy-clipboard', (event, text) => {
+  require('electron').clipboard.writeText(text);
+  return true;
+});
+
+ipcMain.handle('trigger-auto-upload', (event, filePath) => {
+  const { exec } = require('child_process');
+  const fs = require('fs');
+  const path = require('path');
+  
+  require('electron').clipboard.writeText(filePath);
+  
+  const vbsCode = `
+Set shell = CreateObject("WScript.Shell")
+WScript.Sleep 1000
+success = False
+For i = 1 To 40
+    If shell.AppActivate("www.patreon.com desea abrir") Or shell.AppActivate("desea abrir") Or shell.AppActivate("Abrir") Or shell.AppActivate("Open") Then
+        success = True
+        Exit For
+    End If
+    WScript.Sleep 500
+Next
+If success Then WScript.Sleep 600
+
+shell.SendKeys "^v"
+WScript.Sleep 600
+shell.SendKeys "{ENTER}"
+  `.trim();
+  
+  const tmpPath = path.join(require('os').tmpdir(), 'post_away_upload.vbs');
+  fs.writeFileSync(tmpPath, vbsCode);
+  
+  exec(`cscript //nologo "${tmpPath}"`, (err) => {
+      if (err) console.error("VBS Auto-Upload Error:", err);
+  });
+  return true;
+});
+
 ipcMain.handle('compress-folder', async (event, folderPath) => {
   return new Promise((resolve) => {
     const parentDir = path.dirname(folderPath);

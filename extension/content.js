@@ -87,25 +87,20 @@ function connect() {
         // 3. Collection Search & Auto-Select
         if (data.anime) {
             const searchAndSelectCollection = async (originalName) => {
-                let dropdownTrigger = null;
-                const labels = Array.from(document.querySelectorAll('label, div, span, h3, p, h4')).filter(el => {
-                    if (el.children.length > 1) return false;
-                    const text = el.textContent.trim().toLowerCase();
-                    return text === "collection" || text === "colección" || text === "collections" || text === "colecciones" || 
-                           text === "add to collection" || text === "añadir a colección" || text === "añadir a la colección" || text === "añadir a una colección";
-                });
-
-                if (labels.length > 0) {
-                    const labelNode = labels[labels.length - 1]; 
-                    const allButtons = Array.from(document.querySelectorAll('button, [role="combobox"], div[role="button"]')).filter(b => b.offsetParent !== null);
-                    
-                    for (const btn of allButtons) {
-                        // Use strict topographical proximity: Find the very first visible button that comes strictly sequentially AFTER the Collections label
-                        // This fundamentally excludes Tiers (which is physically above) and matches any Patreon redesign natively.
-                        if (labelNode.compareDocumentPosition(btn) & Node.DOCUMENT_POSITION_FOLLOWING) {
-                            dropdownTrigger = btn;
-                            break;
-                        }
+                let dropdownTrigger = document.querySelector('button[aria-label*="collection" i], button[aria-label*="colecci" i], [role="combobox"][aria-label*="collection" i]');
+                
+                if (!dropdownTrigger) {
+                    const labels = Array.from(document.querySelectorAll('label, div, span, h3, p, h4')).filter(el => {
+                        if (el.children.length > 1) return false;
+                        const text = el.textContent.trim().toLowerCase();
+                        return text === "collection" || text === "colección" || text === "collections" || text === "colecciones" || 
+                               text === "add to collection" || text === "añadir a colección" || text === "añadir a la colección" || text === "añadir a una colección";
+                    });
+                    for (const labelNode of labels) {
+                        dropdownTrigger = labelNode.parentElement.querySelector('button, [role="combobox"], [role="button"]') || 
+                                          labelNode.parentElement.parentElement.querySelector('button, [role="combobox"], [role="button"]') ||
+                                          labelNode.parentElement.parentElement.parentElement.querySelector('button, [role="combobox"], [role="button"]');
+                        if (dropdownTrigger) break;
                     }
                 }
 
@@ -117,43 +112,62 @@ function connect() {
                     return; 
                 }
 
-                let currentSearch = originalName;
+                let collectionInput = null;
+                const popovers = Array.from(document.querySelectorAll('[role="dialog"], [role="listbox"], [role="menu"]')).filter(el => el.offsetParent !== null);
+                if (popovers.length > 0) {
+                    collectionInput = popovers[popovers.length - 1].querySelector('input[type="text"], input[type="search"]');
+                }
+
+                if (collectionInput) {
+                    setNativeValue(collectionInput, originalName);
+                    await new Promise(r => setTimeout(r, 300)); 
+                } else {
+                    let listContainer = document.querySelector('[role="listbox"], ul[role="menu"]');
+                    if (!listContainer && popovers.length > 0) listContainer = popovers[popovers.length - 1];
+                    
+                    if (listContainer) {
+                        let lastScroll = -1;
+                        while(listContainer.scrollTop !== lastScroll) {
+                            lastScroll = listContainer.scrollTop;
+                            listContainer.scrollTop += 300;
+                            await new Promise(r => setTimeout(r, 30));
+                        }
+                        listContainer.scrollTop = 0; 
+                    }
+                }
+
+                const allCandidates = Array.from(document.querySelectorAll('label, li, [role="option"], [role="menuitem"]')).filter(el => {
+                    if (!el.offsetParent) return false; 
+                    
+                    const isLabelWithCheckbox = el.tagName.toLowerCase() === 'label' && el.querySelector('input[type="checkbox"], svg');
+                    const isOption = el.getAttribute('role') === 'option' || el.getAttribute('role') === 'menuitem' || el.tagName.toLowerCase() === 'li';
+                    
+                    if (!isLabelWithCheckbox && !isOption) return false;
+
+                    const text = el.textContent.trim().toLowerCase();
+                    if (text.startsWith("create ") || text.startsWith("crear ") || text.includes('+ create') || text.includes('añadir "') || text.includes('add "')) return false;
+
+                    return true;
+                });
+
+                let currentSearch = originalName.toLowerCase();
+                let foundMatch = null;
 
                 while (currentSearch.length > 2) { 
-                    const allCandidates = Array.from(document.querySelectorAll('label, li, [role="option"], [role="menuitem"]'));
-                    
-                    const options = allCandidates.filter(el => {
-                        if (!el.offsetParent) return false; 
-                        
-                        const isLabelWithCheckbox = el.tagName.toLowerCase() === 'label' && el.querySelector('input[type="checkbox"], svg');
-                        const isOption = el.getAttribute('role') === 'option' || el.getAttribute('role') === 'menuitem' || el.tagName.toLowerCase() === 'li';
-                        
-                        if (!isLabelWithCheckbox && !isOption) return false;
-
-                        const text = el.textContent.trim().toLowerCase();
-                        const searchLower = currentSearch.toLowerCase();
-                        return text.includes(searchLower) && 
-                               !text.startsWith("create ") && !text.startsWith("crear ") &&
-                               !text.includes('añadir "') && !text.includes('add "') &&
-                               !text.includes('+ create');
-                    });
-
-                    if (options.length > 0) {
-                        const opt = options[0];
-                        const cb = opt.querySelector('input[type="checkbox"]');
-                        const isChecked = cb ? cb.checked : (opt.getAttribute('aria-selected') === 'true' || opt.getAttribute('aria-checked') === 'true');
-                        
-                        if (!isChecked) opt.click();
-                        
-                        setTimeout(() => document.body.click(), 150);
-                        return; 
-                    }
-                    
+                    foundMatch = allCandidates.find(el => el.textContent.trim().toLowerCase().includes(currentSearch));
+                    if (foundMatch) break;
                     currentSearch = currentSearch.slice(0, -1);
                 }
                 
-                document.body.click();
-                console.warn(`Post-Away: No se encontró la colección "${originalName}".`);
+                if (foundMatch) {
+                    const cb = foundMatch.querySelector('input[type="checkbox"]');
+                    const isChecked = cb ? cb.checked : (foundMatch.getAttribute('aria-selected') === 'true' || foundMatch.getAttribute('aria-checked') === 'true');
+                    if (!isChecked) foundMatch.click();
+                    setTimeout(() => document.body.click(), 100);
+                } else {
+                    document.body.click();
+                    console.warn(`Post-Away: No se encontró la colección "${originalName}".`);
+                }
             };
             await searchAndSelectCollection(data.anime);
         }
@@ -211,6 +225,41 @@ function connect() {
                 }
             }, 600); 
         }
+
+        // 5. Autoclick Attachments Menu to load OS Upload Dialog!
+        const attemptAttachmentClick = () => {
+            const simulateClick = (element) => {
+                ['pointerdown', 'mousedown', 'mouseup', 'pointerup', 'click'].forEach(eventType => {
+                    element.dispatchEvent(new MouseEvent(eventType, { bubbles: true, cancelable: true, view: window, buttons: 1 }));
+                });
+            };
+            
+            let candidates = Array.from(document.querySelectorAll('button, div[role="button"], [role="menuitem"], span, a, p'));
+            for (const c of candidates) {
+                const t = c.textContent.trim().toLowerCase();
+                if (t === 'attachment' || t === 'attachments' || t === 'adjunto' || t === 'adjuntos' || t.includes('upload attachment')) {
+                    const btn = c.closest('button') || c.closest('[role="button"]') || c.closest('a') || c.closest('div') || c;
+                    simulateClick(btn);
+                    return true;
+                }
+            }
+            
+            const fileInputs = Array.from(document.querySelectorAll('input[type="file"]'));
+            const genericInput = fileInputs.find(i => (!i.accept || !i.accept.includes('image')));
+            if (genericInput) {
+                genericInput.click();
+                return true;
+            }
+            return false;
+        };
+
+        let attachAttempts = 0;
+        const attachInterval = setInterval(() => {
+            attachAttempts++;
+            if (attemptAttachmentClick() || attachAttempts > 20) {
+                clearInterval(attachInterval);
+            }
+        }, 500); // 1.2s limit after everything is natively populated
 
       } catch(err) {
         console.error("Error auto-rellenando:", err);
