@@ -8,6 +8,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentSession = await window.electronAPI.getSession() || { lastFolder: null, donePosts: {} };
     if (!currentSession.donePosts) currentSession.donePosts = {};
     
+    // Setup generic configs
+    const globalDate = document.getElementById('global-date');
+    const globalTime = document.getElementById('global-time');
+    
+    if (currentSession.globalDate) globalDate.value = currentSession.globalDate;
+    if (currentSession.globalTime) globalTime.value = currentSession.globalTime;
+
+    const saveSettings = async () => {
+        currentSession.globalDate = globalDate.value;
+        currentSession.globalTime = globalTime.value;
+        await saveSession();
+    };
+    
+    globalDate.addEventListener('change', saveSettings);
+    globalTime.addEventListener('change', saveSettings);
+
     if (currentSession.lastFolder) {
         await loadFolderData(currentSession.lastFolder);
     }
@@ -33,6 +49,7 @@ async function loadFolderData(folderPath) {
     const postsGrid = document.getElementById('posts-grid');
     
     pathIndicator.classList.remove('hidden');
+    document.getElementById('global-settings').classList.remove('hidden');
     currentPathSpan.textContent = folderPath;
     
     postsGrid.innerHTML = '<div class="empty-state">Escaneando carpeta...</div>';
@@ -142,7 +159,16 @@ async function loadFolderData(folderPath) {
         btnAutofill.addEventListener('click', async () => {
             const originalText = btnAutofill.textContent;
             btnAutofill.textContent = "Enviando...";
-            const res = await window.electronAPI.fillPatreon({ title: post.title, tags: post.tags });
+            
+            const scheduleDate = document.getElementById('global-date').value;
+            const scheduleTime = document.getElementById('global-time').value;
+
+            const res = await window.electronAPI.fillPatreon({ 
+                title: post.title, 
+                tags: post.tags,
+                scheduleDate,
+                scheduleTime
+            });
             
             if (res.receivers > 0) {
                 btnAutofill.textContent = "¡Enviado a Brave!";
