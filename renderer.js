@@ -63,6 +63,12 @@ async function loadFolderData(folderPath) {
 
     postsGrid.innerHTML = '';
     const cardsElements = [];
+
+    // Calculate stats
+    let totalImages = 0;
+    posts.forEach(p => totalImages += p.imagesCount);
+    document.getElementById('stat-posts').textContent = posts.length;
+    document.getElementById('stat-images').textContent = totalImages;
     
     // Set a new unique run token
     const thisRun = Symbol();
@@ -166,6 +172,7 @@ async function loadFolderData(folderPath) {
             const res = await window.electronAPI.fillPatreon({ 
                 title: post.title, 
                 tags: post.tags,
+                anime: post.anime,
                 scheduleDate,
                 scheduleTime
             });

@@ -143,7 +143,7 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
           }
         } catch(e) {}
 
-        const title = `${anime} - ${imagesCount} Pics - [${anime}]`;
+        const title = `${character} - ${imagesCount} Pics - [${anime}]`;
         const tags = `${character}, ${anime}`;
 
         posts.push({

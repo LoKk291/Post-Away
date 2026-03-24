@@ -39,7 +39,7 @@ function connect() {
           }
       }
 
-      // 2. Auto-fill Tags (Split comma, clean spaces, simulate Enter precisely)
+      // 2. Auto-fill Tags
       const tagSelectors = [
           'input[placeholder*="tart typing" i]',
           'input[placeholder*="mpezar a escribir" i]',
@@ -56,9 +56,9 @@ function connect() {
                   const tagsArray = data.tags.split(',').map(t => t.trim()).filter(Boolean);
                   for (const tag of tagsArray) {
                       setNativeValue(el, tag); 
-                      await new Promise(r => setTimeout(r, 100)); // Wait for React to digest text
+                      await new Promise(r => setTimeout(r, 100));
                       el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-                      await new Promise(r => setTimeout(r, 200)); // Wait before next tag
+                      await new Promise(r => setTimeout(r, 200)); 
                   }
               };
               fillTags();
@@ -66,9 +66,86 @@ function connect() {
           }
       }
 
-      // 3. Schedule Date Toggle and Filling
+      // 3. Collection Search & Auto-Select
+      if (data.anime) {
+          const searchAndSelectCollection = async (originalName) => {
+              // Buscar botón o label de Add to collection
+              let labelNode = Array.from(document.querySelectorAll('label, div, span, h3, p')).find(el => {
+                  const text = el.textContent.trim().toLowerCase();
+                  return text === "add to collection" || text === "añadir a la colección" || text === "añadir a colección";
+              });
+
+              let dropdownTrigger = null;
+              if (labelNode) {
+                  dropdownTrigger = labelNode.parentElement.querySelector('button, [role="combobox"], [role="button"]') || 
+                                    labelNode.parentElement.parentElement.querySelector('button, [role="combobox"], [role="button"]');
+              }
+              
+              if (!dropdownTrigger) {
+                  const selects = Array.from(document.querySelectorAll('button, div[role="button"]')).filter(el => el.textContent?.trim() === "Select");
+                  if (selects.length > 0) dropdownTrigger = selects[selects.length - 1]; 
+              }
+
+              if (dropdownTrigger) {
+                  dropdownTrigger.click();
+                  await new Promise(r => setTimeout(r, 500)); 
+              }
+
+              let colInput = document.querySelector('div[role="listbox"] input, ul[role="listbox"] input, input[aria-controls], .react-select__input input, input[type="text"]:focus');
+              let currentSearch = originalName;
+
+              while (currentSearch.length > 2) { 
+                  if (colInput) {
+                      colInput.focus();
+                      setNativeValue(colInput, currentSearch);
+                      await new Promise(r => setTimeout(r, 400)); 
+                  }
+                  
+                  // Analizar las opciones súper genérico pero seguro
+                  const allCandidates = Array.from(document.querySelectorAll('label, li, [role="option"], [role="menuitem"]'));
+                  
+                  const options = allCandidates.filter(el => {
+                      if (!el.offsetParent) return false; 
+                      
+                      // Confirmar si es checkeable
+                      const isLabelWithCheckbox = el.tagName.toLowerCase() === 'label' && el.querySelector('input[type="checkbox"], svg');
+                      const isOption = el.getAttribute('role') === 'option' || el.getAttribute('role') === 'menuitem' || el.tagName.toLowerCase() === 'li';
+                      
+                      if (!isLabelWithCheckbox && !isOption) return false;
+
+                      const text = el.textContent.trim().toLowerCase();
+                      const searchLower = currentSearch.toLowerCase();
+                      return text.includes(searchLower) && 
+                             !text.startsWith("create ") && !text.startsWith("crear ") &&
+                             !text.includes('añadir "') && !text.includes('add "') &&
+                             !text.includes('+ create');
+                  });
+
+                  if (options.length > 0) {
+                      const opt = options[0];
+                      const cb = opt.querySelector('input[type="checkbox"]');
+                      const isChecked = cb ? cb.checked : (opt.getAttribute('aria-selected') === 'true' || opt.getAttribute('aria-checked') === 'true');
+                      
+                      if (!isChecked) {
+                          opt.click();
+                      }
+                      
+                      // Cerrar dropdown haciendo click en el body
+                      setTimeout(() => document.body.click(), 200);
+                      return; 
+                  }
+                  
+                  currentSearch = currentSearch.slice(0, -1);
+              }
+              
+              document.body.click();
+              console.warn(`Post-Away: No se encontró la colección "${originalName}".`);
+          };
+          searchAndSelectCollection(data.anime);
+      }
+
+      // 4. Schedule Date Toggle and Filling
       if (data.scheduleDate || data.scheduleTime) {
-          // Find switch button to enable schedule date precisely
           const labels = Array.from(document.querySelectorAll('*')).filter(el => {
               const text = el.textContent?.trim().toLowerCase() || "";
               return text === "set publish date" || text.includes("programar") || text.includes("fecha de publicaci");
@@ -86,14 +163,12 @@ function connect() {
               switchBtn.click();
           }
 
-          // Wait heavily for the DOM to render the new calendar inputs
           setTimeout(() => {
               const allVisibleInputs = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])'));
               
               let dateInput = document.querySelector('input[id*="date" i], input[name*="date" i], input[aria-label*="date" i], input[placeholder*="DD" i], input[placeholder*="MM" i], input[placeholder*="AAAA" i], input[placeholder*="YYYY" i]');
               let timeInput = document.querySelector('input[type="time" i], input[id*="time" i], input[name*="time" i], input[aria-label*="time" i], input[placeholder*="HH" i], input[placeholder*=":" i]');
 
-              // Fallback: Date/Time are usually the exact last two visible text inputs on the Patreon sidebar
               if (!dateInput && allVisibleInputs.length >= 2) {
                   dateInput = allVisibleInputs[allVisibleInputs.length - 2];
                   timeInput = allVisibleInputs[allVisibleInputs.length - 1];
@@ -103,15 +178,12 @@ function connect() {
                   const [y, m, d] = data.scheduleDate.split('-');
                   dateInput.focus();
                   
-                  // Injecting multiple formats to bypass React masks
-                  setNativeValue(dateInput, data.scheduleDate); // Try native YYYY-MM-DD
+                  setNativeValue(dateInput, data.scheduleDate); 
                   setTimeout(() => {
                       if (!dateInput.value.includes(y)) {
-                          // Try DD/MM/YYYY text mask
                           setNativeValue(dateInput, `${d}/${m}/${y}`);
                           setTimeout(() => {
                               if (!dateInput.value.includes(y)) {
-                                  // Try MM/DD/YYYY text mask
                                   setNativeValue(dateInput, `${m}/${d}/${y}`);
                               }
                           }, 50);
