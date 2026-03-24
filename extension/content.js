@@ -1,5 +1,19 @@
 console.log("Post-Away Extension cargada en Patreon.");
 
+// Start automation ping
+fetch('http://127.0.0.1:3333/ready', {method: 'POST', mode: 'no-cors'}).catch(()=>{});
+
+// Monitor URL changes to tell Electron when the post is completely scheduled
+let lastUrl = location.href;
+setInterval(() => {
+    if (location.href !== lastUrl) {
+        if (!location.href.includes('/posts/new')) {
+            fetch('http://127.0.0.1:3333/done', {method: 'POST', mode: 'no-cors'}).catch(()=>{});
+        }
+        lastUrl = location.href;
+    }
+}, 1000);
+
 let sse;
 
 function setNativeValue(element, value) {
@@ -69,7 +83,6 @@ function connect() {
       // 3. Collection Search & Auto-Select
       if (data.anime) {
           const searchAndSelectCollection = async (originalName) => {
-              // Buscar botón o label de Add to collection
               let labelNode = Array.from(document.querySelectorAll('label, div, span, h3, p')).find(el => {
                   const text = el.textContent.trim().toLowerCase();
                   return text === "add to collection" || text === "añadir a la colección" || text === "añadir a colección";
@@ -101,13 +114,11 @@ function connect() {
                       await new Promise(r => setTimeout(r, 400)); 
                   }
                   
-                  // Analizar las opciones súper genérico pero seguro
                   const allCandidates = Array.from(document.querySelectorAll('label, li, [role="option"], [role="menuitem"]'));
                   
                   const options = allCandidates.filter(el => {
                       if (!el.offsetParent) return false; 
                       
-                      // Confirmar si es checkeable
                       const isLabelWithCheckbox = el.tagName.toLowerCase() === 'label' && el.querySelector('input[type="checkbox"], svg');
                       const isOption = el.getAttribute('role') === 'option' || el.getAttribute('role') === 'menuitem' || el.tagName.toLowerCase() === 'li';
                       
@@ -130,7 +141,6 @@ function connect() {
                           opt.click();
                       }
                       
-                      // Cerrar dropdown haciendo click en el body
                       setTimeout(() => document.body.click(), 200);
                       return; 
                   }

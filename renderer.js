@@ -3,6 +3,9 @@ let currentSession = {
     donePosts: {}
 };
 let currentCompressionRun = null;
+let currentPosts = [];
+let autoQueue = [];
+let isAutoRunning = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
     currentSession = await window.electronAPI.getSession() || { lastFolder: null, donePosts: {} };
@@ -23,6 +26,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     globalDate.addEventListener('change', saveSettings);
     globalTime.addEventListener('change', saveSettings);
+
+    document.getElementById('btn-auto-all').addEventListener('click', () => {
+        if (!currentPosts || currentPosts.length === 0) return alert('No hay posts cargados.');
+        autoQueue = currentPosts.filter(p => !currentSession.donePosts[p.id]);
+        if (autoQueue.length === 0) return alert('No hay posts pendientes.');
+        
+        isAutoRunning = true;
+        window.electronAPI.openPatreon();
+    });
+
+    window.electronAPI.onAutoQueueReady(async () => {
+        if (!isAutoRunning || autoQueue.length === 0) return;
+        const post = autoQueue[0];
+        await window.electronAPI.fillPatreon({ 
+            title: post.title, 
+            tags: post.tags,
+            anime: post.anime,
+            scheduleDate: globalDate.value,
+            scheduleTime: globalTime.value
+        });
+    });
+
+    window.electronAPI.onAutoQueueDone(() => {
+        if (!isAutoRunning || autoQueue.length === 0) return;
+        const post = autoQueue.shift();
+        
+        const checkbox = document.querySelector(`.done-checkbox[data-id="${post.id}"]`);
+        if (checkbox && !checkbox.checked) checkbox.click();
+        
+        if (autoQueue.length > 0) {
+            setTimeout(() => window.electronAPI.openPatreon(), 1500);
+        } else {
+            isAutoRunning = false;
+            alert("¡Súper Automatización finalizada! Todas las publicaciones están subidas.");
+        }
+    });
 
     if (currentSession.lastFolder) {
         await loadFolderData(currentSession.lastFolder);
@@ -63,6 +102,7 @@ async function loadFolderData(folderPath) {
 
     postsGrid.innerHTML = '';
     const cardsElements = [];
+    currentPosts = posts;
 
     // Calculate stats
     let totalImages = 0;
@@ -97,7 +137,7 @@ async function loadFolderData(folderPath) {
             <div class="card-header">
                 <div class="folder-name">${post.folderName}</div>
                 <label class="checkbox-wrapper">
-                    <input type="checkbox" style="display:none;" class="done-checkbox" ${isDone ? 'checked' : ''}>
+                    <input type="checkbox" style="display:none;" class="done-checkbox" data-id="${post.id}" ${isDone ? 'checked' : ''}>
                     <div class="custom-checkbox">
                         <svg viewBox="0 0 24 24" class="checkmark-svg">
                             <polyline points="20 6 9 17 4 12"></polyline>

@@ -6,5 +6,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   compressFolder: (folderPath) => ipcRenderer.invoke('compress-folder', folderPath),
   getSession: () => ipcRenderer.invoke('get-session'),
   saveSession: (data) => ipcRenderer.invoke('save-session', data),
-  fillPatreon: (data) => ipcRenderer.invoke('fill-patreon', data)
+  fillPatreon: (data) => ipcRenderer.invoke('fill-patreon', data),
+  openPatreon: () => ipcRenderer.invoke('open-patreon'),
+  onAutoQueueReady: (callback) => ipcRenderer.on('auto-queue-ready', callback),
+  onAutoQueueDone: (callback) => ipcRenderer.on('auto-queue-done', callback)
 });

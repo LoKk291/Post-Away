@@ -13,12 +13,24 @@ let sseClients = [];
 
 function startLocalServer() {
   localServer = http.createServer((req, res) => {
-    // Basic CORS for SSE
+    // Basic CORS for SSE & Ready/Done pings
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
+      res.writeHead(200);
+      return res.end();
+    }
+
+    if (req.url === '/ready' && req.method === 'POST') {
+      if (mainWindow) mainWindow.webContents.send('auto-queue-ready');
+      res.writeHead(200);
+      return res.end();
+    }
+
+    if (req.url === '/done' && req.method === 'POST') {
+      if (mainWindow) mainWindow.webContents.send('auto-queue-done');
       res.writeHead(200);
       return res.end();
     }
@@ -41,7 +53,6 @@ function startLocalServer() {
     }
   });
 
-  // Bind exclusively to loopback 127.0.0.1 for high security (prevents any external access)
   localServer.listen(3333, '127.0.0.1', () => {
     console.log("Local SSE Server running securely on 127.0.0.1:3333");
   });
@@ -164,6 +175,10 @@ ipcMain.handle('fill-patreon', (event, data) => {
   const payload = JSON.stringify(data);
   sseClients.forEach(res => res.write(`data: ${payload}\n\n`));
   return { success: true, receivers: sseClients.length };
+});
+
+ipcMain.handle('open-patreon', () => {
+  require('electron').shell.openExternal('https://www.patreon.com/posts/new');
 });
 
 ipcMain.handle('compress-folder', async (event, folderPath) => {
