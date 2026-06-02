@@ -617,6 +617,10 @@ function renderTwitterGrid(posts) {
                     </button>
                 </div>
             </div>
+
+            <div class="card-actions" style="margin-top: 1rem;">
+                <button class="btn primary-btn btn-copy-all" style="width: 100%; background: linear-gradient(135deg, #1DA1F2, #0d8bd9);">📋 Copiar Todo (EN + ES + Tags)</button>
+            </div>
         `;
 
         const setupCopy = (selector, textareaSelector) => {
@@ -633,6 +637,26 @@ function renderTwitterGrid(posts) {
         setupCopy('.btn-copy-en', '.edit-en');
         setupCopy('.btn-copy-es', '.edit-es');
         setupCopy('.btn-copy-tags', '.edit-tags');
+
+        const btnCopyAll = card.querySelector('.btn-copy-all');
+        btnCopyAll.addEventListener('click', () => {
+            const enText = card.querySelector('.edit-en').value;
+            const esText = card.querySelector('.edit-es').value;
+            const tagsText = card.querySelector('.edit-tags').value;
+            
+            // Text in english, text in spanish, 3 line breaks, tags
+            const combinedText = `${enText}\n${esText}\n\n\n\n${tagsText}`;
+            navigator.clipboard.writeText(combinedText);
+            
+            const originalText = btnCopyAll.textContent;
+            const originalBg = btnCopyAll.style.background;
+            btnCopyAll.textContent = '¡Copiado Todo!';
+            btnCopyAll.style.background = 'var(--success-color)';
+            setTimeout(() => {
+                btnCopyAll.textContent = originalText;
+                btnCopyAll.style.background = originalBg;
+            }, 1500);
+        });
 
         // Auto-sizing textareas
         card.querySelectorAll('textarea').forEach(tx => {
