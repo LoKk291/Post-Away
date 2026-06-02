@@ -169,6 +169,26 @@ const twitterTexts = [
     { en: "I want to be your dirty little secret 🤫🔐", es: "Quiero ser tu pequeño secreto sucio 🤫🔐" },
     { en: "Don't stop until I'm begging for more 🛐🙏", es: "No pares hasta que suplique por más 🛐🙏" },
     { en: "I want to feel you pounding in every hole 💥🍑", es: "Quiero sentirte golpeando en cada agujero 💥🍑" },
+    { en: "I love the way you look at me... 🌸✨", es: "Me encanta cómo me miras... 🌸✨" },
+    { en: "Can I hold your hand a little longer? 🤝💕", es: "¿Puedo tomar tu mano un poco más? 🤝💕" },
+    { en: "Everything is better when you're near ☁️💫", es: "Todo es mejor cuando estás cerca ☁️💫" },
+    { en: "Just a gentle touch is enough to make me smile 🦋💖", es: "Solo un toque suave basta para hacerme sonreír 🦋💖" },
+    { en: "I'm dreaming of our next moment together 🌙✨", es: "Soñando con nuestro próximo momento juntos 🌙✨" },
+    { en: "There's something so sweet about you... 🍬🍯", es: "Hay algo tan dulce en ti... 🍬🍯" },
+    { en: "Thinking of you makes my heart skip a beat 💓🌬️", es: "Pensar en ti hace que mi corazón dé un vuelco 💓🌬️" },
+    { en: "I love our quiet little moments 🤫🕯️", es: "Me encantan nuestros pequeños momentos de silencio 🤫🕯️" },
+    { en: "You have a way of making me feel so special 👑✨", es: "Tienes una forma de hacerme sentir tan especial 👑✨" },
+    { en: "So soft, so warm, so perfect ☀️🧸", es: "Tan suave, tan cálido, tan perfecto ☀️🧸" },
+    { en: "Wrapped in your arms is where I belong 🫂🏡", es: "Envuelta en tus brazos es donde pertenezco 🫂🏡" },
+    { en: "Every whisper from you is a melody 🎵🌸", es: "Cada susurro tuyo es una melodía 🎵🌸" },
+    { en: "I didn't know I could feel this way... ☁️🌈", es: "No sabía que podía sentirme así... ☁️🌈" },
+    { en: "Let’s just stay like this for a while ⌛✨", es: "Quedémonos así un momento ⌛✨" },
+    { en: "Your kindness is the best turn-on 🌷💖", es: "Tu amabilidad es lo que más me atrae 🌷💖" },
+    { en: "I love how gentle you can be with me ☁️🤲", es: "Me encanta lo gentil que puedes ser conmigo ☁️🤲" },
+    { en: "A soft kiss to start the day right 🌅💋", es: "Un beso suave para empezar bien el día 🌅💋" },
+    { en: "You make my world feel so much lighter 🎈✨", es: "Haces que mi mundo se sienta mucho más ligero 🎈✨" },
+    { en: "I’m so happy you’re mine 🎀🗝️", es: "Estoy tan feliz de que seas mío 🎀🗝️" },
+    { en: "The perfect start to our story 📖✨", es: "El comienzo perfecto para nuestra historia 📖✨" }
 ];
 
 function getRandomTwitterText() {
