@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openPatreon: (profile) => ipcRenderer.invoke('open-patreon', profile),
   copyClipboard: (text) => ipcRenderer.invoke('copy-clipboard', text),
   triggerAutoUpload: (filePath) => ipcRenderer.invoke('trigger-auto-upload', filePath),
+  openFolder: (folderPath) => ipcRenderer.invoke('open-folder', folderPath),
   onAutoQueueReady: (callback) => ipcRenderer.on('auto-queue-ready', callback),
   onAutoQueueDone: (callback) => ipcRenderer.on('auto-queue-done', callback)
 });

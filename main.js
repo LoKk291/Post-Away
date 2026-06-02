@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
@@ -179,6 +179,11 @@ ipcMain.handle('select-folder', async () => {
   const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
   if (result.canceled) return null;
   return result.filePaths[0];
+});
+ipcMain.handle('open-folder', async (event, folderPath) => {
+  if (folderPath) {
+    await require('electron').shell.openPath(folderPath);
+  }
 });
 
 const https = require('https');

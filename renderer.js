@@ -252,6 +252,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    const btnOpenExplorer = document.getElementById('btn-open-explorer');
+    btnOpenExplorer.addEventListener('click', async () => {
+        if (currentSession.lastFolder) {
+            await window.electronAPI.openFolder(currentSession.lastFolder);
+        }
+    });
+
     document.getElementById('btn-clear').addEventListener('click', async () => {
         if (!confirm('¿Estás seguro de que quieres limpiar toda la grilla de posts? Esto removerá la carpeta actual y reiniciará tu panel.')) return;
         

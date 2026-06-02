@@ -31,9 +31,12 @@
         </header>
         
         <main>
-            <div id="path-indicator" class="hidden">
-                <span>Carpeta Actual: </span>
-                <span id="current-path" class="path-text"></span>
+            <div id="path-indicator" class="hidden" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; background: rgba(255,255,255,0.03); padding: 0.5rem 1rem; border-radius: 8px;">
+                <div>
+                    <span>Carpeta Actual: </span>
+                    <span id="current-path" class="path-text"></span>
+                </div>
+                <button id="btn-open-explorer" class="btn" style="border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: #fff; padding: 0.3rem 0.8rem; font-size: 0.85rem; cursor: pointer;">📂 Abrir en Explorador</button>
             </div>
 
             <!-- Tab Navigation -->
