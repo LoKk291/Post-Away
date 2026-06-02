@@ -4,7 +4,7 @@
     "version": "1.0",
     "description": "Se conecta a Post-Away para rellenar campos de Patreon automáticamente.",
     "permissions": ["activeTab"],
-    "host_permissions": ["*://*.patreon.com/*", "http://127.0.0.1:3333/*"],
+    "host_permissions": ["*://*.patreon.com/*", "http://127.0.0.1:3030/*"],
     "content_scripts": [
         {
             "matches": ["*://*.patreon.com/*"],

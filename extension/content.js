@@ -27,7 +27,7 @@ function setNativeValue(element, value) {
 }
 
 function connect() {
-  sse = new EventSource('http://127.0.0.1:3333/events');
+  sse = new EventSource('http://127.0.0.1:3030/events');
   
   sse.onopen = () => console.log("Post-Away: Conectado a la app de escritorio!");
   
@@ -145,7 +145,8 @@ function connect() {
                         });
 
                         let tempSearch = currentSearch;
-                        while (tempSearch.length > 2) { 
+                        const minSearchLen = Math.max(5, Math.floor(originalName.length * 0.3));
+                        while (tempSearch.length > minSearchLen) { 
                             foundMatch = allCandidates.find(el => el.textContent.trim().toLowerCase().includes(tempSearch));
                             if (foundMatch) break;
                             tempSearch = tempSearch.slice(0, -1);
@@ -187,6 +188,57 @@ function connect() {
             await searchAndSelectCollection(data.anime);
         }
 
+        // 3.5 Sell this post
+        try {
+            const sellLabels = Array.from(document.querySelectorAll('form label, div label, span, p, h3, h4')).filter(el => {
+                const text = el.textContent?.trim().toLowerCase() || "";
+                return text === "sell this post" || text === "vender esta publicación" || text === "vender esta publicacion";
+            });
+            
+            if (sellLabels.length > 0) {
+                const label = sellLabels[0];
+                const container = label.closest('label') || label.parentElement;
+                
+                // Intentar encontrar el checkbox de input
+                let cb = container.querySelector('input[type="checkbox"]');
+                if (!cb) cb = container.parentElement.querySelector('input[type="checkbox"]');
+                
+                // Verificar tambien roles si no hay input (Patreon a veces usa divs con role="checkbox")
+                let pseudoCb = container.querySelector('[role="checkbox"]');
+                if (!pseudoCb) pseudoCb = container.parentElement.querySelector('[role="checkbox"]');
+
+                if (cb && !cb.checked) {
+                    cb.click();
+                } else if (pseudoCb && pseudoCb.getAttribute('aria-checked') === 'false') {
+                    pseudoCb.click();
+                } else if (!cb && !pseudoCb) {
+                    label.click(); // Fallback si no hallamos checkbox físico
+                }
+
+                await new Promise(r => setTimeout(r, 600));
+
+                // Buscar el input de precio. Por lo general tiene placeholder "Set a price" o "precio"
+                const allVisibleInputsAfterSell = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])'));
+                let priceInput = allVisibleInputsAfterSell.find(i => {
+                    const ph = (i.placeholder || '').toLowerCase();
+                    return ph.includes('price') || ph.includes('precio') || ph.includes('set a');
+                });
+                
+                if (priceInput) {
+                    setNativeValue(priceInput, "5");
+                    // Trigger events just in case
+                    priceInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    priceInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    priceInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                    await new Promise(r => setTimeout(r, 300));
+                    document.body.click();
+                    await new Promise(r => setTimeout(r, 200));
+                }
+            }
+        } catch(err) {
+            console.error("Post-Away: Error setting Sell this post", err);
+        }
+
         // 4. Schedule Date Toggle and Filling
         if (data.scheduleDate || data.scheduleTime) {
             const labels = Array.from(document.querySelectorAll('*')).filter(el => {
@@ -206,103 +258,198 @@ function connect() {
                 switchBtn.click();
             }
 
-            setTimeout(() => {
-                const allVisibleInputs = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])'));
-                
-                let dateInput = document.querySelector('input[id*="date" i], input[name*="date" i], input[aria-label*="date" i], input[placeholder*="DD" i], input[placeholder*="MM" i], input[placeholder*="AAAA" i], input[placeholder*="YYYY" i]');
-                let timeInput = document.querySelector('input[type="time" i], input[id*="time" i], input[name*="time" i], input[aria-label*="time" i], input[placeholder*="HH" i], input[placeholder*=":" i]');
+            (async () => {
+                await new Promise(r => setTimeout(r, 600));
 
-                if (!dateInput && allVisibleInputs.length >= 2) {
-                    dateInput = allVisibleInputs[allVisibleInputs.length - 2];
-                    timeInput = allVisibleInputs[allVisibleInputs.length - 1];
-                }
+                const getInputs = () => {
+                    const allVisibleInputs = Array.from(document.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])')).filter(el => {
+                        const rect = el.getBoundingClientRect();
+                        return rect.width > 0 && rect.height > 0 && el.offsetParent !== null;
+                    });
 
-                if (dateInput && data.scheduleDate) {
-                    const [y, m, d] = data.scheduleDate.split('-');
-                    dateInput.focus();
-                    
-                    setNativeValue(dateInput, data.scheduleDate); 
-                    setTimeout(() => {
-                        if (!dateInput.value.includes(y)) {
-                            setNativeValue(dateInput, `${d}/${m}/${y}`);
-                            setTimeout(() => {
-                                if (!dateInput.value.includes(y)) {
-                                    setNativeValue(dateInput, `${m}/${d}/${y}`);
-                                }
-                            }, 50);
+                    let dInput = null;
+                    let tInput = null;
+
+                    const dateInputs = allVisibleInputs.filter(inp => {
+                        const id = (inp.id || "").toLowerCase();
+                        const name = (inp.name || "").toLowerCase();
+                        const aria = (inp.getAttribute('aria-label') || "").toLowerCase();
+                        const ph = (inp.getAttribute('placeholder') || "").toLowerCase();
+                        return id.includes('date') || name.includes('date') || aria.includes('date') || ph.includes('dd') || ph.includes('aaaa') || ph.includes('yyyy') || ph.includes('mm') || inp.type === 'date';
+                    });
+
+                    const timeInputs = allVisibleInputs.filter(inp => {
+                        const id = (inp.id || "").toLowerCase();
+                        const name = (inp.name || "").toLowerCase();
+                        const aria = (inp.getAttribute('aria-label') || "").toLowerCase();
+                        const ph = (inp.getAttribute('placeholder') || "").toLowerCase();
+                        return inp.type === 'time' || id.includes('time') || name.includes('time') || aria.includes('time') || ph.includes('hh') || ph.includes(':');
+                    });
+
+                    if (dateInputs.length > 0) dInput = dateInputs[dateInputs.length - 1];
+                    if (timeInputs.length > 0) tInput = timeInputs[timeInputs.length - 1];
+
+                    if (!dInput || !tInput) {
+                        const unknownInputs = allVisibleInputs.filter(inp => {
+                            const ph = (inp.getAttribute('placeholder') || "").toLowerCase();
+                            const val = (inp.value || "").toLowerCase();
+                            const id = (inp.id || "").toLowerCase();
+                            return !ph.includes('price') && !ph.includes('precio') && !ph.includes('title') && !ph.includes('título') && !ph.includes('tag') && !ph.includes('etiqueta');
+                        });
+                        
+                        if (unknownInputs.length >= 2) {
+                            if (!dInput) dInput = unknownInputs[unknownInputs.length - 2];
+                            if (!tInput) tInput = unknownInputs[unknownInputs.length - 1];
                         }
-                    }, 50);
+                    }
+
+                    if (dInput && !tInput) {
+                        const idx = allVisibleInputs.indexOf(dInput);
+                        if (idx !== -1 && idx + 1 < allVisibleInputs.length) {
+                            tInput = allVisibleInputs[idx + 1];
+                        }
+                    }
+
+                    return { dInput, tInput };
+                };
+
+                let { dInput, tInput } = getInputs();
+
+                if (dInput && data.scheduleDate) {
+                    const [y, m, d] = data.scheduleDate.split('-');
+                    dInput.focus();
+                    
+                    setNativeValue(dInput, data.scheduleDate); 
+                    await new Promise(r => setTimeout(r, 150));
+                    
+                    if (!dInput.value.includes(y)) {
+                        setNativeValue(dInput, `${d}/${m}/${y}`);
+                        await new Promise(r => setTimeout(r, 150));
+                        if (!dInput.value.includes(y)) {
+                            setNativeValue(dInput, `${m}/${d}/${y}`);
+                            await new Promise(r => setTimeout(r, 150));
+                        }
+                    }
+                    dInput.blur();
+                    await new Promise(r => setTimeout(r, 400));
                 }
                 
-                if (timeInput && data.scheduleTime) {
-                    timeInput.focus();
-                    setNativeValue(timeInput, data.scheduleTime);
+                const inputsAfterDate = getInputs();
+                tInput = inputsAfterDate.tInput || tInput;
+
+                if (tInput && data.scheduleTime) {
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        tInput.focus();
+                        tInput.click();
+                        await new Promise(r => setTimeout(r, 50));
+                        
+                        setNativeValue(tInput, data.scheduleTime);
+                        tInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        tInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        
+                        const digits = data.scheduleTime.replace(':', '');
+                        for (const digit of digits) {
+                            tInput.dispatchEvent(new KeyboardEvent('keydown', { key: digit, bubbles: true }));
+                            await new Promise(r => setTimeout(r, 15));
+                        }
+                        
+                        await new Promise(r => setTimeout(r, 150));
+
+                        if (tInput.type !== "time") {
+                            const [h, m] = data.scheduleTime.split(':');
+                            let ampm = 'AM';
+                            let hInt = parseInt(h, 10);
+                            if (hInt >= 12) {
+                                ampm = 'PM';
+                                if (hInt > 12) hInt -= 12;
+                            }
+                            if (hInt === 0) hInt = 12;
+                            const hStr = hInt.toString().padStart(2, '0');
+                            const time12h = `${hStr}:${m} ${ampm}`;
+
+                            if ((!tInput.value.includes(h) && !tInput.value.includes(hStr)) || tInput.value === '') {
+                                setNativeValue(tInput, time12h);
+                                tInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                tInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                        }
+                        
+                        await new Promise(r => setTimeout(r, 50));
+                        tInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                        tInput.blur();
+                        
+                        await new Promise(r => setTimeout(r, 300));
+                        
+                        const [h] = data.scheduleTime.split(':');
+                        if (tInput.value.includes(h) || tInput.value === data.scheduleTime) {
+                            break;
+                        }
+                    }
                 }
-            }, 600); 
+            })();
         }
 
         // 5. Autoclick Attachments Menu to load OS Upload Dialog!
-        const runFileUploadOverlay = (elementToClick) => {
+        let attachmentTriggered = false;
+        
+        const triggerAttachmentUpload = (elementToClick) => {
+            if (attachmentTriggered) return;
+            attachmentTriggered = true;
+
+            // Create a transparent overlay to catch the OS-level mouse click
             const overlay = document.createElement('div');
-            overlay.style.position = 'fixed';
-            overlay.style.top = '0';
-            overlay.style.left = '0';
-            overlay.style.width = '100vw';
-            overlay.style.height = '100vh';
-            overlay.style.backgroundColor = 'transparent';
-            overlay.style.zIndex = '999999';
-            overlay.style.cursor = 'pointer';
-            
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:999999;cursor:pointer;background:transparent;';
             document.body.appendChild(overlay);
 
-            const performUpload = (e) => {
+            // When PS clicks the overlay, it counts as a real user gesture → Chrome allows the file dialog
+            overlay.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                document.body.removeChild(overlay);
+                if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
                 
+                // Trigger the actual element click inside this real user gesture context
                 if (elementToClick.tagName.toLowerCase() === 'input' && elementToClick.type === 'file') {
                     elementToClick.click();
                 } else {
-                    elementToClick.click();
                     ['pointerdown', 'mousedown', 'mouseup', 'pointerup', 'click'].forEach(eventType => {
                         elementToClick.dispatchEvent(new MouseEvent(eventType, { bubbles: true, cancelable: true, view: window, buttons: 1 }));
                     });
                 }
-            };
-            overlay.addEventListener('click', performUpload);
+            });
 
+            // Safety: remove overlay after 10 seconds if PS click never arrives
+            setTimeout(() => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 10000);
+
+            // Calculate screen center and tell the desktop app to click there
             const x = Math.floor(window.screenX + (window.outerWidth / 2));
             const y = Math.floor(window.screenY + (window.outerHeight / 2));
-            fetch(`http://127.0.0.1:3333/trigger-macro?x=${x}&y=${y}`, { method: 'POST' }).catch(() => {});
+            fetch(`http://127.0.0.1:3030/trigger-macro?x=${x}&y=${y}`, { method: 'POST' }).catch(() => {});
         };
 
-        const attemptAttachmentClick = () => {
-            let candidates = Array.from(document.querySelectorAll('button, div[role="button"], [role="menuitem"], span, a, p'));
+        const findAttachmentTarget = () => {
+            // First: look for the "Attachment" button
+            const candidates = Array.from(document.querySelectorAll('button, div[role="button"], [role="menuitem"], span, a, p'));
             for (const c of candidates) {
                 const t = c.textContent.trim().toLowerCase();
                 if (t === 'attachment' || t === 'attachments' || t === 'adjunto' || t === 'adjuntos' || t.includes('upload attachment')) {
-                    const btn = c.closest('button') || c.closest('[role="button"]') || c.closest('a') || c.closest('div') || c;
-                    runFileUploadOverlay(btn);
-                    return true;
+                    return c.closest('button') || c.closest('[role="button"]') || c.closest('a') || c.closest('div') || c;
                 }
             }
-            
+            // Fallback: look for a generic file input
             const fileInputs = Array.from(document.querySelectorAll('input[type="file"]'));
             const genericInput = fileInputs.find(i => (!i.accept || !i.accept.includes('image')));
-            if (genericInput) {
-                runFileUploadOverlay(genericInput);
-                return true;
-            }
-            return false;
+            return genericInput || null;
         };
 
         let attachAttempts = 0;
         const attachInterval = setInterval(() => {
             attachAttempts++;
-            if (attemptAttachmentClick() || attachAttempts > 20) {
+            const target = findAttachmentTarget();
+            if (target || attachAttempts > 20) {
                 clearInterval(attachInterval);
+                if (target) triggerAttachmentUpload(target);
             }
-        }, 500); // 1.2s limit after everything is natively populated
+        }, 500);
 
       } catch(err) {
         console.error("Error auto-rellenando:", err);

@@ -36,34 +36,42 @@ function startLocalServer() {
       const psCode = `
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -TypeDefinition '
+using System;
 using System.Runtime.InteropServices;
-public class Mouse {
+public class Win32 {
     [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, int dwExtraInfo);
 }
 '
-$filePath = [System.Windows.Forms.Clipboard]::GetText()
-$dirPath = [System.IO.Path]::GetDirectoryName($filePath)
-$fileName = [System.IO.Path]::GetFileName($filePath)
 
+# Save the .rar path before anything else
+$rarPath = [System.Windows.Forms.Clipboard]::GetText()
+
+# Step 1: Click the transparent overlay to open the file dialog
 [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(${x}, ${y})
 Start-Sleep -Milliseconds 200
-[Mouse]::mouse_event(0x02, 0, 0, 0, 0)
-[Mouse]::mouse_event(0x04, 0, 0, 0, 0)
-Start-Sleep -Milliseconds 1500
+[Win32]::mouse_event(0x02, 0, 0, 0, 0)
+[Win32]::mouse_event(0x04, 0, 0, 0, 0)
 
-[System.Windows.Forms.Clipboard]::SetText($dirPath)
+# Step 2: Wait for the file dialog to fully appear
+Start-Sleep -Milliseconds 3500
+
+# Step 3: Focus the "File name" / "Nombre de archivo" field (Alt+N)
+[System.Windows.Forms.SendKeys]::SendWait("%n")
+Start-Sleep -Milliseconds 400
+
+# Step 4: Clear whatever is in the field
+[System.Windows.Forms.SendKeys]::SendWait("^a")
+Start-Sleep -Milliseconds 100
+[System.Windows.Forms.SendKeys]::SendWait("{DEL}")
+Start-Sleep -Milliseconds 200
+
+# Step 5: Paste the full .rar absolute path
+[System.Windows.Forms.Clipboard]::SetText($rarPath)
 [System.Windows.Forms.SendKeys]::SendWait("^v")
 Start-Sleep -Milliseconds 600
-[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
-Start-Sleep -Milliseconds 600
 
-[System.Windows.Forms.Clipboard]::SetText($fileName)
-[System.Windows.Forms.SendKeys]::SendWait("^v")
-Start-Sleep -Milliseconds 600
+# Step 6: Press Enter to select the file and upload
 [System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
-
-Start-Sleep -Milliseconds 500
-[System.Windows.Forms.Clipboard]::SetText($filePath)
       `.trim();
       const tmpPath = path.join(require('os').tmpdir(), 'post_away_upload.ps1');
       fs.writeFileSync(tmpPath, psCode);
@@ -83,16 +91,18 @@ Start-Sleep -Milliseconds 500
       sseClients.push(res);
 
       // TCP Lifecycle hook circumvents all browser adblockers and network shields natively linking the tab state
-      if (mainWindow) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
         setTimeout(() => {
-            mainWindow.webContents.send('auto-queue-ready');
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('auto-queue-ready');
+            }
         }, 100); 
       }
 
       req.on('close', () => {
         sseClients = sseClients.filter(c => c !== res);
         // Emits auto-queue-done implicitly when the patreon tab undergoes URL navigation post-publish
-        if (mainWindow) {
+        if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('auto-queue-done');
         }
       });
@@ -102,8 +112,8 @@ Start-Sleep -Milliseconds 500
     }
   });
 
-  localServer.listen(3333, '127.0.0.1', () => {
-    console.log("Local SSE Server running securely on 127.0.0.1:3333");
+  localServer.listen(3030, '127.0.0.1', () => {
+    console.log("Local SSE Server running securely on 127.0.0.1:3030");
   });
 }
 
@@ -171,6 +181,28 @@ ipcMain.handle('select-folder', async () => {
   return result.filePaths[0];
 });
 
+const https = require('https');
+
+async function translateToJapanese(text) {
+  return new Promise((resolve) => {
+    if (!text || text === "Desconocido") return resolve("");
+    // Use Google's public translation endpoint
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ja&dt=t&q=${encodeURIComponent(text)}`;
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          resolve(json[0][0][0]);
+        } catch (e) {
+          resolve("");
+        }
+      });
+    }).on('error', () => resolve(""));
+  });
+}
+
 ipcMain.handle('read-folder', async (event, folderPath) => {
   try {
     const items = fs.readdirSync(folderPath, { withFileTypes: true });
@@ -181,15 +213,44 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
         const subPath = path.join(folderPath, item.name);
         const folderName = item.name;
         
-        let character = "", anime = "";
-        const match = folderName.match(/(.*?)\s*-\s*\[(.*?)\]/);
+        let character = "", characterJP = "", anime = "", animeJP = "";
+        
+        // Pattern: Character (Char JP) - XXX Pics - [Anime (Anime JP)]
+        const match = folderName.match(/(.*?)\s*-\s*(?:\d+\s*Pics\s*-\s*)?\[(.*?)\]/);
+        
         if (match) {
-          character = match[1].trim();
-          anime = match[2].trim();
+          const charPart = match[1].trim();
+          const animePart = match[2].trim();
+          
+          // Character names
+          const charJpMatch = charPart.match(/(.*?)\s*\(+(.*?)\)+/);
+          if (charJpMatch) {
+            character = charJpMatch[1].trim();
+            characterJP = charJpMatch[2].trim();
+          } else {
+            character = charPart;
+          }
+
+          // Anime names
+          const animeJpMatch = animePart.match(/(.*?)\s*\(+(.*?)\)+/);
+          if (animeJpMatch) {
+            anime = animeJpMatch[1].trim();
+            animeJP = animeJpMatch[2].trim();
+          } else {
+            anime = animePart;
+          }
         } else {
           character = folderName;
           anime = "Desconocido";
         }
+
+        // Gather all translation promises to run in parallel
+        let charPromise = (!characterJP && character) ? translateToJapanese(character) : Promise.resolve(characterJP);
+        let animePromise = (!animeJP && anime && anime !== "Desconocido") ? translateToJapanese(anime) : Promise.resolve(animeJP);
+
+        let [translatedChar, translatedAnime] = await Promise.all([charPromise, animePromise]);
+        characterJP = translatedChar;
+        animeJP = translatedAnime;
 
         let imagesCount = 0;
         let thumbnail = null;
@@ -208,7 +269,16 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
 
         posts.push({
           id: Buffer.from(subPath).toString('base64'),
-          folderName, path: subPath, character, anime, imagesCount, title, tags, thumbnail
+          folderName, 
+          path: subPath, 
+          character, 
+          characterJP, 
+          anime, 
+          animeJP, 
+          imagesCount, 
+          title, 
+          tags, 
+          thumbnail
         });
       }
     }
@@ -226,10 +296,21 @@ ipcMain.handle('fill-patreon', (event, data) => {
   return { success: true, receivers: sseClients.length };
 });
 
-ipcMain.handle('open-patreon', () => {
-  require('electron').shell.openExternal('https://www.patreon.com/posts/new').catch(e => {
-    require('child_process').exec('start https://www.patreon.com/posts/new');
-  });
+ipcMain.handle('open-patreon', (event, profile) => {
+  const url = 'https://www.patreon.com/posts/new';
+  const { spawn } = require('child_process');
+  console.log('[Post-Away] open-patreon called with profile:', profile);
+  
+  let browserPath;
+  if (profile === 'nova') {
+    browserPath = path.join(require('os').homedir(), 'AppData', 'Local', 'Programs', 'Opera GX', 'opera.exe');
+  } else {
+    browserPath = 'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe';
+  }
+  
+  console.log('[Post-Away] Launching:', browserPath);
+  const child = spawn(browserPath, [url], { detached: true, stdio: 'ignore' });
+  child.unref();
 });
 
 ipcMain.handle('copy-clipboard', (event, text) => {

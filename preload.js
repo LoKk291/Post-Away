@@ -7,7 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSession: () => ipcRenderer.invoke('get-session'),
   saveSession: (data) => ipcRenderer.invoke('save-session', data),
   fillPatreon: (data) => ipcRenderer.invoke('fill-patreon', data),
-  openPatreon: () => ipcRenderer.invoke('open-patreon'),
+  openPatreon: (profile) => ipcRenderer.invoke('open-patreon', profile),
   copyClipboard: (text) => ipcRenderer.invoke('copy-clipboard', text),
   triggerAutoUpload: (filePath) => ipcRenderer.invoke('trigger-auto-upload', filePath),
   onAutoQueueReady: (callback) => ipcRenderer.on('auto-queue-ready', callback),
