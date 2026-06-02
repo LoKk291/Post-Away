@@ -57,7 +57,118 @@ const twitterTexts = [
     { en: "Are you ready to fill me? 📥🍼", es: "¿Listo para rellenarme? 📥🍼" },
     { en: "I can't wait to feel it 🕛💦", es: "No puedo esperar a sentirlo 🕛💦" },
     { en: "It's so heavy... 🏋️‍♀️💋", es: "Pesa tanto... 🏋️‍♀️💋" },
-    { en: "Thinking about the taste 👅💭", es: "Pensando en el sabor 👅💭" }
+    { en: "Thinking about the taste 👅💭", es: "Pensando en el sabor 👅💭" },
+    { en: "My favorite kind of workout 🏋️‍♀️🔥", es: "Mi tipo de entrenamiento favorito 🏋️‍♀️🔥" },
+    { en: "Tracing every inch of you 🗺️🫦", es: "Recorriendo cada centímetro tuyo 🗺️🫦" },
+    { en: "Needs a little bit of friction ⚡️🌡️", es: "Necesita un poco de fricción ⚡️🌡️" },
+    { en: "Harder than the last time 📈💥", es: "Más duro que la última vez 📈💥" },
+    { en: "I’ve been waiting for this craving 🍽️🤤", es: "He estado esperando este antojo 🍽️🤤" },
+    { en: "Exploring the boundaries tonight 📍🌙", es: "Explorando los límites esta noche 📍🌙" },
+    { en: "It’s begging to be unleashed 🔓🔥", es: "Está suplicando ser liberado 🔓🔥" },
+    { en: "A dangerous kind of fun 🧨😈", es: "Un tipo de diversión peligrosa 🧨😈" },
+    { en: "There's no turning back now ⏳🌪️", es: "Ya no hay vuelta atrás ⏳🌪️" },
+    { en: "Slow and steady, or fast and wild? 🎢✨", es: "¿Lento y constante, o rápido y salvaje? 🎢✨" },
+    { en: "Your rhythm is hypnotizing 🎼💓", es: "Tu ritmo me hipnotiza 🎼💓" },
+    { en: "Still thinking about last night's session 💾🔥", es: "Aún pensando en la sesión de anoche 💾🔥" },
+    { en: "Nothing compares to this intensity ⚡️👑", es: "Nada se compara a esta intensidad ⚡️👑" },
+    { en: "Just you, me, and this heat 🌡️🕯️", es: "Solo tú, yo y este calor 🌡️🕯️" },
+    { en: "The tension is palpable 🔗🧿", es: "La tensión se puede sentir 🔗🧿" },
+    { en: "I have a few ideas for later... 💡😏", es: "Tengo un par de ideas para más tarde... 💡😏" },
+    { en: "Craving your specific brand of trouble 📛👅", es: "Anhelando tu marca específica de problemas 📛👅" },
+    { en: "It’s all about the buildup ⏳💦", es: "Todo se trata de la preparación ⏳💦" },
+    { en: "Surrender to the moment 🏳️🖤", es: "Ríndete ante el momento 🏳️🖤" },
+    { en: "You know exactly where to hit 🎯📍", es: "Sabes exactamente dónde dar 🎯📍" },
+    { en: "Waking up with you on my mind ☀️🧠", es: "Despertando con la mente en ti ☀️🧠" },
+    { en: "Too much is never enough ♾️🔥", es: "Demasiado nunca es suficiente ♾️🔥" },
+    { en: "Can you handle the aftermath? 🌩️😈", es: "¿Puedes manejar las consecuencias? 🌩️😈" },
+    { en: "My favorite view, hands down 🔭🍑", es: "Mi vista favorita, sin duda 🔭🍑" },
+    { en: "Testing my limits today 📏⚠️", es: "Probando mis límites hoy 📏⚠️" },
+    { en: "A little chaos is good for the soul 🌪️🍓", es: "Un poco de caos es bueno para el alma 🌪️🍓" },
+    { en: "So demanding, but I love it 👑💕", es: "Tan exigente, pero me encanta 👑💕" },
+    { en: "I'm losing control... 🌀📉", es: "Estoy perdiendo el control... 🌀📉" },
+    { en: "That spot... yes, right there ☝️🫠", es: "Ese lugar... sí, justo ahí ☝️🫠" },
+    { en: "Let’s skip to the good part ⏭️🔥", es: "Saltémonos a la parte buena ⏭️🔥" },
+    { en: "Completely at your mercy tonight ⛓️🖤", es: "Completamente a tu merced esta noche ⛓️🖤" },
+    { en: "That friction is driving me insane 💥🌡️", es: "Esa fricción me está volviendo loca 💥🌡️" },
+    { en: "I can still feel your touch everywhere ✋✨", es: "Todavía puedo sentir tu tacto por todos lados ✋✨" },
+    { en: "Let’s see how much we can handle ⚖️🔥", es: "Veamos cuánto podemos aguantar ⚖️🔥" },
+    { en: "My body is craving that specific rhythm 🥁💦", es: "Mi cuerpo está pidiendo ese ritmo específico 🥁💦" },
+    { en: "So tempting to just give in now 🤤🔗", es: "Es tan tentador simplemente ceder ahora 🤤🔗" },
+    { en: "I’m counting down the minutes ⏳⌛", es: "Estoy contando los minutos ⏳⌛" },
+    { en: "You have a way of breaking my focus 🧠🌩️", es: "Tienes una forma de romper mi concentración 🧠🌩️" },
+    { en: "The anticipation is the best part 🎢😏", es: "La anticipación es la mejor parte 🎢😏" },
+    { en: "I want to be your favorite distraction 🧸🎯", es: "Quiero ser tu distracción favorita 🧸🎯" },
+    { en: "Such a beautiful mess we make 🌪️💖", es: "Qué desastre tan hermoso hacemos 🌪️💖" },
+    { en: "Are you going to make me work for it? 😈👅", es: "¿Vas a hacer que me esfuerce por ello? 😈👅" },
+    { en: "There's nowhere else I'd rather be 📍🗝️", es: "No hay otro lugar en el que prefiera estar 📍🗝️" },
+    { en: "Unlocking new levels of pleasure 🔓💎", es: "Desbloqueando nuevos niveles de placer 🔓💎" },
+    { en: "I can feel the heat radiating 🌡️🔥", es: "Puedo sentir cómo irradia el calor 🌡️🔥" },
+    { en: "Your hands, your rules... for now ✋👑", es: "Tus manos, tus reglas... por ahora ✋👑" },
+    { en: "Just thinking about it makes me shiver 🥶🤤", es: "Solo pensarlo me hace estremecer 🥶🤤" },
+    { en: "I’m officially under your spell 🪄✨", es: "Oficialmente estoy bajo tu hechizo 🪄✨" },
+    { en: "Ready to test the structural integrity? 🏗️💥", es: "¿Lista para probar la integridad estructural? 🏗️💥" },
+    { en: "Don't stop, I'm right on the edge 📈🌊", es: "No pares, estoy justo en el borde 📈🌊" },
+    { en: "It’s a dangerous game, but I love it 🎲🔥", es: "Es un juego peligroso, pero me encanta 🎲🔥" },
+    { en: "Feeling bold and incredibly needy 🦁💖", es: "Sintiéndome audaz e increíblemente necesitada 🦁💖" },
+    { en: "The perfect ending to a long day 🌙🍷", es: "El final perfecto para un largo día 🌙🍷" },
+    { en: "I like how you own the room 👔🖤", es: "Me gusta cómo te adueñas de la habitación 👔🖤" },
+    { en: "Everything else just fades away 🌫️✨", es: "Todo lo demás simplemente se desvanece 🌫️✨" },
+    { en: "I want you to ravage me 🐺🔥", es: "Quiero que me devores 🐺🔥" },
+    { en: "Fill my throat until I gag 💦🔞", es: "Llena mi garganta hasta que me ahogue 💦🔞" },
+    { en: "Pin me down and show me who's boss ⛓️👊", es: "Ponme contra la pared y enséñame quién manda ⛓️👊" },
+    { en: "I want your cum dripping down my chin 🥛🤤", es: "Quiero tu leche goteando por mi barbilla 🥛🤤" },
+    { en: "F*ck me like you've been waiting all day 🍆💥", es: "Fóllame como si hubieras estado esperando todo el día 🍆💥" },
+    { en: "I'm desperate to feel you deep inside 🥵🔥", es: "Estoy desesperada por sentirte bien profundo 🥵🔥" },
+    { en: "My hole is tight and ready for your size 🍑📏", es: "Mi agujero está apretado y listo para tu tamaño 🍑📏" },
+    { en: "Spit in my mouth and choke me 👅💦", es: "Escúpeme en la boca y ahógame 👅💦" },
+    { en: "Use my body however you want 🧸⛓️", es: "Usa mi cuerpo como quieras 🧸⛓️" },
+    { en: "I want you to ruin me tonight 🧨🔞", es: "Quiero que me arruines esta noche 🧨🔞" },
+    { en: "Slide it in slow, then hit me hard 🍑⚡", es: "Deslízalo lento, y luego golpéame fuerte 🍑⚡" },
+    { en: "I'm craving your taste on my tongue 👅🥛", es: "Anhelo tu sabor en mi lengua 👅🥛" },
+    { en: "Pull my hair and make me scream your name 💇‍♀️🔊", es: "Jálame el pelo y haz que grite tu nombre 💇‍♀️🔊" },
+    { en: "Treat me like a slut and finish inside 💦😈", es: "Trátame como una zorra y acábate adentro 💦😈" },
+    { en: "I want to be sore tomorrow because of you 🍆🔥", es: "Quiero estar adolorida mañana por tu culpa 🍆🔥" },
+    { en: "Take what's yours, don't ask for permission ✋🔞", es: "Toma lo que es tuyo, no pidas permiso ✋🔞" },
+    { en: "My pussy is throbbing for your touch 🫦💓", es: "Mi coño palpita por tu tacto 🫦💓" },
+    { en: "Break me in like a fresh piece of meat 🥩🔥", es: "Domame como a un pedazo de carne fresca 🥩🔥" },
+    { en: "I want to choke on your c*ck 🍆👄", es: "Quiero ahogarme con tu polla 🍆👄" },
+    { en: "Beg me to let you finish inside 🍼💦", es: "Suéplicame que te deje acabar adentro 🍼💦" },
+    { en: "I want you to stretch me out until I can't walk 🍑🔥", es: "Quiero que me estires hasta que no pueda caminar 🍑🔥" },
+    { en: "Beg for it, then take it by force 👿💥", es: "Suéplicame, y luego tómalo por la fuerza 👿💥" },
+    { en: "I’m nothing but a toy for your pleasure tonight 🧸💦", es: "No soy más que un juguete para tu placer esta noche 🧸💦" },
+    { en: "Deep, hard, and no mercy allowed 🍆🔞", es: "Profundo, duro y sin piedad 🍆🔞" },
+    { en: "I want your mark on my skin everywhere 💋🐾", es: "Quiero tu marca en mi piel por todas partes 💋🐾" },
+    { en: "Nothing feels better than your cock down my throat 👅💦", es: "Nada se siente mejor que tu polla en mi garganta 👅💦" },
+    { en: "Forget about being gentle, I want it rough 🌪️🔥", es: "Olvídate de ser gentil, lo quiero rudo 🌪️🔥" },
+    { en: "My walls are pulsating, waiting for you 🍑⚡", es: "Mis paredes palpitan, esperando por ti 🍑⚡" },
+    { en: "I want to be so full I can barely breathe 🍼💨", es: "Quiero estar tan llena que apenas pueda respirar 🍼💨" },
+    { en: "Face down, ass up, exactly how you like it 🍑☝️", es: "Cara abajo, culo arriba, exactamente como te gusta 🍑☝️" },
+    { en: "I'm your property for the night, do whatever you want ⛓️🗝️", es: "Soy tu propiedad por la noche, haz lo que quieras ⛓️🗝️" },
+    { en: "You don't deserve a soft landing, I want to be destroyed 🧨🔥", es: "No mereces un aterrizaje suave, quiero ser destruida 🧨🔥" },
+    { en: "I want to taste your essence on my face 💦🥛", es: "Quiero saborear tu esencia en mi cara 💦🥛" },
+    { en: "Don't hold back, I want to be sore for days 🍆🦵", es: "No te contengas, quiero estar adolorida por días 🍆🦵" },
+    { en: "Every thrust is a reminder of who owns me 👑🔞", es: "Cada estocada es un recordatorio de quién me posee 👑🔞" },
+    { en: "I'm begging you to use me like an animal 🐆🔥", es: "Te suplico que me uses como a un animal 🐆🔥" },
+    { en: "Nothing but raw, unadulterated passion 🧪🔥", es: "Nada más que pasión cruda y sin adulterar 🧪🔥" },
+    { en: "Make me choke, make me gag, make me yours 👄💦", es: "Hazme ahogar, hazme vomitar, hazme tuya 👄💦" },
+    { en: "I’ll take everything you have to give and ask for more 📈🥛", es: "Tomaré todo lo que tengas para dar y pediré más 📈🥛" },
+    { en: "Don't stop until I'm a screaming mess 🌪️💦", es: "No pares hasta que sea un desastre gritando 🌪️💦" },
+    { en: "I want to be fucked until my legs shake 🦵🍑", es: "Quiero ser follada hasta que mis piernas tiemblen 🦵🍑" },
+    { en: "Use me like a rag doll until I'm soaked 🧸💦", es: "Úsame como a una muñeca de trapo hasta que esté empapada 🧸💦" },
+    { en: "I need your cock buried deep inside me 🍆⛰️", es: "Necesito tu polla enterrada profundo dentro de mí 🍆⛰️" },
+    { en: "My holes are yours to fill completely 📥🌋", es: "Mis agujeros son tuyos para llenar completamente 📥🌋" },
+    { en: "I want to feel you pounding inside me for hours ⏳🔨", es: "Quiero sentirte golpeándome por horas ⏳🔨" },
+    { en: "Don't hold back, I can take all of you ⚖️🥛", es: "No te contengas, puedo tomarlo todo ⚖️🥛" },
+    { en: "I want to be used until there's nothing left 🥀🚫", es: "Quiero ser usada hasta que no quede nada 🥀🚫" },
+    { en: "Make me your personal slut tonight 💄💋", es: "Hazme tu zorra personal esta noche 💄💋" },
+    { en: "I want to feel you stretch me to my limit 📏📐", es: "Quiero sentirte estirarme a mi límite 📏📐" },
+    { en: "You can use every inch of my body 🗺️📍", es: "Puedes usar cada centímetro de mi cuerpo 🗺️📍" },
+    { en: "I'm craving that deep, rough treatment 💥🤎", es: "Anhelo ese trato profundo y rudo 💥🤎" },
+    { en: "I want you to breed me until I'm overflowing 🍼🌊", es: "Quiero que me preñes hasta que esté rebosante 🍼🌊" },
+    { en: "Treat me like a piece of meat to be devoured 🥩👅", es: "Trátame como a un pedazo de carne para devorar 🥩👅" },
+    { en: "I want to be your dirty little secret 🤫🔐", es: "Quiero ser tu pequeño secreto sucio 🤫🔐" },
+    { en: "Don't stop until I'm begging for more 🛐🙏", es: "No pares hasta que suplique por más 🛐🙏" },
+    { en: "I want to feel you pounding in every hole 💥🍑", es: "Quiero sentirte golpeando en cada agujero 💥🍑" },
 ];
 
 function getRandomTwitterText() {
@@ -88,13 +199,13 @@ function updateGlobalRarStatus(elements) {
             }
         }
     }
-    
+
     if (completed >= elements.length && elements.length > 0) {
         rarStatus.style.background = 'rgba(16, 185, 129, 0.2)';
         rarStatus.style.color = '#6ee7b7';
         rarStatus.style.borderColor = 'rgba(16, 185, 129, 0.5)';
         rarStatus.innerHTML = `✅ ¡Todos los .rar están listos! (${completed}/${elements.length})`;
-        
+
         const btnCompressAll = document.getElementById('btn-compress-all');
         if (btnCompressAll) btnCompressAll.style.display = 'none';
     } else if (elements.length > 0) {
@@ -116,7 +227,7 @@ function updateGlobalRarStatus(elements) {
 document.addEventListener('DOMContentLoaded', async () => {
     currentSession = await window.electronAPI.getSession() || { lastFolder: null, donePosts: {} };
     if (!currentSession.donePosts) currentSession.donePosts = {};
-    
+
     // Lock Screen Logic
     const lockScreen = document.getElementById('lock-screen');
     const mainApp = document.getElementById('main-app');
@@ -143,7 +254,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     pinInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') checkPin();
     });
-    
+
     // Setup generic configs
     const globalDate = document.getElementById('global-date');
     const globalTime = document.getElementById('global-time');
@@ -151,7 +262,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const profileNicky = document.getElementById('profile-nicky');
     const profileNovaLabel = document.getElementById('profile-nova-label');
     const profileNickyLabel = document.getElementById('profile-nicky-label');
-    
+
     if (currentSession.globalDate) globalDate.value = currentSession.globalDate;
     if (currentSession.globalTime) globalTime.value = currentSession.globalTime;
 
@@ -183,7 +294,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentSession.globalTime = globalTime.value;
         await saveSession();
     };
-    
+
     globalDate.addEventListener('change', saveSettings);
     globalTime.addEventListener('change', saveSettings);
 
@@ -222,16 +333,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('btn-compress-all').addEventListener('click', () => {
         if (!currentCardsElements || currentCardsElements.length === 0) return;
-        
+
         isCompressingBackground = true;
         document.getElementById('btn-compress-all').disabled = true;
         document.getElementById('btn-compress-all').textContent = "📦 Comprimiendo archivos en segundo plano...";
         document.getElementById('btn-compress-all').style.cursor = "not-allowed";
         document.getElementById('btn-compress-all').style.opacity = "0.7";
-        
+
         const thisRun = Symbol();
         currentCompressionRun = thisRun;
-        
+
         updateGlobalRarStatus(currentCardsElements);
         startBackgroundCompression(currentCardsElements, thisRun);
     });
@@ -261,16 +372,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('btn-clear').addEventListener('click', async () => {
         if (!confirm('¿Estás seguro de que quieres limpiar toda la grilla de posts? Esto removerá la carpeta actual y reiniciará tu panel.')) return;
-        
+
         currentSession.lastFolder = null;
         currentSession.donePosts = {};
         await saveSession();
-        
+
         currentPosts = [];
         currentCardsElements = [];
         isCompressingBackground = false;
         currentCompressionRun = null;
-        
+
         document.getElementById('btn-clear').style.display = 'none';
         const btnCompressAll = document.getElementById('btn-compress-all');
         if (btnCompressAll) btnCompressAll.style.display = 'none';
@@ -299,19 +410,19 @@ async function loadFolderData(folderPath) {
     const pathIndicator = document.getElementById('path-indicator');
     const currentPathSpan = document.getElementById('current-path');
     const postsGrid = document.getElementById('posts-grid');
-    
+
     pathIndicator.classList.remove('hidden');
     document.getElementById('app-tabs').classList.remove('hidden');
     document.getElementById('global-settings').classList.remove('hidden');
     document.getElementById('btn-clear').style.display = 'block';
     document.querySelectorAll('.grid-actions').forEach(el => el.style.display = 'flex');
     currentPathSpan.textContent = folderPath;
-    
+
     postsGrid.innerHTML = '<div class="empty-state">Escaneando carpeta...</div>';
     document.getElementById('twitter-grid').innerHTML = '<div class="empty-state">Cargando feed de X...</div>';
-    
+
     const posts = await window.electronAPI.readFolder(folderPath);
-    
+
     if (posts.length === 0) {
         postsGrid.innerHTML = '<div class="empty-state">No se encontraron subcarpetas para procesar.</div>';
         return;
@@ -326,10 +437,10 @@ async function loadFolderData(folderPath) {
     posts.forEach(p => totalImages += p.imagesCount);
     document.getElementById('stat-posts').textContent = posts.length;
     document.getElementById('stat-images').textContent = totalImages;
-    
+
     isCompressingBackground = false;
     currentCompressionRun = null;
-    
+
     const btnCompressAll = document.getElementById('btn-compress-all');
     if (btnCompressAll) {
         btnCompressAll.style.display = 'block';
@@ -338,7 +449,7 @@ async function loadFolderData(folderPath) {
         btnCompressAll.style.cursor = "pointer";
         btnCompressAll.style.opacity = "1";
     }
-    
+
     posts.forEach(post => {
         const card = document.createElement('div');
         card.className = 'post-card';
@@ -351,7 +462,7 @@ async function loadFolderData(folderPath) {
         let thumbnailHtml = `<div class="thumbnail-container">
             <span class="no-thumbnail">No hay imágenes</span>
         </div>`;
-        
+
         if (post.thumbnail) {
             thumbnailHtml = `<div class="thumbnail-container">
                 <img src="${post.thumbnail}" class="thumbnail" alt="Thumbnail">
@@ -424,7 +535,7 @@ async function loadFolderData(folderPath) {
             }
             await saveSession();
         });
-        
+
         const btnCopyTitle = card.querySelector('.copy-title');
         btnCopyTitle.addEventListener('click', () => {
             const currentTitle = card.querySelector('.title-value').value;
@@ -458,14 +569,14 @@ async function loadFolderData(folderPath) {
         const btnAutofill = card.querySelector('.btn-autofill');
         btnAutofill.addEventListener('click', async () => {
             if (btnAutofill.disabled) return alert('Debes esperar a que el .rar asociado termine de generarse para subir a Patreon.');
-            
+
             // Get current values from editable textareas
             const editedTitle = card.querySelector('.title-value').value;
             const editedBaseTags = card.querySelector('.tags-value').value;
-            
+
             const btnOriginalText = btnAutofill.textContent;
             btnAutofill.textContent = "Enviando...";
-            
+
             const scheduleDate = document.getElementById('global-date').value;
             const scheduleTime = document.getElementById('global-time').value;
 
@@ -475,14 +586,14 @@ async function loadFolderData(folderPath) {
             const collection = post.categoryOverride || post.anime;
             const finalTags = post.categoryOverride ? editedBaseTags + ', ' + post.categoryOverride : editedBaseTags;
 
-            const res = await window.electronAPI.fillPatreon({ 
-                title: editedTitle, 
+            const res = await window.electronAPI.fillPatreon({
+                title: editedTitle,
                 tags: finalTags,
                 anime: collection,
                 scheduleDate,
                 scheduleTime
             });
-            
+
             if (res.receivers > 0) {
                 const browserName = currentSession.activeProfile === 'nova' ? 'Opera' : 'Brave';
                 btnAutofill.textContent = `¡Enviado a ${browserName}!`;
@@ -491,7 +602,7 @@ async function loadFolderData(folderPath) {
                 btnAutofill.textContent = "No hay extensión conectada";
                 btnAutofill.style.background = "#eab308";
             }
-            
+
             setTimeout(() => {
                 btnAutofill.textContent = originalText;
                 btnAutofill.style.background = "";
@@ -504,7 +615,7 @@ async function loadFolderData(folderPath) {
             btnCompress.disabled = true;
 
             const result = await window.electronAPI.compressFolder(post.path);
-            
+
             if (result.success) {
                 btnCompress.textContent = "¡Comprimido!";
                 btnCompress.style.background = "var(--success-color)";
@@ -529,7 +640,7 @@ async function loadFolderData(folderPath) {
         postsGrid.appendChild(card);
         cardsElements.push({ post, btnCompress, btnAutofill });
     });
-    
+
     currentCardsElements = cardsElements;
     updateGlobalRarStatus(cardsElements);
 
@@ -540,10 +651,10 @@ async function loadFolderData(folderPath) {
 function generateHashtags(post) {
     const isNova = currentSession.activeProfile === 'nova';
     let base = isNova ? "#nsfw #r34 #rule34" : "#futanari #futanaricomunity #futanariart #futanariai #nsfw #r34 #rule34";
-    
+
     // Helper to sanitize for hashtags (removes spaces, special chars, keeps Japanese characters)
     const clean = (str) => str ? str.replace(/[^a-zA-Z0-9\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff66-\uff9f]/g, "").trim() : "";
-    
+
     const animeTag = clean(post.anime);
     const charTag = clean(post.character);
     const animeJpTag = clean(post.animeJP);
@@ -567,7 +678,7 @@ function renderTwitterGrid(posts) {
     posts.forEach(post => {
         const card = document.createElement('div');
         card.className = 'post-card';
-        
+
         // Pick a unique text, refill pool if empty
         if (textPool.length === 0) {
             textPool = [...twitterTexts].sort(() => Math.random() - 0.5);
@@ -578,7 +689,7 @@ function renderTwitterGrid(posts) {
         let thumbnailHtml = `<div class="thumbnail-container">
             <span class="no-thumbnail">No hay imágenes</span>
         </div>`;
-        
+
         if (post.thumbnail) {
             thumbnailHtml = `<div class="thumbnail-container">
                 <img src="${post.thumbnail}" class="thumbnail" alt="Thumbnail">
@@ -650,11 +761,11 @@ function renderTwitterGrid(posts) {
             const enText = card.querySelector('.edit-en').value;
             const esText = card.querySelector('.edit-es').value;
             const tagsText = card.querySelector('.edit-tags').value;
-            
+
             // Text in english, text in spanish, 3 line breaks, tags
             const combinedText = `${enText}\n${esText}\n\n\n\n${tagsText}`;
             navigator.clipboard.writeText(combinedText);
-            
+
             const originalText = btnCopyAll.textContent;
             const originalBg = btnCopyAll.style.background;
             btnCopyAll.textContent = '¡Copiado Todo!';
@@ -682,16 +793,16 @@ function renderTwitterGrid(posts) {
 async function startBackgroundCompression(elements, runToken) {
     for (const item of elements) {
         if (currentCompressionRun !== runToken) return;
-        
+
         const { post, btnCompress } = item;
-        
+
         if (btnCompress.disabled || btnCompress.textContent.includes("Comprimido")) continue;
 
         btnCompress.textContent = "Generando .rar autom. ...";
         btnCompress.disabled = true;
 
         const result = await window.electronAPI.compressFolder(post.path);
-        
+
         if (currentCompressionRun !== runToken) return;
 
         if (result.success) {
