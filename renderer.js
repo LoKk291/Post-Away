@@ -247,6 +247,7 @@ function updateGlobalRarStatus(elements) {
 document.addEventListener('DOMContentLoaded', async () => {
     currentSession = await window.electronAPI.getSession() || { lastFolder: null, donePosts: {} };
     if (!currentSession.donePosts) currentSession.donePosts = {};
+    if (!currentSession.patreonUrls) currentSession.patreonUrls = { nova: '', nicky: '' };
 
     // Lock Screen Logic
     const lockScreen = document.getElementById('lock-screen');
@@ -292,9 +293,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         profileNicky.checked = !isNova;
         profileNovaLabel.style.background = isNova ? 'rgba(244, 114, 182, 0.2)' : 'transparent';
         profileNickyLabel.style.background = !isNova ? 'rgba(96, 165, 250, 0.2)' : 'transparent';
+        
+        const patreonUrl = document.getElementById('patreon-url');
+        if (patreonUrl) {
+            patreonUrl.value = currentSession.patreonUrls[currentSession.activeProfile] || '';
+        }
     };
     if (!currentSession.activeProfile) currentSession.activeProfile = 'nicky';
     updateProfileUI();
+
+    const patreonUrl = document.getElementById('patreon-url');
+    if (patreonUrl) {
+        patreonUrl.addEventListener('input', async () => {
+            currentSession.patreonUrls[currentSession.activeProfile] = patreonUrl.value;
+            await saveSession();
+        });
+    }
 
     profileNova.addEventListener('change', async () => {
         currentSession.activeProfile = 'nova';
@@ -389,6 +403,44 @@ document.addEventListener('DOMContentLoaded', async () => {
             await window.electronAPI.openFolder(currentSession.lastFolder);
         }
     });
+
+    const btnFetchPatreon = document.getElementById('btn-fetch-patreon');
+    if (btnFetchPatreon) {
+        btnFetchPatreon.addEventListener('click', async () => {
+            const currentUrl = currentSession.patreonUrls[currentSession.activeProfile];
+            if (!currentUrl) {
+                alert("Por favor ingresa tu Link de Patreon en Configuraciones Generales para este perfil.");
+                return;
+            }
+            
+            btnFetchPatreon.textContent = "🔗 Buscando...";
+            btnFetchPatreon.disabled = true;
+
+            const result = await window.electronAPI.fetchPatreonLinks(currentUrl, currentPosts);
+            
+            if (result.success) {
+                for (const post of currentPosts) {
+                    if (result.links[post.folderName]) {
+                        const inputId = `patreon-link-${post.id}`;
+                        const inputEl = document.getElementById(inputId);
+                        if (inputEl) {
+                            inputEl.value = result.links[post.folderName];
+                            inputEl.dispatchEvent(new Event('input'));
+                        }
+                    }
+                }
+                btnFetchPatreon.textContent = "✅ Links Obtenidos";
+                setTimeout(() => {
+                    btnFetchPatreon.textContent = "🔗 Obtener Links de Patreon";
+                    btnFetchPatreon.disabled = false;
+                }, 3000);
+            } else {
+                alert("Error obteniendo links de Patreon: " + result.error);
+                btnFetchPatreon.textContent = "🔗 Obtener Links de Patreon";
+                btnFetchPatreon.disabled = false;
+            }
+        });
+    }
 
     document.getElementById('btn-clear').addEventListener('click', async () => {
         if (!confirm('¿Estás seguro de que quieres limpiar toda la grilla de posts? Esto removerá la carpeta actual y reiniciará tu panel.')) return;
@@ -756,8 +808,18 @@ function renderTwitterGrid(posts) {
                 </div>
             </div>
 
+            <div class="info-group">
+                <div class="info-label">Link de Patreon</div>
+                <div class="info-value-container">
+                    <textarea class="info-value edit-area edit-patreon-link" id="patreon-link-${post.id}" placeholder="Link aparecerá aquí..." style="color: #f472b6; border-left-color: #f472b6;"></textarea>
+                    <button class="copy-btn btn-copy-link" title="Copiar Link">
+                        <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                    </button>
+                </div>
+            </div>
+
             <div class="card-actions" style="margin-top: 1rem;">
-                <button class="btn primary-btn btn-copy-all" style="width: 100%; background: linear-gradient(135deg, #1DA1F2, #0d8bd9);">📋 Copiar Todo (EN + ES + Tags)</button>
+                <button class="btn primary-btn btn-copy-all" style="width: 100%; background: linear-gradient(135deg, #1DA1F2, #0d8bd9);">📋 Copiar Todo (EN + ES + Link + Tags)</button>
             </div>
         `;
 
@@ -775,15 +837,18 @@ function renderTwitterGrid(posts) {
         setupCopy('.btn-copy-en', '.edit-en');
         setupCopy('.btn-copy-es', '.edit-es');
         setupCopy('.btn-copy-tags', '.edit-tags');
+        setupCopy('.btn-copy-link', '.edit-patreon-link');
 
         const btnCopyAll = card.querySelector('.btn-copy-all');
         btnCopyAll.addEventListener('click', () => {
             const enText = card.querySelector('.edit-en').value;
             const esText = card.querySelector('.edit-es').value;
             const tagsText = card.querySelector('.edit-tags').value;
+            const patreonLink = card.querySelector('.edit-patreon-link').value;
 
-            // Text in english, text in spanish, 3 line breaks, tags
-            const combinedText = `${enText}\n${esText}\n\n\n\n${tagsText}`;
+            // Text in english, text in spanish, 3 line breaks, link, 3 line breaks, tags
+            const linkPart = patreonLink ? `${patreonLink}\n\n\n\n` : '';
+            const combinedText = `${enText}\n${esText}\n\n\n\n${linkPart}${tagsText}`;
             navigator.clipboard.writeText(combinedText);
 
             const originalText = btnCopyAll.textContent;

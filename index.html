@@ -75,6 +75,10 @@
                         <label for="global-time">Hora (24hs)</label>
                         <input type="time" id="global-time" class="glass-input">
                     </div>
+                    <div class="setting-item">
+                        <label for="patreon-url">Link de Patreon</label>
+                        <input type="url" id="patreon-url" class="glass-input" placeholder="https://www.patreon.com/miusuario">
+                    </div>
                 </div>
                 <!-- Statistics UI -->
                 <div class="stats-panel" id="stats-panel" style="margin-top: 1.5rem; display: flex; gap: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
@@ -110,6 +114,7 @@
             <div id="dashboard-twitter" class="tab-content hidden">
                 <div class="grid-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <h2 style="margin: 0; font-size: 1.25rem; font-weight: 500; color: #fff;">X (Twitter) Feed</h2>
+                    <button id="btn-fetch-patreon" class="btn" style="border: 1px solid rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.1); color: #c4b5fd; font-size: 0.9rem; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='rgba(139, 92, 246, 0.2)'" onmouseout="this.style.background='rgba(139, 92, 246, 0.1)'">🔗 Obtener Links de Patreon</button>
                 </div>
                 <div id="twitter-grid" class="posts-grid">
                     <div class="empty-state">
