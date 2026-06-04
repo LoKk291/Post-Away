@@ -10,74 +10,52 @@ const sessionFile = path.join(app.getPath('userData'), 'session.json');
 // HTTP SSE Server to securely communicate with the Chrome Extension
 let localServer = null;
 let sseClients = [];
+let lastPollTime = 0;
+let currentPayload = null;
 
 function startLocalServer() {
   localServer = http.createServer((req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Request-Private-Network');
+    res.setHeader('Access-Control-Allow-Private-Network', 'true');
 
     if (req.method === 'OPTIONS') {
       res.writeHead(200);
       return res.end();
     }
 
-    if (req.method === 'POST' && req.url.startsWith('/trigger-macro')) {
-      const parsedUrl = new URL(req.url, 'http://127.0.0.1');
-      const x = parsedUrl.searchParams.get('x') || 960;
-      const y = parsedUrl.searchParams.get('y') || 540;
-
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ok: true}));
-      
-      const { exec } = require('child_process');
-      const fs = require('fs');
-      const path = require('path');
-      const psCode = `
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -TypeDefinition '
-using System;
-using System.Runtime.InteropServices;
-public class Win32 {
-    [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, int dwExtraInfo);
-}
-'
-
-# Save the .rar path before anything else
-$rarPath = [System.Windows.Forms.Clipboard]::GetText()
-
-# Step 1: Click the transparent overlay to open the file dialog
-[System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(${x}, ${y})
-Start-Sleep -Milliseconds 200
-[Win32]::mouse_event(0x02, 0, 0, 0, 0)
-[Win32]::mouse_event(0x04, 0, 0, 0, 0)
-
-# Step 2: Wait for the file dialog to fully appear
-Start-Sleep -Milliseconds 3500
-
-# Step 3: Focus the "File name" / "Nombre de archivo" field (Alt+N)
-[System.Windows.Forms.SendKeys]::SendWait("%n")
-Start-Sleep -Milliseconds 400
-
-# Step 4: Clear whatever is in the field
-[System.Windows.Forms.SendKeys]::SendWait("^a")
-Start-Sleep -Milliseconds 100
-[System.Windows.Forms.SendKeys]::SendWait("{DEL}")
-Start-Sleep -Milliseconds 200
-
-# Step 5: Paste the full .rar absolute path
-[System.Windows.Forms.Clipboard]::SetText($rarPath)
-[System.Windows.Forms.SendKeys]::SendWait("^v")
-Start-Sleep -Milliseconds 600
-
-# Step 6: Press Enter to select the file and upload
-[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")
-      `.trim();
-      const tmpPath = path.join(require('os').tmpdir(), 'post_away_upload.ps1');
-      fs.writeFileSync(tmpPath, psCode);
-      exec(`powershell -Sta -ExecutionPolicy Bypass -WindowStyle Hidden -File "${tmpPath}"`, (err) => {
-          if (err) console.error("PS Auto-Upload Error:", err);
+    if (req.method === 'GET' && req.url === '/poll') {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Private-Network': 'true'
       });
+      lastPollTime = Date.now();
+      res.end(JSON.stringify({ payload: currentPayload }));
+      currentPayload = null; // clear after consumed
+      return;
+    }
+
+    if (req.method === 'GET' && req.url.startsWith('/download')) {
+      const parsedUrl = new URL(req.url, 'http://127.0.0.1');
+      const filePath = parsedUrl.searchParams.get('file');
+      
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Private-Network', 'true');
+
+      if (!filePath || !require('fs').existsSync(filePath)) {
+        res.writeHead(404);
+        return res.end("Not Found");
+      }
+
+      const path = require('path');
+      res.writeHead(200, {
+        'Content-Type': 'application/x-rar-compressed',
+        'Content-Disposition': `attachment; filename="${path.basename(filePath)}"`
+      });
+      const readStream = require('fs').createReadStream(filePath);
+      readStream.pipe(res);
       return;
     }
 
@@ -85,7 +63,9 @@ Start-Sleep -Milliseconds 600
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Private-Network': 'true'
       });
       res.write('retry: 3000\n\n'); 
       sseClients.push(res);
@@ -294,11 +274,15 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
   }
 });
 
-// Broadcast payload to SSE Clients
+// Broadcast payload to SSE Clients or prepare for polling
 ipcMain.handle('fill-patreon', (event, data) => {
+  const isPollingActive = (Date.now() - lastPollTime < 4000);
+  if (isPollingActive) {
+    currentPayload = data;
+  }
   const payload = JSON.stringify(data);
   sseClients.forEach(res => res.write(`data: ${payload}\n\n`));
-  return { success: true, receivers: sseClients.length };
+  return { success: true, receivers: sseClients.length + (isPollingActive ? 1 : 0) };
 });
 
 ipcMain.handle('open-patreon', (event, profile) => {

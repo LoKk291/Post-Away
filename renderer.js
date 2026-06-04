@@ -653,7 +653,6 @@ async function loadFolderData(folderPath) {
             const scheduleTime = document.getElementById('global-time').value;
 
             const rarPath = post.path + '.rar';
-            await window.electronAPI.triggerAutoUpload(rarPath);
 
             const collection = post.categoryOverride || post.anime;
             const finalTags = post.categoryOverride ? editedBaseTags + ', ' + post.categoryOverride : editedBaseTags;
@@ -663,7 +662,8 @@ async function loadFolderData(folderPath) {
                 tags: finalTags,
                 anime: collection,
                 scheduleDate,
-                scheduleTime
+                scheduleTime,
+                rarPath: rarPath
             });
 
             if (res.receivers > 0) {

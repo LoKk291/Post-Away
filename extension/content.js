@@ -7,7 +7,7 @@ setInterval(() => {
     }
 }, 500); 
 
-let sse;
+// Polling setup replaces EventSource for MV3 compatibility
 
 function setNativeValue(element, value) {
   element.focus();
@@ -26,16 +26,21 @@ function setNativeValue(element, value) {
   element.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
-function connect() {
-  sse = new EventSource('http://127.0.0.1:3030/events');
-  
-  sse.onopen = () => console.log("Post-Away: Conectado a la app de escritorio!");
-  
-  sse.onmessage = (e) => {
-    const data = JSON.parse(e.data);
-    console.log("Post-Away ha recibido datos:", data);
+let isAutofilling = false;
 
-    const runAutofill = async () => {
+function pollServer() {
+  chrome.runtime.sendMessage({ type: 'poll' }, (response) => {
+    if (chrome.runtime.lastError) {
+      // Ignore background script not ready errors
+      return;
+    }
+    
+    if (response && response.payload && !isAutofilling) {
+      const data = response.payload;
+      console.log("Post-Away ha recibido datos:", data);
+      isAutofilling = true;
+
+      const runAutofill = async () => {
       try {
         for (let i = 0; i < 40; i++) { 
             const titleBox = document.querySelector('.public-DraftEditor-content, textarea[placeholder*="título" i], textarea[placeholder*="title" i], [data-tag="post-title"]');
@@ -92,11 +97,19 @@ function connect() {
                 let dropdownTrigger = document.querySelector('button[aria-label*="collection" i], button[aria-label*="colecci" i], [role="combobox"][aria-label*="collection" i]');
                 
                 if (!dropdownTrigger) {
+                    const buttons = Array.from(document.querySelectorAll('button, [role="button"], [role="combobox"], a, div[role="button"]')).filter(el => {
+                        const text = el.textContent.trim().toLowerCase();
+                        if (text.length > 30) return false; // ignore long text containers
+                        return text.includes("collection") || text.includes("colecci");
+                    });
+                    if (buttons.length > 0) dropdownTrigger = buttons[0];
+                }
+
+                if (!dropdownTrigger) {
                     const labels = Array.from(document.querySelectorAll('label, div, span, h3, p, h4')).filter(el => {
                         if (el.children.length > 1) return false;
                         const text = el.textContent.trim().toLowerCase();
-                        return text === "collection" || text === "colección" || text === "collections" || text === "colecciones" || 
-                               text === "add to collection" || text === "añadir a colección" || text === "añadir a la colección" || text === "añadir a una colección";
+                        return text.includes("collection") || text.includes("colecci");
                     });
                     for (const labelNode of labels) {
                         dropdownTrigger = labelNode.parentElement.querySelector('button, [role="combobox"], [role="button"]') || 
@@ -389,80 +402,38 @@ function connect() {
             })();
         }
 
-        // 5. Autoclick Attachments Menu to load OS Upload Dialog!
-        let attachmentTriggered = false;
-        
-        const triggerAttachmentUpload = (elementToClick) => {
-            if (attachmentTriggered) return;
-            attachmentTriggered = true;
-
-            // Create a transparent overlay to catch the OS-level mouse click
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:999999;cursor:pointer;background:transparent;';
-            document.body.appendChild(overlay);
-
-            // When PS clicks the overlay, it counts as a real user gesture → Chrome allows the file dialog
-            overlay.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-                
-                // Trigger the actual element click inside this real user gesture context
-                if (elementToClick.tagName.toLowerCase() === 'input' && elementToClick.type === 'file') {
-                    elementToClick.click();
+        // 5. Silent Programmatic Upload via CDP
+        if (data.rarPath) {
+            chrome.runtime.sendMessage({ type: 'upload', filePath: data.rarPath }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.error("Post-Away: Error comunicando con background script", chrome.runtime.lastError);
+                } else if (response && response.success) {
+                    console.log("Post-Away: Archivo .rar cargado silenciosamente a través de CDP.");
+                    
+                    // Dispatch change/input event to trigger React update
+                    const fileInputs = Array.from(document.querySelectorAll('input[type="file"]'));
+                    const targetInput = fileInputs.find(i => !i.accept || !i.accept.includes('image')) || fileInputs[fileInputs.length - 1];
+                    if (targetInput) {
+                        targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
                 } else {
-                    ['pointerdown', 'mousedown', 'mouseup', 'pointerup', 'click'].forEach(eventType => {
-                        elementToClick.dispatchEvent(new MouseEvent(eventType, { bubbles: true, cancelable: true, view: window, buttons: 1 }));
-                    });
+                    console.error("Post-Away: Fallo subiendo archivo vía CDP", response ? response.error : "Unknown error");
                 }
             });
+        }
 
-            // Safety: remove overlay after 10 seconds if PS click never arrives
-            setTimeout(() => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 10000);
-
-            // Calculate screen center and tell the desktop app to click there
-            const x = Math.floor(window.screenX + (window.outerWidth / 2));
-            const y = Math.floor(window.screenY + (window.outerHeight / 2));
-            fetch(`http://127.0.0.1:3030/trigger-macro?x=${x}&y=${y}`, { method: 'POST' }).catch(() => {});
-        };
-
-        const findAttachmentTarget = () => {
-            // First: look for the "Attachment" button
-            const candidates = Array.from(document.querySelectorAll('button, div[role="button"], [role="menuitem"], span, a, p'));
-            for (const c of candidates) {
-                const t = c.textContent.trim().toLowerCase();
-                if (t === 'attachment' || t === 'attachments' || t === 'adjunto' || t === 'adjuntos' || t.includes('upload attachment')) {
-                    return c.closest('button') || c.closest('[role="button"]') || c.closest('a') || c.closest('div') || c;
-                }
-            }
-            // Fallback: look for a generic file input
-            const fileInputs = Array.from(document.querySelectorAll('input[type="file"]'));
-            const genericInput = fileInputs.find(i => (!i.accept || !i.accept.includes('image')));
-            return genericInput || null;
-        };
-
-        let attachAttempts = 0;
-        const attachInterval = setInterval(() => {
-            attachAttempts++;
-            const target = findAttachmentTarget();
-            if (target || attachAttempts > 20) {
-                clearInterval(attachInterval);
-                if (target) triggerAttachmentUpload(target);
-            }
-        }, 500);
-
+        // ... end of runAutofill
+        isAutofilling = false;
       } catch(err) {
         console.error("Error auto-rellenando:", err);
+        isAutofilling = false;
       }
     };
     
     runAutofill();
-  };
-
-  sse.onerror = (e) => {
-    sse.close();
-    setTimeout(connect, 3000); 
-  };
+    }
+  });
 }
 
-connect();
+setInterval(pollServer, 1500);
