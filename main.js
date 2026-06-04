@@ -239,6 +239,7 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
 
         let imagesCount = 0;
         let thumbnail = null;
+        let imagePaths = [];
         try {
           const files = fs.readdirSync(subPath);
           const ext = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
@@ -246,6 +247,7 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
           imagesCount = imageFiles.length;
           if (imageFiles.length > 0) {
             thumbnail = "file://" + path.join(subPath, imageFiles[0]).replace(/\\/g, '/');
+            imagePaths = imageFiles.map(f => path.join(subPath, f));
           }
         } catch(e) {}
 
@@ -263,7 +265,8 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
           imagesCount, 
           title, 
           tags, 
-          thumbnail
+          thumbnail,
+          imagePaths
         });
       }
     }

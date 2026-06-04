@@ -441,19 +441,44 @@ function pollServer() {
             })();
         }
 
-        // 5. Silent Programmatic Upload via CDP
-        if (data.rarPath) {
-            chrome.runtime.sendMessage({ type: 'upload', filePath: data.rarPath }, (response) => {
-                if (chrome.runtime.lastError) {
-                    console.error("Post-Away: Error comunicando con background script", chrome.runtime.lastError);
-                } else if (response && response.success) {
-                    console.log("Post-Away: Archivo .rar cargado silenciosamente a través de CDP.");
-                    // No need to dispatch change/input, CDP setFileInputFiles does it automatically.
-                } else {
-                    console.error("Post-Away: Fallo subiendo archivo vía CDP", response ? response.error : "Unknown error");
-                }
-            });
-        }
+        // 5. Silent Programmatic Upload via CDP (Gallery & Attachment)
+        const uploadFiles = async () => {
+            // A. Subir Galería de Imágenes
+            if (data.imagePaths && data.imagePaths.length > 0) {
+                console.log(`Post-Away: Iniciando subida de ${data.imagePaths.length} imágenes para la galería...`);
+                await new Promise(resolve => {
+                    chrome.runtime.sendMessage({ type: 'upload', files: data.imagePaths, isGallery: true }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            console.error("Post-Away: Error subiendo imágenes", chrome.runtime.lastError);
+                        } else if (response && response.success) {
+                            console.log("Post-Away: Imágenes cargadas exitosamente.");
+                        } else {
+                            console.error("Post-Away: Fallo subiendo imágenes", response ? response.error : "Unknown error");
+                        }
+                        resolve();
+                    });
+                });
+                
+                // Esperar a que Patreon empiece a procesar las imágenes antes de inyectar el .rar
+                await new Promise(r => setTimeout(r, 2000));
+            }
+
+            // B. Subir Archivo Adjunto (.rar)
+            if (data.rarPath) {
+                console.log(`Post-Away: Iniciando subida del archivo adjunto ${data.rarPath}...`);
+                chrome.runtime.sendMessage({ type: 'upload', files: [data.rarPath], isAttachment: true }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.error("Post-Away: Error subiendo .rar", chrome.runtime.lastError);
+                    } else if (response && response.success) {
+                        console.log("Post-Away: Archivo .rar cargado exitosamente.");
+                    } else {
+                        console.error("Post-Away: Fallo subiendo .rar", response ? response.error : "Unknown error");
+                    }
+                });
+            }
+        };
+
+        uploadFiles();
 
         // ... end of runAutofill
         isAutofilling = false;

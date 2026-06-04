@@ -29,15 +29,43 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 }
                 
                 const rootNodeId = res.root.nodeId;
-                chrome.debugger.sendCommand({ tabId: tabId }, "DOM.querySelector", {
+                chrome.debugger.sendCommand({ tabId: tabId }, "DOM.querySelectorAll", {
                     nodeId: rootNodeId,
                     selector: 'input[type="file"]'
-                }, (res2) => {
-                    const inputNodeId = res2 ? res2.nodeId : null;
-                    if (inputNodeId) {
+                }, async (res2) => {
+                    const nodeIds = res2 ? res2.nodeIds : [];
+                    if (nodeIds.length > 0) {
+                        let targetNodeId = null;
+                        for (const id of nodeIds) {
+                            try {
+                                const attrsRes = await new Promise((resolve, reject) => {
+                                    chrome.debugger.sendCommand({ tabId: tabId }, "DOM.getAttributes", { nodeId: id }, (res) => {
+                                        if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+                                        else resolve(res);
+                                    });
+                                });
+                                const attrs = attrsRes.attributes || [];
+                                let isImageAccept = false;
+                                for (let i = 0; i < attrs.length; i += 2) {
+                                    if (attrs[i].toLowerCase() === 'accept' && attrs[i+1].includes('image')) {
+                                        isImageAccept = true;
+                                        break;
+                                    }
+                                }
+                                
+                                if (message.isGallery && isImageAccept) {
+                                    targetNodeId = id; break;
+                                } else if (message.isAttachment && !isImageAccept) {
+                                    targetNodeId = id; break;
+                                }
+                            } catch(e) {}
+                        }
+                        
+                        if (!targetNodeId) targetNodeId = nodeIds[nodeIds.length - 1];
+
                         chrome.debugger.sendCommand({ tabId: tabId }, "DOM.setFileInputFiles", {
-                            nodeId: inputNodeId,
-                            files: [message.filePath]
+                            nodeId: targetNodeId,
+                            files: message.files
                         }, () => {
                             chrome.debugger.detach({ tabId: tabId });
                             sendResponse({ success: true });

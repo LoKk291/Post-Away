@@ -663,7 +663,8 @@ async function loadFolderData(folderPath) {
                 anime: collection,
                 scheduleDate,
                 scheduleTime,
-                rarPath: rarPath
+                rarPath: rarPath,
+                imagePaths: post.imagePaths
             });
 
             if (res.receivers > 0) {
