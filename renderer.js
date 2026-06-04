@@ -580,8 +580,8 @@ async function loadFolderData(folderPath) {
                 <div class="info-label">Categoría (Collection Override)</div>
                 <div style="display:flex;gap:10px;margin-top:4px;">
                     <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;color:#ccc;">
-                        <input type="checkbox" class="category-cb" data-category="Videogames" style="accent-color:#8b5cf6;width:16px;height:16px;cursor:pointer;">
-                        Videogames
+                        <input type="checkbox" class="category-cb" data-category="Video Games" style="accent-color:#8b5cf6;width:16px;height:16px;cursor:pointer;">
+                        Video Games
                     </label>
                     <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;color:#ccc;">
                         <input type="checkbox" class="category-cb" data-category="Animated Series" style="accent-color:#8b5cf6;width:16px;height:16px;cursor:pointer;">
