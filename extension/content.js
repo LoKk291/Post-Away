@@ -94,48 +94,73 @@ function pollServer() {
         // 3. Collection Search & Auto-Select
         if (data.anime) {
             const searchAndSelectCollection = async (originalName) => {
-                let dropdownTrigger = document.querySelector('button[aria-label*="collection" i], button[aria-label*="colecci" i], [role="combobox"][aria-label*="collection" i]');
+                // Strategy 1: Search for adjacent labels like "Add to collection"
+                const labels = Array.from(document.querySelectorAll('*')).filter(el => {
+                    if (el.childElementCount > 3) return false; 
+                    const text = el.textContent.trim().toLowerCase();
+                    return text === "add to collection" || text === "añadir a colección";
+                });
                 
+                for (const labelNode of labels) {
+                    let parent = labelNode.parentElement;
+                    for (let i = 0; i < 5; i++) { 
+                        if (!parent) break;
+                        const btn = parent.querySelector('button, [role="combobox"], [role="button"], select');
+                        if (btn && btn !== labelNode && !btn.hasAttribute('href') && btn.tagName.toLowerCase() !== 'a') {
+                            dropdownTrigger = btn;
+                            break;
+                        }
+                        parent = parent.parentElement;
+                    }
+                    if (dropdownTrigger) break;
+                }
+
+                // Strategy 2: Aria labels
                 if (!dropdownTrigger) {
-                    const buttons = Array.from(document.querySelectorAll('button, [role="button"], [role="combobox"], a, div[role="button"]')).filter(el => {
+                    dropdownTrigger = document.querySelector('button[aria-label*="collection" i], button[aria-label*="colecci" i], [role="combobox"][aria-label*="collection" i]');
+                }
+
+                // Strategy 3: General buttons with text
+                if (!dropdownTrigger) {
+                    const buttons = Array.from(document.querySelectorAll('button, [role="button"], [role="combobox"], div[role="button"]')).filter(el => {
+                        if (el.hasAttribute('href') || el.tagName.toLowerCase() === 'a') return false;
                         const text = el.textContent.trim().toLowerCase();
-                        if (text.length > 30) return false; // ignore long text containers
-                        return text.includes("collection") || text.includes("colecci");
+                        if (text.length > 30) return false; 
+                        return text === "collection" || text === "collections" || text === "colección" || text === "colecciones";
                     });
                     if (buttons.length > 0) dropdownTrigger = buttons[0];
                 }
 
-                if (!dropdownTrigger) {
-                    const labels = Array.from(document.querySelectorAll('label, div, span, h3, p, h4')).filter(el => {
-                        if (el.children.length > 1) return false;
-                        const text = el.textContent.trim().toLowerCase();
-                        return text.includes("collection") || text.includes("colecci");
-                    });
-                    for (const labelNode of labels) {
-                        dropdownTrigger = labelNode.parentElement.querySelector('button, [role="combobox"], [role="button"]') || 
-                                          labelNode.parentElement.parentElement.querySelector('button, [role="combobox"], [role="button"]') ||
-                                          labelNode.parentElement.parentElement.parentElement.querySelector('button, [role="combobox"], [role="button"]');
-                        if (dropdownTrigger) break;
-                    }
-                }
-
                 if (dropdownTrigger) {
-                    dropdownTrigger.click();
-                    await new Promise(r => setTimeout(r, 400)); 
+                    if (dropdownTrigger.tagName.toLowerCase() === 'select') {
+                        const options = Array.from(dropdownTrigger.options);
+                        // perform partial search on options
+                        let foundOpt = null;
+                        let search = originalName.toLowerCase();
+                        while (search.length > 4) {
+                            foundOpt = options.find(o => o.text.toLowerCase().includes(search));
+                            if (foundOpt) break;
+                            search = search.slice(0, -1);
+                        }
+                        if (foundOpt) {
+                            dropdownTrigger.value = foundOpt.value;
+                            dropdownTrigger.dispatchEvent(new Event('change', {bubbles:true}));
+                            console.log("Post-Away: Colección seleccionada vía <select> nativo.");
+                        }
+                        return; // Done
+                    } else {
+                        dropdownTrigger.click();
+                        await new Promise(r => setTimeout(r, 400)); 
+                    }
                 } else {
                     console.warn("Post-Away: No se detectó el botón de colecciones. Ignorando silenciosamente.");
                     return; 
                 }
 
-                let listContainer = null;
-                const popovers = Array.from(document.querySelectorAll('[role="dialog"], [role="listbox"], [role="menu"]')).filter(el => el.offsetParent !== null);
+                let listContainer = document.body;
+                const popovers = Array.from(document.querySelectorAll('[role="dialog"], [role="listbox"], [role="menu"], [data-radix-popper-content-wrapper]')).filter(el => el.offsetParent !== null);
                 if (popovers.length > 0) {
                     listContainer = popovers[popovers.length - 1];
-                }
-
-                if (!listContainer) {
-                    document.body.click();
-                    return;
                 }
 
                 let collectionInput = listContainer.querySelector('input[type="text"], input[type="search"]');
@@ -147,13 +172,13 @@ function pollServer() {
                     let scrollAttemptsWithoutProgress = 0;
                     
                     while (!foundMatch && scrollAttemptsWithoutProgress < 15) {
-                        const allCandidates = Array.from(container.querySelectorAll('label, li, [role="option"], [role="menuitem"]')).filter(el => {
+                        const allCandidates = Array.from(container.querySelectorAll('label, li, [role="option"], [role="menuitem"], [role="checkbox"], button')).filter(el => {
                             if (!el.offsetParent) return false; 
                             const isLabelWithCheckbox = el.tagName.toLowerCase() === 'label' && el.querySelector('input[type="checkbox"], svg');
-                            const isOption = el.getAttribute('role') === 'option' || el.getAttribute('role') === 'menuitem' || el.tagName.toLowerCase() === 'li';
+                            const isOption = el.getAttribute('role') === 'option' || el.getAttribute('role') === 'menuitem' || el.getAttribute('role') === 'checkbox' || el.tagName.toLowerCase() === 'li' || el.tagName.toLowerCase() === 'button';
                             if (!isLabelWithCheckbox && !isOption) return false;
                             const text = el.textContent.trim().toLowerCase();
-                            if (text.startsWith("create ") || text.startsWith("crear ") || text.includes('+ create') || text.includes('añadir "') || text.includes('add "')) return false;
+                            if (text.startsWith("create ") || text.startsWith("crear ") || text.includes('+ create') || text.includes('añadir "') || text.includes('add "') || text.includes("guardar") || text.includes("save") || text === "collection" || text === "colección") return false;
                             return true;
                         });
 
@@ -183,7 +208,21 @@ function pollServer() {
                         const cb = foundMatch.querySelector('input[type="checkbox"]');
                         const isChecked = cb ? cb.checked : (foundMatch.getAttribute('aria-selected') === 'true' || foundMatch.getAttribute('aria-checked') === 'true');
                         if (!isChecked) foundMatch.click();
-                        setTimeout(() => document.body.click(), 100);
+                        
+                        await new Promise(r => setTimeout(r, 200));
+
+                        // Find any "Save", "Apply", or "Done" button in the container
+                        const saveButtons = Array.from(container.querySelectorAll('button')).filter(b => {
+                            if (!b.offsetParent) return false;
+                            const bt = b.textContent.trim().toLowerCase();
+                            return bt === "save" || bt === "guardar" || bt === "apply" || bt === "aplicar" || bt === "done" || bt === "listo";
+                        });
+                        
+                        if (saveButtons.length > 0) {
+                            saveButtons[saveButtons.length - 1].click();
+                        } else {
+                            setTimeout(() => document.body.click(), 100);
+                        }
                     } else {
                         document.body.click();
                         console.warn(`Post-Away: No se encontró la colección "${originalName}".`);
@@ -409,14 +448,7 @@ function pollServer() {
                     console.error("Post-Away: Error comunicando con background script", chrome.runtime.lastError);
                 } else if (response && response.success) {
                     console.log("Post-Away: Archivo .rar cargado silenciosamente a través de CDP.");
-                    
-                    // Dispatch change/input event to trigger React update
-                    const fileInputs = Array.from(document.querySelectorAll('input[type="file"]'));
-                    const targetInput = fileInputs.find(i => !i.accept || !i.accept.includes('image')) || fileInputs[fileInputs.length - 1];
-                    if (targetInput) {
-                        targetInput.dispatchEvent(new Event('change', { bubbles: true }));
-                        targetInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
+                    // No need to dispatch change/input, CDP setFileInputFiles does it automatically.
                 } else {
                     console.error("Post-Away: Fallo subiendo archivo vía CDP", response ? response.error : "Unknown error");
                 }
