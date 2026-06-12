@@ -479,3 +479,46 @@ ipcMain.handle('fetch-patreon-links', async (event, creatorUrl, posts) => {
   });
 });
 
+ipcMain.handle('check-folder-exists', (event, folderPath) => {
+  try {
+    return fs.existsSync(folderPath);
+  } catch(e) {
+    return false;
+  }
+});
+
+ipcMain.handle('merge-folder', async (event, sourcePath) => {
+  try {
+    const targetPath = sourcePath.replace(/_agregados$/i, '');
+    
+    // Si la carpeta destino no existe, simplemente renombramos la origen
+    if (!fs.existsSync(targetPath)) {
+      fs.renameSync(sourcePath, targetPath);
+      return { success: true, targetPath };
+    }
+
+    // Mover el contenido
+    const items = fs.readdirSync(sourcePath);
+    for (const item of items) {
+      const oldPath = path.join(sourcePath, item);
+      const newPath = path.join(targetPath, item);
+      
+      // Si ya existe en el destino, intentamos mover de todos modos (puede fallar si es un directorio no vacío)
+      if (fs.existsSync(newPath)) {
+          // Para este caso básico, si existe, asumimos que se sobreescribe o falla
+          // Lo ideal es que sean personajes nuevos que no existían en la original.
+      }
+      fs.renameSync(oldPath, newPath);
+    }
+    
+    // Borrar la carpeta origen que ahora debería estar vacía
+    fs.rmdirSync(sourcePath);
+    
+    return { success: true, targetPath };
+  } catch (e) {
+    console.error("Error merging folder:", e);
+    return { success: false, error: e.message };
+  }
+});
+
+

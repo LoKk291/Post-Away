@@ -387,16 +387,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         await loadFolderData(currentSession.lastFolder);
     }
 
-    async function navigateToFolder(newPath) {
-        if (!newPath) return;
-        if (currentPosts && currentPosts.length > 0) {
-            const folderPaths = currentPosts.map(p => p.path);
-            await window.electronAPI.deleteRars(folderPaths);
-        }
-        currentSession.lastFolder = newPath;
-        await saveSession();
-        await loadFolderData(newPath);
-    }
 
     const btnSelect = document.getElementById('btn-select');
     btnSelect.addEventListener('click', async () => {
@@ -511,6 +501,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 });
 
+async function navigateToFolder(newPath) {
+    if (!newPath) return;
+    if (currentPosts && currentPosts.length > 0) {
+        const folderPaths = currentPosts.map(p => p.path);
+        await window.electronAPI.deleteRars(folderPaths);
+    }
+    currentSession.lastFolder = newPath;
+    await saveSession();
+    await loadFolderData(newPath);
+}
+
 async function saveSession() {
     await window.electronAPI.saveSession(currentSession);
 }
@@ -542,6 +543,81 @@ async function loadFolderData(folderPath) {
         }
     } catch (e) {
         console.error('Error fetching sibling folders:', e);
+    }
+
+    const isAgregados = folderPath.toLowerCase().endsWith('_agregados');
+    const agregadosBanner = document.getElementById('agregados-banner');
+    const agregadosBannerText = document.getElementById('agregados-banner-text');
+    const agregadosBannerIcon = document.getElementById('agregados-banner-icon');
+    const agregadosBannerActions = document.getElementById('agregados-banner-actions');
+    const headerElement = document.querySelector('.glass-header');
+
+    if (agregadosBanner) {
+        agregadosBanner.className = 'hidden';
+        agregadosBanner.style.display = 'none';
+        headerElement.style.borderBottom = '';
+        agregadosBannerActions.innerHTML = '';
+
+        if (isAgregados) {
+            agregadosBanner.className = '';
+            agregadosBanner.style.display = 'flex';
+            agregadosBanner.style.background = 'rgba(168, 85, 247, 0.2)';
+            agregadosBanner.style.color = '#d8b4fe';
+            agregadosBanner.style.border = '1px solid rgba(168, 85, 247, 0.5)';
+            agregadosBannerIcon.innerHTML = '🟣';
+            agregadosBannerText.textContent = 'Estás en MODO AGREGADOS. Gestiona los nuevos personajes y fusiónalos al terminar.';
+            
+            headerElement.style.borderBottom = '2px solid rgba(168, 85, 247, 0.6)';
+
+            const btnBack = document.createElement('button');
+            btnBack.className = 'btn';
+            btnBack.style.cssText = 'background: rgba(255,255,255,0.1); color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer;';
+            btnBack.textContent = '🔙 Volver a la original';
+            btnBack.onclick = () => navigateToFolder(folderPath.replace(/_agregados$/i, ''));
+
+            const btnMerge = document.createElement('button');
+            btnMerge.className = 'btn primary-btn';
+            btnMerge.style.cssText = 'background: linear-gradient(135deg, #9333ea, #7e22ce); border: none; padding: 0.4rem 0.8rem;';
+            btnMerge.textContent = '🔄 Fusionar con Original';
+            btnMerge.onclick = async () => {
+                if (confirm(`¿Estás seguro de que deseas fusionar y mover estos agregados a la carpeta original y ELIMINAR esta carpeta de agregados?`)) {
+                    btnMerge.textContent = 'Fusionando...';
+                    btnMerge.disabled = true;
+                    const result = await window.electronAPI.mergeFolder(folderPath);
+                    if (result.success) {
+                        alert('¡Fusión completada con éxito!');
+                        await navigateToFolder(result.targetPath);
+                    } else {
+                        alert('Error al fusionar: ' + result.error);
+                        btnMerge.textContent = '🔄 Fusionar con Original';
+                        btnMerge.disabled = false;
+                    }
+                }
+            };
+
+            agregadosBannerActions.appendChild(btnBack);
+            agregadosBannerActions.appendChild(btnMerge);
+
+        } else {
+            const targetAgregadosPath = folderPath + '_agregados';
+            const hasAgregados = await window.electronAPI.checkFolderExists(targetAgregadosPath);
+            if (hasAgregados) {
+                agregadosBanner.className = '';
+                agregadosBanner.style.display = 'flex';
+                agregadosBanner.style.background = 'rgba(234, 179, 8, 0.2)';
+                agregadosBanner.style.color = '#fde047';
+                agregadosBanner.style.border = '1px solid rgba(234, 179, 8, 0.5)';
+                agregadosBannerIcon.innerHTML = '⚠️';
+                agregadosBannerText.textContent = 'Tienes personajes agregados pendientes de fusionar en una carpeta separada.';
+                
+                const btnGo = document.createElement('button');
+                btnGo.className = 'btn';
+                btnGo.style.cssText = 'background: rgba(234, 179, 8, 0.3); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.5); padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer;';
+                btnGo.textContent = 'Ir a Agregados ➡️';
+                btnGo.onclick = () => navigateToFolder(targetAgregadosPath);
+                agregadosBannerActions.appendChild(btnGo);
+            }
+        }
     }
 
     postsGrid.innerHTML = '<div class="empty-state">Escaneando carpeta...</div>';
