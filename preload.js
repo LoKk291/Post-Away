@@ -13,5 +13,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFolder: (folderPath) => ipcRenderer.invoke('open-folder', folderPath),
   onAutoQueueReady: (callback) => ipcRenderer.on('auto-queue-ready', callback),
   onAutoQueueDone: (callback) => ipcRenderer.on('auto-queue-done', callback),
-  fetchPatreonLinks: (url, posts) => ipcRenderer.invoke('fetch-patreon-links', url, posts)
+  fetchPatreonLinks: (url, posts) => ipcRenderer.invoke('fetch-patreon-links', url, posts),
+  deleteRars: (folderPaths) => ipcRenderer.invoke('delete-rars', folderPaths),
+  getSiblingFolders: (folderPath) => ipcRenderer.invoke('get-sibling-folders', folderPath)
 });

@@ -327,93 +327,155 @@ ipcMain.handle('compress-folder', async (event, folderPath) => {
   });
 });
 
-ipcMain.handle('fetch-patreon-links', async (event, creatorUrl, posts) => {
-  const { net } = require('electron');
-  
-  const fetchText = (url) => {
-    return new Promise((resolve, reject) => {
-      const request = net.request(url);
-      request.on('response', (response) => {
-        let data = '';
-        response.on('data', (chunk) => { data += chunk; });
-        response.on('end', () => { resolve({ text: data, status: response.statusCode }); });
-      });
-      request.on('error', (error) => { reject(error); });
-      request.end();
-    });
-  };
+ipcMain.handle('delete-rars', async (event, folderPaths) => {
+  for (const folderPath of folderPaths) {
+    try {
+      const parentDir = path.dirname(folderPath);
+      const folderName = path.basename(folderPath);
+      const archivePath = path.join(parentDir, `${folderName}.rar`);
+      if (fs.existsSync(archivePath)) {
+        fs.unlinkSync(archivePath);
+      }
+    } catch (e) {
+      console.error("Error deleting rar:", e);
+    }
+  }
+  return true;
+});
 
+ipcMain.handle('get-sibling-folders', async (event, folderPath) => {
   try {
+    const parentDir = path.dirname(folderPath);
+    const items = fs.readdirSync(parentDir, { withFileTypes: true });
+    const folders = items
+      .filter(item => item.isDirectory())
+      .map(item => ({
+        name: item.name,
+        path: path.join(parentDir, item.name)
+      }));
+    return folders;
+  } catch (e) {
+    console.error("Error getting sibling folders:", e);
+    return [];
+  }
+});
+
+ipcMain.handle('fetch-patreon-links', async (event, creatorUrl, posts) => {
+  return new Promise((resolve) => {
     let cleanUrl = creatorUrl.trim();
     if (!cleanUrl.startsWith('http')) cleanUrl = 'https://' + cleanUrl;
     
-    const { text: html, status } = await fetchText(cleanUrl);
-    if (status >= 400) {
-        return { success: false, error: `Error HTTP ${status} al cargar la URL del creador.` };
-    }
-    
-    let campaignId = null;
-    let match = html.match(/"campaign_id"\s*:\s*"?(\d+)"?/) || 
-                html.match(/"campaign":\s*\{\s*"data":\s*\{\s*"id":\s*"(\d+)"/) ||
-                html.match(/https:\/\/www\.patreon\.com\/api\/campaigns\/(\d+)/) ||
-                html.match(/"creator_id":\s*"?(\d+)"?/) ||
-                html.match(/campaign_id[=":\s]+(\d+)/);
-
-    if (match) campaignId = match[1];
-
-    if (!campaignId) {
-        return { success: false, error: 'No se pudo detectar el ID de la campaña en la página. Verifica que el Link de Patreon sea correcto (ej: https://www.patreon.com/lokk291).' };
+    if (!cleanUrl.includes('/posts') && !cleanUrl.includes('?')) {
+      if (cleanUrl.includes('/c/')) {
+        cleanUrl = cleanUrl.replace(/\/$/, '') + '/posts';
+      }
     }
 
-    const apiUrl = `https://www.patreon.com/api/posts?include=campaign&filter[campaign_id]=${campaignId}&sort=-published_at&page[count]=50&json-api-version=1.0`;
-    const { text: postsJsonText } = await fetchText(apiUrl);
-    
-    let postsData;
-    try {
-        postsData = JSON.parse(postsJsonText);
-    } catch(e) {
-        return { success: false, error: 'Error parseando JSON de la API de Patreon.' };
-    }
-
-    if (!postsData || !postsData.data) {
-        return { success: false, error: 'La API de Patreon no devolvió datos válidos.' };
-    }
-
-    const patreonPosts = postsData.data.map(p => {
-        return {
-            title: (p.attributes.title || '').toLowerCase(),
-            url: p.attributes.url || `https://www.patreon.com/posts/${p.id}`,
-            publishedAt: new Date(p.attributes.published_at || 0)
-        };
+    const hiddenWin = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true
+      }
     });
 
-    const matchedLinks = {};
-    for (const p of posts) {
-        const charName = (p.character || "").toLowerCase();
-        const charNameJP = (p.characterJP || "").toLowerCase();
+    hiddenWin.loadURL(cleanUrl);
 
-        let bestMatch = null;
-        for (const patreonPost of patreonPosts) {
-            const title = patreonPost.title;
-            const matchesEN = charName && title.includes(charName);
-            const matchesJP = charNameJP && title.includes(charNameJP);
-            
-            if (matchesEN || matchesJP) {
-                if (!bestMatch || patreonPost.publishedAt > bestMatch.publishedAt) {
-                    bestMatch = patreonPost;
+    hiddenWin.webContents.on('did-finish-load', async () => {
+      setTimeout(async () => {
+        try {
+          const result = await hiddenWin.webContents.executeJavaScript(`
+            (async () => {
+              try {
+                let campaignId = null;
+                const html = document.documentElement.innerHTML;
+                
+                let match = html.match(/"campaign_id"\\s*:\\s*"?(\\d+)"?/);
+                if (!match) match = html.match(/campaign_id[=":\\s]+(\\d+)/);
+                if (!match) match = html.match(/"campaign":\\s*\\{\\s*"data":\\s*\\{\\s*"id":\\s*"(\\d+)"/);
+                if (!match) match = html.match(/https:\\/\\/www\\.patreon\\.com\\/api\\/campaigns\\/(\\d+)/);
+                if (!match) match = html.match(/"creator_id":\\s*"?(\\d+)"?/);
+
+                if (match) campaignId = match[1];
+
+                if (!campaignId) {
+                  const postsList = [];
+                  const links = document.querySelectorAll('a[href*="/posts/"]');
+                  for (const a of links) {
+                    const url = a.href;
+                    const titleEl = a.querySelector('[data-tag="post-title"]') || a;
+                    const title = titleEl.innerText || a.innerText || "";
+                    if (title && url.includes('/posts/') && !url.includes('edit')) {
+                      postsList.push({ title: title.toLowerCase(), url: url, publishedAt: new Date().getTime() });
+                    }
+                  }
+                  return { success: true, posts: postsList, fallback: true };
                 }
+
+                const apiUrl = 'https://www.patreon.com/api/posts?include=campaign&filter[campaign_id]=' + campaignId + '&sort=-published_at&page[count]=50&json-api-version=1.0';
+                const res = await fetch(apiUrl);
+                if (!res.ok) {
+                  return { success: false, error: 'API fetch failed with status ' + res.status };
+                }
+                const data = await res.json();
+                
+                const patreonPosts = (data.data || []).map(p => {
+                  return {
+                    title: (p.attributes.title || '').toLowerCase(),
+                    url: p.attributes.url || ('https://www.patreon.com/posts/' + p.id),
+                    publishedAt: new Date(p.attributes.published_at || 0).getTime()
+                  };
+                });
+                return { success: true, posts: patreonPosts };
+              } catch (e) {
+                return { success: false, error: e.toString() };
+              }
+            })();
+          `);
+
+          hiddenWin.destroy();
+
+          if (!result || !result.success) {
+            return resolve({ success: false, error: result ? result.error : 'Error extrayendo datos de Patreon.' });
+          }
+
+          const patreonPosts = result.posts;
+          const matchedLinks = {};
+          
+          for (const p of posts) {
+            const charName = (p.character || "").toLowerCase();
+            const charNameJP = (p.characterJP || "").toLowerCase();
+
+            let bestMatch = null;
+            for (const patreonPost of patreonPosts) {
+              const title = patreonPost.title;
+              const matchesEN = charName && title.includes(charName);
+              const matchesJP = charNameJP && title.includes(charNameJP);
+              
+              if (matchesEN || matchesJP) {
+                if (!bestMatch || patreonPost.publishedAt > bestMatch.publishedAt) {
+                  bestMatch = patreonPost;
+                }
+              }
             }
-        }
 
-        if (bestMatch) {
-            matchedLinks[p.folderName] = bestMatch.url;
-        }
-    }
+            if (bestMatch) {
+              matchedLinks[p.folderName] = bestMatch.url;
+            }
+          }
 
-    return { success: true, links: matchedLinks };
-  } catch (err) {
-    console.error("Error fetching Patreon links:", err);
-    return { success: false, error: err.message };
-  }
+          resolve({ success: true, links: matchedLinks });
+        } catch (err) {
+          if (!hiddenWin.isDestroyed()) hiddenWin.destroy();
+          resolve({ success: false, error: err.message });
+        }
+      }, 4000);
+    });
+
+    hiddenWin.webContents.on('did-fail-load', () => {
+      if (!hiddenWin.isDestroyed()) hiddenWin.destroy();
+      resolve({ success: false, error: 'Falló la conexión al cargar la URL de Patreon.' });
+    });
+  });
 });
 

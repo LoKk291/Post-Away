@@ -387,14 +387,46 @@ document.addEventListener('DOMContentLoaded', async () => {
         await loadFolderData(currentSession.lastFolder);
     }
 
+    async function navigateToFolder(newPath) {
+        if (!newPath) return;
+        if (currentPosts && currentPosts.length > 0) {
+            const folderPaths = currentPosts.map(p => p.path);
+            await window.electronAPI.deleteRars(folderPaths);
+        }
+        currentSession.lastFolder = newPath;
+        await saveSession();
+        await loadFolderData(newPath);
+    }
+
     const btnSelect = document.getElementById('btn-select');
     btnSelect.addEventListener('click', async () => {
         const folder = await window.electronAPI.selectFolder();
         if (folder) {
-            currentSession.lastFolder = folder;
-            await saveSession();
-            await loadFolderData(folder);
+            await navigateToFolder(folder);
         }
+    });
+
+    const btnPrevFolder = document.getElementById('btn-prev-folder');
+    const btnNextFolder = document.getElementById('btn-next-folder');
+    const folderDropdown = document.getElementById('folder-dropdown');
+
+    btnPrevFolder.addEventListener('click', async () => {
+        if (folderDropdown.selectedIndex > 0) {
+            const newPath = folderDropdown.options[folderDropdown.selectedIndex - 1].value;
+            await navigateToFolder(newPath);
+        }
+    });
+
+    btnNextFolder.addEventListener('click', async () => {
+        if (folderDropdown.selectedIndex < folderDropdown.options.length - 1 && folderDropdown.selectedIndex >= 0) {
+            const newPath = folderDropdown.options[folderDropdown.selectedIndex + 1].value;
+            await navigateToFolder(newPath);
+        }
+    });
+
+    folderDropdown.addEventListener('change', async () => {
+        const newPath = folderDropdown.value;
+        await navigateToFolder(newPath);
     });
 
     const btnOpenExplorer = document.getElementById('btn-open-explorer');
@@ -445,6 +477,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('btn-clear').addEventListener('click', async () => {
         if (!confirm('¿Estás seguro de que quieres limpiar toda la grilla de posts? Esto removerá la carpeta actual y reiniciará tu panel.')) return;
 
+        if (currentPosts && currentPosts.length > 0) {
+            const folderPaths = currentPosts.map(p => p.path);
+            await window.electronAPI.deleteRars(folderPaths);
+        }
+
         currentSession.lastFolder = null;
         currentSession.donePosts = {};
         await saveSession();
@@ -480,15 +517,32 @@ async function saveSession() {
 
 async function loadFolderData(folderPath) {
     const pathIndicator = document.getElementById('path-indicator');
-    const currentPathSpan = document.getElementById('current-path');
     const postsGrid = document.getElementById('posts-grid');
+    const dropdown = document.getElementById('folder-dropdown');
 
     pathIndicator.classList.remove('hidden');
     document.getElementById('app-tabs').classList.remove('hidden');
     document.getElementById('global-settings').classList.remove('hidden');
     document.getElementById('btn-clear').style.display = 'block';
     document.querySelectorAll('.grid-actions').forEach(el => el.style.display = 'flex');
-    currentPathSpan.textContent = folderPath;
+    
+    try {
+        const siblingFolders = await window.electronAPI.getSiblingFolders(folderPath);
+        if (dropdown) {
+            dropdown.innerHTML = '';
+            siblingFolders.forEach((folder) => {
+                const option = document.createElement('option');
+                option.value = folder.path;
+                option.textContent = folder.name;
+                if (folder.path === folderPath) {
+                    option.selected = true;
+                }
+                dropdown.appendChild(option);
+            });
+        }
+    } catch (e) {
+        console.error('Error fetching sibling folders:', e);
+    }
 
     postsGrid.innerHTML = '<div class="empty-state">Escaneando carpeta...</div>';
     document.getElementById('twitter-grid').innerHTML = '<div class="empty-state">Cargando feed de X...</div>';
@@ -847,9 +901,9 @@ function renderTwitterGrid(posts) {
             const tagsText = card.querySelector('.edit-tags').value;
             const patreonLink = card.querySelector('.edit-patreon-link').value;
 
-            // Text in english, text in spanish, 3 line breaks, link, 3 line breaks, tags
-            const linkPart = patreonLink ? `${patreonLink}\n\n\n\n` : '';
-            const combinedText = `${enText}\n${esText}\n\n\n\n${linkPart}${tagsText}`;
+            // Text in english, text in spanish, 1 line break, link, 1 line break, tags
+            const linkPart = patreonLink ? `${patreonLink}\n\n` : '';
+            const combinedText = `${enText}\n${esText}\n\n${linkPart}${tagsText}`;
             navigator.clipboard.writeText(combinedText);
 
             const originalText = btnCopyAll.textContent;
