@@ -571,42 +571,70 @@ ipcMain.handle('create-date-folder', async (event, basePath, month, date) => {
 });
 
 ipcMain.handle('move-character-folder', async (event, charPath, targetBase, targetNova, month, date) => {
-  try {
-    const folderName = path.basename(charPath);
-    const isNova = folderName.toLowerCase().includes('nova');
-    
-    const finalBase = (isNova && targetNova) ? targetNova : targetBase;
-    if (!finalBase) return { success: false, error: 'Ruta base no definida' };
-
-    const monthPath = path.join(finalBase, month);
-    if (!fs.existsSync(monthPath)) fs.mkdirSync(monthPath, { recursive: true });
-    
-    const datePath = path.join(monthPath, date);
-    if (!fs.existsSync(datePath)) fs.mkdirSync(datePath, { recursive: true });
-
-    const newPath = path.join(datePath, folderName);
-    
-    fs.renameSync(charPath, newPath);
-    
-    return { success: true, newPath, isNova };
-  } catch (e) {
-    console.error("Error moving character folder:", e);
-    if (e.code === 'EXDEV') {
+    try {
+        const folderName = path.basename(charPath);
+        const sourceDir = path.dirname(charPath);
+        
+        const nickyDatePath = path.join(targetBase, month, date);
+        if (!fs.existsSync(nickyDatePath)) fs.mkdirSync(nickyDatePath, { recursive: true });
+        
+        const nickyDest = path.join(nickyDatePath, folderName);
+        
         try {
-            const folderName = path.basename(charPath);
-            const isNova = folderName.toLowerCase().includes('nova');
-            const finalBase = (isNova && targetNova) ? targetNova : targetBase;
-            const newPath = path.join(finalBase, month, date, folderName);
-            
-            fs.cpSync(charPath, newPath, { recursive: true });
-            fs.rmSync(charPath, { recursive: true, force: true });
-            return { success: true, newPath, isNova };
-        } catch(e2) {
-            return { success: false, error: e2.message };
+            fs.renameSync(charPath, nickyDest);
+        } catch (err) {
+            if (err.code === 'EXDEV') {
+                fs.cpSync(charPath, nickyDest, { recursive: true });
+                fs.rmSync(charPath, { recursive: true, force: true });
+            } else {
+                throw err;
+            }
         }
+
+        if (targetNova) {
+            const allFiles = fs.readdirSync(sourceDir, { withFileTypes: true });
+            const nickyBaseName = folderName.toLowerCase().trim();
+            
+            const novaFolder = allFiles.find(dirent => {
+                if (!dirent.isDirectory()) return false;
+                const name = dirent.name.toLowerCase();
+                
+                // Debe contener "[nova]"
+                if (!name.includes('[nova]')) return false;
+                
+                // Verificamos si contiene el nombre base
+                if (name.includes(nickyBaseName)) return true;
+                
+                // O si quitando la etiqueta [nova] encaja con el nombre original
+                const cleanNova = name.replace(/\[nova\]/g, '').replace(/[\[\]]/g, '').trim();
+                const cleanNicky = nickyBaseName.replace(/\[nicky\]/g, '').replace(/[\[\]]/g, '').trim();
+                
+                return cleanNova === cleanNicky || cleanNova.includes(cleanNicky) || cleanNicky.includes(cleanNova);
+            });
+
+            if (novaFolder) {
+                const novaSrcPath = path.join(sourceDir, novaFolder.name);
+                const novaDatePath = path.join(targetNova, month, date);
+                if (!fs.existsSync(novaDatePath)) fs.mkdirSync(novaDatePath, { recursive: true });
+                
+                const novaDest = path.join(novaDatePath, novaFolder.name);
+                
+                try {
+                    fs.renameSync(novaSrcPath, novaDest);
+                } catch (err) {
+                    if (err.code === 'EXDEV') {
+                        fs.cpSync(novaSrcPath, novaDest, { recursive: true });
+                        fs.rmSync(novaSrcPath, { recursive: true, force: true });
+                    } else {
+                        throw err;
+                    }
+                }
+            }
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error("Error moving character folder:", error);
+        return { success: false, error: error.message };
     }
-    return { success: false, error: e.message };
-  }
 });
-
-

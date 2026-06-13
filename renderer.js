@@ -1106,23 +1106,24 @@ async function loadGestorCharacters() {
 
     container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">Cargando...</div>';
     
-    const posts = await window.electronAPI.readFolder(currentSession.outputPath);
-    gestorState.outputCharacters = posts;
-    countEl.textContent = `${posts.length} encontrados`;
+    const allPosts = await window.electronAPI.readFolder(currentSession.outputPath);
+    // Filtrar los de nova
+    gestorState.outputCharacters = allPosts.filter(post => !post.folderName.toLowerCase().includes('nova'));
+    
+    countEl.textContent = `${gestorState.outputCharacters.length} encontrados (Ocultando versiones Nova)`;
 
     container.innerHTML = '';
-    if (posts.length === 0) {
+    if (gestorState.outputCharacters.length === 0) {
         container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">No hay personajes en Output.</div>';
         return;
     }
 
-    posts.forEach(post => {
+    gestorState.outputCharacters.forEach(post => {
         const card = document.createElement('div');
         card.className = 'post-card';
         card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
         
-        const isNova = post.folderName.toLowerCase().includes('nova');
-        const novaBadge = isNova ? '<span style="background: rgba(244, 114, 182, 0.2); color: #f472b6; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.75rem; border: 1px solid rgba(244, 114, 182, 0.5);">Nova</span>' : '';
+        const novaBadge = ''; // Ya no mostramos la placa Nova porque solo mostramos los Nicky
 
         card.innerHTML = `
             <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all;">${post.folderName} ${novaBadge}</div>
