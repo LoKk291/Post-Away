@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createMonthFolder: (basePath, monthName) => ipcRenderer.invoke('create-month-folder', basePath, monthName),
   createDateFolder: (basePath, monthName, dateName) => ipcRenderer.invoke('create-date-folder', basePath, monthName, dateName),
   moveCharacterFolder: (charPath, targetBase, targetNova, month, date) => ipcRenderer.invoke('move-character-folder', charPath, targetBase, targetNova, month, date),
+  moveOrganizedCharacter: (charName, sourceMonth, sourceDate, targetMonth, targetDate, baseOrgPath, novaOrgPath) => ipcRenderer.invoke('move-organized-character', charName, sourceMonth, sourceDate, targetMonth, targetDate, baseOrgPath, novaOrgPath),
   deleteFolder: (folderPath) => ipcRenderer.invoke('delete-folder', folderPath),
   renameFolder: (folderPath, newName) => ipcRenderer.invoke('rename-folder', folderPath, newName),
   openInExplorer: (folderPath) => ipcRenderer.invoke('open-in-explorer', folderPath)

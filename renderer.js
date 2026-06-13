@@ -350,6 +350,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     content.classList.add('hidden');
                 }
             });
+
+            const globalSettings = document.getElementById('global-settings');
+            if (globalSettings) {
+                if (target === 'gestor') {
+                    globalSettings.style.display = 'none';
+                } else {
+                    globalSettings.style.display = '';
+                }
+            }
         });
     });
 
@@ -1088,6 +1097,7 @@ function renderGestorDates(monthName) {
                 gestorState.selectedDate = d.name;
                 renderGestorDates(monthName);
                 updateCharacterMoveButtons(); 
+                loadDateCharacters();
             };
             btn.oncontextmenu = (e) => {
                 e.preventDefault();
@@ -1116,6 +1126,101 @@ document.addEventListener('click', (e) => {
         menu.classList.add('hidden');
     }
 });
+
+let moveCharState = {
+    charName: null,
+    sourceMonth: null,
+    sourceDate: null
+};
+
+async function loadDateCharacters() {
+    const container = document.getElementById('gestor-date-contents-list');
+    const countEl = document.getElementById('gestor-date-contents-count');
+    
+    if (!gestorState.selectedMonth || !gestorState.selectedDate || !currentSession.baseOrgPath) {
+        container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">Selecciona una fecha arriba para ver sus personajes.</div>';
+        countEl.textContent = '0 encontrados';
+        return;
+    }
+
+    container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">Cargando...</div>';
+    
+    const targetPath = `${currentSession.baseOrgPath}\\${gestorState.selectedMonth}\\${gestorState.selectedDate}`;
+    const allPosts = await window.electronAPI.readFolder(targetPath);
+    
+    const characters = allPosts.filter(post => !post.folderName.toLowerCase().includes('nova'));
+    countEl.textContent = `${characters.length} encontrados (Ocultando versiones Nova)`;
+
+    container.innerHTML = '';
+    if (characters.length === 0) {
+        container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">No hay personajes en esta fecha.</div>';
+        return;
+    }
+
+    characters.forEach(post => {
+        const card = document.createElement('div');
+        card.className = 'post-card';
+        card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
+        
+        card.innerHTML = `
+            <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all;">${post.folderName}</div>
+            <div style="font-size: 0.8rem; color: #94a3b8;">${post.imagesCount} Imágenes</div>
+            <button class="btn secondary-btn" style="margin-top: auto; padding: 0.4rem; font-size: 0.85rem;">
+                Mover a otra fecha...
+            </button>
+        `;
+
+        const btnMove = card.querySelector('button');
+        btnMove.onclick = () => {
+            openMoveCharModal(post.folderName, gestorState.selectedMonth, gestorState.selectedDate);
+        };
+        
+        container.appendChild(card);
+    });
+}
+
+function openMoveCharModal(charName, sourceMonth, sourceDate) {
+    moveCharState = { charName, sourceMonth, sourceDate };
+    
+    document.getElementById('move-char-name-label').textContent = `Personaje: ${charName}`;
+    
+    const monthSelect = document.getElementById('move-char-month-select');
+    monthSelect.innerHTML = '<option value="">-- Selecciona un Mes --</option>';
+    gestorState.months.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.name;
+        opt.textContent = m.name;
+        monthSelect.appendChild(opt);
+    });
+    monthSelect.value = sourceMonth;
+    
+    updateMoveCharDateSelect(sourceMonth);
+    
+    const dateSelect = document.getElementById('move-char-date-select');
+    dateSelect.value = sourceDate;
+
+    const modal = document.getElementById('move-character-modal');
+    modal.style.display = 'flex';
+    modal.classList.remove('hidden');
+}
+
+function updateMoveCharDateSelect(monthName) {
+    const dateSelect = document.getElementById('move-char-date-select');
+    dateSelect.innerHTML = '';
+    
+    const monthData = gestorState.months.find(m => m.name === monthName);
+    if (!monthData || monthData.dates.length === 0) {
+        dateSelect.innerHTML = '<option value="">No hay fechas</option>';
+        return;
+    }
+    
+    monthData.dates.sort((a, b) => a.name.localeCompare(b.name)).forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name;
+        dateSelect.appendChild(opt);
+    });
+}
 
 async function loadGestorCharacters() {
     const container = document.getElementById('gestor-characters-list');
@@ -1348,6 +1453,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-refresh-gestor').addEventListener('click', async () => {
         await loadGestorData();
         await loadGestorCharacters();
+        await loadDateCharacters();
     });
 
     const monthSelect = document.getElementById('gestor-month-select');
@@ -1355,6 +1461,55 @@ document.addEventListener('DOMContentLoaded', () => {
         gestorState.selectedDate = null;
         renderGestorDates(e.target.value);
         updateCharacterMoveButtons(); 
+        loadDateCharacters();
+    });
+
+    // Move modal logic
+    const moveMonthSelect = document.getElementById('move-char-month-select');
+    moveMonthSelect.addEventListener('change', (e) => {
+        updateMoveCharDateSelect(e.target.value);
+    });
+
+    document.getElementById('btn-close-move-char').addEventListener('click', () => {
+        const modal = document.getElementById('move-character-modal');
+        modal.style.display = 'none';
+        modal.classList.add('hidden');
+    });
+
+    document.getElementById('btn-confirm-move-char').addEventListener('click', async () => {
+        const targetMonth = document.getElementById('move-char-month-select').value;
+        const targetDate = document.getElementById('move-char-date-select').value;
+        
+        if (!targetMonth || !targetDate) {
+            alert('Selecciona un mes y fecha de destino válidos.');
+            return;
+        }
+
+        const btn = document.getElementById('btn-confirm-move-char');
+        btn.textContent = 'Moviendo...';
+        btn.disabled = true;
+
+        const result = await window.electronAPI.moveOrganizedCharacter(
+            moveCharState.charName,
+            moveCharState.sourceMonth,
+            moveCharState.sourceDate,
+            targetMonth,
+            targetDate,
+            currentSession.baseOrgPath,
+            currentSession.novaOrgPath
+        );
+
+        if (result.success) {
+            document.getElementById('move-character-modal').style.display = 'none';
+            document.getElementById('move-character-modal').classList.add('hidden');
+            await loadGestorData(); // Reload everything to reflect changes
+            await loadDateCharacters();
+        } else {
+            alert("Error moviendo personaje: " + result.error);
+        }
+        
+        btn.textContent = 'Mover';
+        btn.disabled = false;
     });
 
     document.getElementById('btn-create-month').addEventListener('click', async () => {

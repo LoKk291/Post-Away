@@ -95,10 +95,10 @@
                     </div>
                     <div class="setting-item">
                         <label for="patreon-url">Link de Patreon</label>
-                        <input type="url" id="patreon-url" class="glass-input" placeholder="https://www.patreon.com/miusuario">
-                    </div>
-                    <div class="setting-item" style="display: flex; align-items: flex-end;">
-                        <button id="btn-open-rutas" class="btn" style="border: 1px solid rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.1); color: #c4b5fd; padding: 0.5rem; border-radius: 6px; cursor: pointer; height: 38px; width: 38px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;" title="Configurar Rutas del Gestor">⚙️</button>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <input type="url" id="patreon-url" class="glass-input" placeholder="https://www.patreon.com/miusuario" style="flex: 1;">
+                            <button id="btn-open-rutas" class="btn" style="border: 1px solid rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.1); color: #c4b5fd; padding: 0; border-radius: 6px; cursor: pointer; height: 38px; width: 38px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0;" title="Configurar Rutas del Gestor">⚙️</button>
+                        </div>
                     </div>
                 </div>
                 <!-- Statistics UI -->
@@ -177,9 +177,22 @@
                     </div>
                 </div>
 
+                <div class="glass-panel" style="padding: 1rem; margin-bottom: 1rem;">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #fff; display: flex; justify-content: space-between;">
+                        <span>3. Personajes en Fecha Seleccionada</span>
+                        <span id="gestor-date-contents-count" style="color: #94a3b8; font-size: 0.9rem;">0 encontrados</span>
+                    </h3>
+                    
+                    <div id="gestor-date-contents-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
+                        <div class="empty-state" style="grid-column: 1 / -1;">
+                            Selecciona una fecha arriba para ver sus personajes.
+                        </div>
+                    </div>
+                </div>
+
                 <div class="glass-panel" style="padding: 1rem;">
                     <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #fff; display: flex; justify-content: space-between;">
-                        <span>3. Personajes Pendientes (Output)</span>
+                        <span>4. Personajes Pendientes (Output)</span>
                         <span id="gestor-output-count" style="color: #94a3b8; font-size: 0.9rem;">0 encontrados</span>
                     </h3>
                     
@@ -222,6 +235,36 @@
                         <button id="btn-select-nova-org" class="btn secondary-btn" style="padding: 0.5rem;">📁</button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Mover Personaje Ya Organizado -->
+    <div id="move-character-modal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+        <div class="glass-panel" style="width: 400px; max-width: 90%; padding: 2rem; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 style="margin: 0; font-size: 1.25rem;">Mover Personaje</h2>
+                <button id="btn-close-move-char" class="btn" style="background: transparent; color: #fca5a5; border: none; font-size: 1.2rem; cursor: pointer;">✖</button>
+            </div>
+            
+            <p id="move-char-name-label" style="color: #e2e8f0; margin-bottom: 1rem; font-weight: 500;">Personaje: -</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div class="setting-item">
+                    <label>Mes de destino</label>
+                    <select id="move-char-month-select" class="glass-input" style="width: 100%;">
+                        <option value="">Cargando...</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>Fecha de destino</label>
+                    <select id="move-char-date-select" class="glass-input" style="width: 100%;">
+                        <option value="">Selecciona un mes primero</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; margin-top: 2rem;">
+                <button id="btn-confirm-move-char" class="btn primary-btn">Mover</button>
             </div>
         </div>
     </div>

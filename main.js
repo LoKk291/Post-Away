@@ -639,6 +639,74 @@ ipcMain.handle('move-character-folder', async (event, charPath, targetBase, targ
     }
 });
 
+ipcMain.handle('move-organized-character', async (event, charName, sourceMonth, sourceDate, targetMonth, targetDate, baseOrgPath, novaOrgPath) => {
+    try {
+        const nickySrc = path.join(baseOrgPath, sourceMonth, sourceDate, charName);
+        const nickyDatePath = path.join(baseOrgPath, targetMonth, targetDate);
+        if (!fs.existsSync(nickyDatePath)) fs.mkdirSync(nickyDatePath, { recursive: true });
+        
+        const nickyDest = path.join(nickyDatePath, charName);
+
+        if (fs.existsSync(nickySrc)) {
+            try {
+                fs.renameSync(nickySrc, nickyDest);
+            } catch (err) {
+                if (err.code === 'EXDEV') {
+                    fs.cpSync(nickySrc, nickyDest, { recursive: true });
+                    fs.rmSync(nickySrc, { recursive: true, force: true });
+                } else {
+                    throw err;
+                }
+            }
+        }
+
+        if (novaOrgPath) {
+            const novaSourceDateDir = path.join(novaOrgPath, sourceMonth, sourceDate);
+            if (fs.existsSync(novaSourceDateDir)) {
+                const allFiles = fs.readdirSync(novaSourceDateDir, { withFileTypes: true });
+                const nickyBaseName = charName.toLowerCase().trim();
+                
+                const novaFolder = allFiles.find(dirent => {
+                    if (!dirent.isDirectory()) return false;
+                    const name = dirent.name.toLowerCase();
+                    if (!name.includes('[nova]')) return false;
+                    
+                    if (name.includes(nickyBaseName)) return true;
+                    
+                    const cleanNova = name.replace(/\[nova\]/g, '').replace(/[\[\]]/g, '').trim();
+                    const cleanNicky = nickyBaseName.replace(/\[nicky\]/g, '').replace(/[\[\]]/g, '').trim();
+                    
+                    return cleanNova === cleanNicky || cleanNova.includes(cleanNicky) || cleanNicky.includes(cleanNova);
+                });
+
+                if (novaFolder) {
+                    const novaSrcPath = path.join(novaSourceDateDir, novaFolder.name);
+                    const novaDatePath = path.join(novaOrgPath, targetMonth, targetDate);
+                    if (!fs.existsSync(novaDatePath)) fs.mkdirSync(novaDatePath, { recursive: true });
+                    
+                    const novaDest = path.join(novaDatePath, novaFolder.name);
+                    
+                    try {
+                        fs.renameSync(novaSrcPath, novaDest);
+                    } catch (err) {
+                        if (err.code === 'EXDEV') {
+                            fs.cpSync(novaSrcPath, novaDest, { recursive: true });
+                            fs.rmSync(novaSrcPath, { recursive: true, force: true });
+                        } else {
+                            throw err;
+                        }
+                    }
+                }
+            }
+        }
+
+        return { success: true };
+    } catch (err) {
+        console.error("Error moving organized character:", err);
+        return { success: false, error: err.message };
+    }
+});
+
 ipcMain.handle('delete-folder', async (event, folderPath) => {
     try {
         if (fs.existsSync(folderPath)) {
