@@ -638,3 +638,38 @@ ipcMain.handle('move-character-folder', async (event, charPath, targetBase, targ
         return { success: false, error: error.message };
     }
 });
+
+ipcMain.handle('delete-folder', async (event, folderPath) => {
+    try {
+        if (fs.existsSync(folderPath)) {
+            fs.rmSync(folderPath, { recursive: true, force: true });
+        }
+        return { success: true };
+    } catch (err) {
+        return { success: false, error: err.message };
+    }
+});
+
+ipcMain.handle('rename-folder', async (event, folderPath, newName) => {
+    try {
+        if (fs.existsSync(folderPath)) {
+            const parentDir = path.dirname(folderPath);
+            const newPath = path.join(parentDir, newName);
+            fs.renameSync(folderPath, newPath);
+        }
+        return { success: true };
+    } catch (err) {
+        return { success: false, error: err.message };
+    }
+});
+
+ipcMain.handle('open-in-explorer', async (event, folderPath) => {
+    try {
+        if (fs.existsSync(folderPath)) {
+            await shell.openPath(folderPath);
+        }
+        return { success: true };
+    } catch (err) {
+        return { success: false, error: err.message };
+    }
+});

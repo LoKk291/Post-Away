@@ -1089,10 +1089,33 @@ function renderGestorDates(monthName) {
                 renderGestorDates(monthName);
                 updateCharacterMoveButtons(); 
             };
+            btn.oncontextmenu = (e) => {
+                e.preventDefault();
+                showDateContextMenu(e.clientX, e.clientY, monthName, d.name);
+            };
             container.appendChild(btn);
         });
     }
 }
+
+let contextMenuTarget = null;
+
+function showDateContextMenu(x, y, monthName, dateName) {
+    contextMenuTarget = { month: monthName, date: dateName };
+    const menu = document.getElementById('date-context-menu');
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+    menu.style.display = 'flex';
+    menu.classList.remove('hidden');
+}
+
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('date-context-menu');
+    if (menu && !menu.contains(e.target)) {
+        menu.style.display = 'none';
+        menu.classList.add('hidden');
+    }
+});
 
 async function loadGestorCharacters() {
     const container = document.getElementById('gestor-characters-list');
@@ -1274,6 +1297,52 @@ document.addEventListener('DOMContentLoaded', () => {
             modalRutas.classList.add('hidden');
         });
     }
+
+    // Context Menu Actions
+    document.getElementById('ctx-abrir').addEventListener('click', async () => {
+        if (!contextMenuTarget || !currentSession.baseOrgPath) return;
+        const targetPath = `${currentSession.baseOrgPath}\\${contextMenuTarget.month}\\${contextMenuTarget.date}`;
+        await window.electronAPI.openInExplorer(targetPath);
+        document.getElementById('date-context-menu').style.display = 'none';
+    });
+
+    document.getElementById('ctx-renombrar').addEventListener('click', async () => {
+        if (!contextMenuTarget || !currentSession.baseOrgPath) return;
+        const newName = prompt(`Renombrar fecha ${contextMenuTarget.date} a:`, contextMenuTarget.date);
+        if (newName && newName !== contextMenuTarget.date) {
+            const basePath = `${currentSession.baseOrgPath}\\${contextMenuTarget.month}\\${contextMenuTarget.date}`;
+            await window.electronAPI.renameFolder(basePath, newName);
+            if (currentSession.novaOrgPath) {
+                const novaPath = `${currentSession.novaOrgPath}\\${contextMenuTarget.month}\\${contextMenuTarget.date}`;
+                await window.electronAPI.renameFolder(novaPath, newName);
+            }
+            if (gestorState.selectedDate === contextMenuTarget.date) {
+                gestorState.selectedDate = newName;
+                updateCharacterMoveButtons();
+            }
+            await loadGestorData();
+        }
+        document.getElementById('date-context-menu').style.display = 'none';
+    });
+
+    document.getElementById('ctx-eliminar').addEventListener('click', async () => {
+        if (!contextMenuTarget || !currentSession.baseOrgPath) return;
+        const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar la fecha ${contextMenuTarget.date}?`);
+        if (confirmDelete) {
+            const basePath = `${currentSession.baseOrgPath}\\${contextMenuTarget.month}\\${contextMenuTarget.date}`;
+            await window.electronAPI.deleteFolder(basePath);
+            if (currentSession.novaOrgPath) {
+                const novaPath = `${currentSession.novaOrgPath}\\${contextMenuTarget.month}\\${contextMenuTarget.date}`;
+                await window.electronAPI.deleteFolder(novaPath);
+            }
+            if (gestorState.selectedDate === contextMenuTarget.date) {
+                gestorState.selectedDate = null;
+                updateCharacterMoveButtons();
+            }
+            await loadGestorData();
+        }
+        document.getElementById('date-context-menu').style.display = 'none';
+    });
 
     // Gestor UI Actions
     document.getElementById('btn-refresh-gestor').addEventListener('click', async () => {

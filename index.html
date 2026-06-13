@@ -226,6 +226,13 @@
         </div>
     </div>
 
+    <!-- Context Menu para Fechas -->
+    <div id="date-context-menu" class="context-menu hidden" style="position: fixed; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.5rem; box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 1000; display: none; flex-direction: column; gap: 0.2rem; min-width: 150px; backdrop-filter: blur(10px);">
+        <button id="ctx-abrir" class="btn context-btn" style="background: transparent; color: #e2e8f0; text-align: left; padding: 0.5rem; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s;">📂 Abrir en explorador</button>
+        <button id="ctx-renombrar" class="btn context-btn" style="background: transparent; color: #e2e8f0; text-align: left; padding: 0.5rem; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s;">✏️ Renombrar</button>
+        <button id="ctx-eliminar" class="btn context-btn" style="background: transparent; color: #fca5a5; text-align: left; padding: 0.5rem; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s;">🗑️ Eliminar</button>
+    </div>
+
     <script src="renderer.js"></script>
 </body>
 </html>
