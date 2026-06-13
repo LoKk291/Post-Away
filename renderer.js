@@ -1034,3 +1034,324 @@ async function startBackgroundCompression(elements, runToken) {
         }
     }
 }
+
+// ==================== GESTOR DE CARPETAS LOGIC ====================
+
+let gestorState = {
+    months: [],
+    selectedMonth: null,
+    selectedDate: null,
+    outputCharacters: []
+};
+
+async function loadGestorData() {
+    if (!currentSession.baseOrgPath) return;
+    const select = document.getElementById('gestor-month-select');
+    
+    gestorState.months = await window.electronAPI.getOrgFolders(currentSession.baseOrgPath);
+    
+    select.innerHTML = '<option value="">-- Selecciona un Mes --</option>';
+    gestorState.months.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.name;
+        opt.textContent = m.name;
+        select.appendChild(opt);
+    });
+
+    if (gestorState.selectedMonth) {
+        select.value = gestorState.selectedMonth;
+        renderGestorDates(gestorState.selectedMonth);
+    }
+}
+
+function renderGestorDates(monthName) {
+    gestorState.selectedMonth = monthName;
+    const monthData = gestorState.months.find(m => m.name === monthName);
+    const container = document.getElementById('gestor-dates-list');
+    
+    if (!monthData) {
+        container.innerHTML = '<div style="color: #64748b; font-size: 0.9rem; text-align: center; padding: 1rem; width: 100%;">Selecciona un mes primero</div>';
+        return;
+    }
+
+    container.innerHTML = '';
+    if (monthData.dates.length === 0) {
+        container.innerHTML = '<div style="color: #64748b; font-size: 0.9rem; padding: 0.5rem; width: 100%;">No hay fechas en este mes.</div>';
+    } else {
+        const sortedDates = monthData.dates.sort((a, b) => a.name.localeCompare(b.name));
+        sortedDates.forEach(d => {
+            const btn = document.createElement('button');
+            btn.className = 'btn';
+            btn.style.cssText = `border: 1px solid rgba(255,255,255,0.2); background: ${gestorState.selectedDate === d.name ? 'rgba(59, 130, 246, 0.4)' : 'rgba(255,255,255,0.05)'}; color: #fff; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;`;
+            btn.textContent = d.name;
+            btn.onclick = () => {
+                gestorState.selectedDate = d.name;
+                renderGestorDates(monthName);
+                updateCharacterMoveButtons(); 
+            };
+            container.appendChild(btn);
+        });
+    }
+}
+
+async function loadGestorCharacters() {
+    const container = document.getElementById('gestor-characters-list');
+    const countEl = document.getElementById('gestor-output-count');
+    
+    if (!currentSession.outputPath) {
+        container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">Configura la Carpeta Output en Ajustes y Refresca.</div>';
+        countEl.textContent = '0 encontrados';
+        return;
+    }
+
+    container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">Cargando...</div>';
+    
+    const posts = await window.electronAPI.readFolder(currentSession.outputPath);
+    gestorState.outputCharacters = posts;
+    countEl.textContent = `${posts.length} encontrados`;
+
+    container.innerHTML = '';
+    if (posts.length === 0) {
+        container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">No hay personajes en Output.</div>';
+        return;
+    }
+
+    posts.forEach(post => {
+        const card = document.createElement('div');
+        card.className = 'post-card';
+        card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
+        
+        const isNova = post.folderName.toLowerCase().includes('nova');
+        const novaBadge = isNova ? '<span style="background: rgba(244, 114, 182, 0.2); color: #f472b6; padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.75rem; border: 1px solid rgba(244, 114, 182, 0.5);">Nova</span>' : '';
+
+        card.innerHTML = `
+            <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all;">${post.folderName} ${novaBadge}</div>
+            <div style="font-size: 0.8rem; color: #94a3b8;">${post.imagesCount} Imágenes</div>
+            <button class="btn primary-btn" style="margin-top: auto; padding: 0.4rem; font-size: 0.85rem;" ${!gestorState.selectedDate ? 'disabled' : ''}>
+                Mover a ${gestorState.selectedDate || 'Fecha no seleccionada'}
+            </button>
+        `;
+
+        const btnMove = card.querySelector('button');
+        if (gestorState.selectedDate) {
+            btnMove.onclick = async () => {
+                if (!gestorState.selectedMonth || !gestorState.selectedDate) return;
+                
+                btnMove.textContent = "Moviendo...";
+                btnMove.disabled = true;
+
+                const result = await window.electronAPI.moveCharacterFolder(
+                    post.path,
+                    currentSession.baseOrgPath,
+                    currentSession.novaOrgPath,
+                    gestorState.selectedMonth,
+                    gestorState.selectedDate
+                );
+
+                if (result.success) {
+                    await loadGestorCharacters();
+                } else {
+                    alert("Error moviendo carpeta: " + result.error);
+                    btnMove.textContent = `Mover a ${gestorState.selectedDate}`;
+                    btnMove.disabled = false;
+                }
+            };
+        }
+        
+        container.appendChild(card);
+    });
+}
+
+function updateCharacterMoveButtons() {
+    const container = document.getElementById('gestor-characters-list');
+    const cards = container.querySelectorAll('.post-card');
+    
+    cards.forEach((card, index) => {
+        const post = gestorState.outputCharacters[index];
+        if (!post) return;
+        
+        const btnMove = card.querySelector('button');
+        if (!btnMove) return;
+        
+        if (!gestorState.selectedDate) {
+            btnMove.disabled = true;
+            btnMove.textContent = "Fecha no seleccionada";
+            btnMove.onclick = null;
+        } else {
+            btnMove.disabled = false;
+            btnMove.textContent = `Mover a ${gestorState.selectedDate}`;
+            btnMove.onclick = async () => {
+                if (!gestorState.selectedMonth || !gestorState.selectedDate) return;
+                
+                btnMove.textContent = "Moviendo...";
+                btnMove.disabled = true;
+
+                const result = await window.electronAPI.moveCharacterFolder(
+                    post.path,
+                    currentSession.baseOrgPath,
+                    currentSession.novaOrgPath,
+                    gestorState.selectedMonth,
+                    gestorState.selectedDate
+                );
+
+                if (result.success) {
+                    await loadGestorCharacters();
+                } else {
+                    alert("Error moviendo carpeta: " + result.error);
+                    btnMove.textContent = `Mover a ${gestorState.selectedDate}`;
+                    btnMove.disabled = false;
+                }
+            };
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Path Selectors
+    const btnSelectBaseOrg = document.getElementById('btn-select-base-org');
+    const inputBaseOrg = document.getElementById('base-org-path');
+    
+    // Defer input loading to next tick after currentSession is loaded
+    setTimeout(() => {
+        if (currentSession.baseOrgPath) inputBaseOrg.value = currentSession.baseOrgPath;
+    }, 100);
+    
+    btnSelectBaseOrg.addEventListener('click', async () => {
+        const folder = await window.electronAPI.selectFolder();
+        if (folder) {
+            currentSession.baseOrgPath = folder;
+            inputBaseOrg.value = folder;
+            await saveSession();
+            await loadGestorData();
+        }
+    });
+
+    const btnSelectOutput = document.getElementById('btn-select-output');
+    const inputOutput = document.getElementById('output-path');
+    setTimeout(() => {
+        if (currentSession.outputPath) inputOutput.value = currentSession.outputPath;
+    }, 100);
+    
+    btnSelectOutput.addEventListener('click', async () => {
+        const folder = await window.electronAPI.selectFolder();
+        if (folder) {
+            currentSession.outputPath = folder;
+            inputOutput.value = folder;
+            await saveSession();
+            await loadGestorCharacters();
+        }
+    });
+
+    const btnSelectNovaOrg = document.getElementById('btn-select-nova-org');
+    const inputNovaOrg = document.getElementById('nova-org-path');
+    setTimeout(() => {
+        if (currentSession.novaOrgPath) inputNovaOrg.value = currentSession.novaOrgPath;
+    }, 100);
+    
+    btnSelectNovaOrg.addEventListener('click', async () => {
+        const folder = await window.electronAPI.selectFolder();
+        if (folder) {
+            currentSession.novaOrgPath = folder;
+            inputNovaOrg.value = folder;
+            await saveSession();
+        }
+    });
+
+    // Rutas Modal Actions
+    const modalRutas = document.getElementById('rutas-modal');
+    const btnOpenRutas = document.getElementById('btn-open-rutas');
+    if (btnOpenRutas) {
+        btnOpenRutas.addEventListener('click', () => {
+            modalRutas.style.display = 'flex';
+            modalRutas.classList.remove('hidden');
+        });
+    }
+    const btnCloseRutas = document.getElementById('btn-close-rutas');
+    if (btnCloseRutas) {
+        btnCloseRutas.addEventListener('click', () => {
+            modalRutas.style.display = 'none';
+            modalRutas.classList.add('hidden');
+        });
+    }
+
+    // Gestor UI Actions
+    document.getElementById('btn-refresh-gestor').addEventListener('click', async () => {
+        await loadGestorData();
+        await loadGestorCharacters();
+    });
+
+    const monthSelect = document.getElementById('gestor-month-select');
+    monthSelect.addEventListener('change', (e) => {
+        gestorState.selectedDate = null;
+        renderGestorDates(e.target.value);
+        updateCharacterMoveButtons(); 
+    });
+
+    document.getElementById('btn-create-month').addEventListener('click', async () => {
+        const name = document.getElementById('new-month-name').value.trim();
+        if (!name || !currentSession.baseOrgPath) return;
+        
+        await window.electronAPI.createMonthFolder(currentSession.baseOrgPath, name); 
+        await loadGestorData();
+        monthSelect.value = name;
+        gestorState.selectedMonth = name;
+        document.getElementById('new-month-name').value = '';
+        renderGestorDates(name);
+    });
+
+    document.getElementById('btn-create-date').addEventListener('click', async () => {
+        const dateName = document.getElementById('new-date-name').value.trim();
+        if (!dateName || !gestorState.selectedMonth || !currentSession.baseOrgPath) return;
+        
+        await window.electronAPI.createDateFolder(currentSession.baseOrgPath, gestorState.selectedMonth, dateName);
+        if (currentSession.novaOrgPath) {
+            await window.electronAPI.createDateFolder(currentSession.novaOrgPath, gestorState.selectedMonth, dateName);
+        }
+
+        document.getElementById('new-date-name').value = '';
+        await loadGestorData();
+    });
+
+    document.getElementById('btn-auto-dates').addEventListener('click', async () => {
+        const monthValue = document.getElementById('auto-month-picker').value;
+        if (!monthValue || !gestorState.selectedMonth || !currentSession.baseOrgPath) {
+            alert("Por favor selecciona un mes en el selector antes de generar.");
+            return;
+        }
+        
+        const [yearStr, monthStr] = monthValue.split('-');
+        const year = parseInt(yearStr, 10);
+        const month = parseInt(monthStr, 10);
+        
+        const daysInMonth = new Date(year, month, 0).getDate();
+        
+        const btn = document.getElementById('btn-auto-dates');
+        btn.textContent = "Generando...";
+        btn.disabled = true;
+
+        for (let day = 1; day <= daysInMonth; day += 2) {
+            const newDd = String(day).padStart(2, '0');
+            const newMm = String(month).padStart(2, '0');
+            const newYy = String(year).slice(-2);
+            
+            const newDateName = `${newDd}-${newMm}-${newYy}`;
+            await window.electronAPI.createDateFolder(currentSession.baseOrgPath, gestorState.selectedMonth, newDateName);
+            if (currentSession.novaOrgPath) {
+                await window.electronAPI.createDateFolder(currentSession.novaOrgPath, gestorState.selectedMonth, newDateName);
+            }
+        }
+        
+        btn.textContent = "Generar Mes Completo (+2 días)";
+        btn.disabled = false;
+        document.getElementById('auto-month-picker').value = '';
+        await loadGestorData();
+    });
+
+    const gestorTabBtn = document.querySelector('.tab-btn[data-tab="gestor"]');
+    if (gestorTabBtn) {
+        gestorTabBtn.addEventListener('click', () => {
+            loadGestorData();
+            loadGestorCharacters();
+        });
+    }
+});

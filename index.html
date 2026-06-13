@@ -63,6 +63,10 @@
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
                     X (Twitter)
                 </button>
+                <button class="tab-btn" data-tab="gestor">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+                    Gestor
+                </button>
             </nav>
 
             <section class="global-settings glass-panel hidden" id="global-settings">
@@ -92,6 +96,9 @@
                     <div class="setting-item">
                         <label for="patreon-url">Link de Patreon</label>
                         <input type="url" id="patreon-url" class="glass-input" placeholder="https://www.patreon.com/miusuario">
+                    </div>
+                    <div class="setting-item" style="display: flex; align-items: flex-end;">
+                        <button id="btn-open-rutas" class="btn" style="border: 1px solid rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.1); color: #c4b5fd; padding: 0.5rem; border-radius: 6px; cursor: pointer; height: 38px; width: 38px; transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;" title="Configurar Rutas del Gestor">⚙️</button>
                     </div>
                 </div>
                 <!-- Statistics UI -->
@@ -136,7 +143,87 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Gestor de Carpetas Dashboard -->
+            <div id="dashboard-gestor" class="tab-content hidden">
+                <div class="grid-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2 style="margin: 0; font-size: 1.25rem; font-weight: 500; color: #fff;">Gestor de Fechas y Personajes</h2>
+                    <button id="btn-refresh-gestor" class="btn" style="border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: #fff; font-size: 0.9rem; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;">🔄 Refrescar</button>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; align-items: stretch; margin-bottom: 1rem;">
+                    <div class="glass-panel" style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem; padding: 1rem;">
+                        <h3 style="margin: 0 0 0.5rem 0; font-size: 1rem; color: #94a3b8;">1. Selecciona el Mes</h3>
+                        <select id="gestor-month-select" class="glass-input">
+                            <option value="">Cargando meses...</option>
+                        </select>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                            <input type="text" id="new-month-name" class="glass-input" placeholder="Nombre del mes..." style="flex: 1;">
+                            <button id="btn-create-month" class="btn primary-btn" style="padding: 0 1rem;">Crear Mes</button>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel" style="flex: 2; display: flex; flex-direction: column; gap: 0.5rem; padding: 1rem;">
+                        <h3 style="margin: 0 0 0.5rem 0; font-size: 1rem; color: #94a3b8;">2. Fechas (DD-MM-YY)</h3>
+                        <div id="gestor-dates-list" style="display: flex; gap: 0.5rem; flex-wrap: wrap; max-height: 150px; overflow-y: auto; padding-right: 0.5rem;">
+                            <div style="color: #64748b; font-size: 0.9rem; text-align: center; padding: 1rem; width: 100%;">Selecciona un mes primero</div>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; margin-top: auto; padding-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                            <input type="text" id="new-date-name" class="glass-input" placeholder="Ej: 01-06-26" style="flex: 1;">
+                            <button id="btn-create-date" class="btn primary-btn" style="padding: 0 1rem;">Crear Fecha</button>
+                            <input type="month" id="auto-month-picker" class="glass-input" style="width: 140px;" title="Mes para generar">
+                            <button id="btn-auto-dates" class="btn" style="border: 1px solid rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.1); color: #c4b5fd; font-size: 0.85rem; padding: 0 1rem; border-radius: 4px; cursor: pointer;">Generar Mes Completo (+2 días)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel" style="padding: 1rem;">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #fff; display: flex; justify-content: space-between;">
+                        <span>3. Personajes Pendientes (Output)</span>
+                        <span id="gestor-output-count" style="color: #94a3b8; font-size: 0.9rem;">0 encontrados</span>
+                    </h3>
+                    
+                    <div id="gestor-characters-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
+                        <div class="empty-state" style="grid-column: 1 / -1;">
+                            Configura la Carpeta Output en Ajustes y Refresca.
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
+    </div>
+
+    <!-- Modal de Rutas -->
+    <div id="rutas-modal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+        <div class="glass-panel" style="width: 500px; max-width: 90%; padding: 2rem; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h2 style="margin: 0; font-size: 1.25rem;">⚙️ Rutas del Gestor</h2>
+                <button id="btn-close-rutas" class="btn" style="background: transparent; color: #fca5a5; border: none; font-size: 1.2rem; cursor: pointer;">✖</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div class="setting-item">
+                    <label>Base de Organización (Meses - Nicky)</label>
+                    <div style="display:flex; gap:0.5rem;">
+                        <input type="text" id="base-org-path" class="glass-input" readonly placeholder="No seleccionado" style="flex:1;">
+                        <button id="btn-select-base-org" class="btn secondary-btn" style="padding: 0.5rem;">📁</button>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label>Carpeta Output (Personajes Generados)</label>
+                    <div style="display:flex; gap:0.5rem;">
+                        <input type="text" id="output-path" class="glass-input" readonly placeholder="No seleccionado" style="flex:1;">
+                        <button id="btn-select-output" class="btn secondary-btn" style="padding: 0.5rem;">📁</button>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label>Carpeta Nova (Meses - Nova)</label>
+                    <div style="display:flex; gap:0.5rem;">
+                        <input type="text" id="nova-org-path" class="glass-input" readonly placeholder="No seleccionado" style="flex:1;">
+                        <button id="btn-select-nova-org" class="btn secondary-btn" style="padding: 0.5rem;">📁</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="renderer.js"></script>

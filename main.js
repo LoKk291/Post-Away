@@ -521,4 +521,92 @@ ipcMain.handle('merge-folder', async (event, sourcePath) => {
   }
 });
 
+ipcMain.handle('get-org-folders', async (event, basePath) => {
+  try {
+    if (!basePath || !fs.existsSync(basePath)) return [];
+    const items = fs.readdirSync(basePath, { withFileTypes: true });
+    const folders = [];
+    for (const item of items) {
+      if (item.isDirectory()) {
+        const monthPath = path.join(basePath, item.name);
+        const dateItems = fs.readdirSync(monthPath, { withFileTypes: true });
+        const dates = dateItems
+            .filter(d => d.isDirectory())
+            .map(d => ({ name: d.name, path: path.join(monthPath, d.name) }));
+        folders.push({ name: item.name, path: monthPath, dates });
+      }
+    }
+    return folders;
+  } catch (e) {
+    console.error("Error getting org folders:", e);
+    return [];
+  }
+});
+
+ipcMain.handle('create-month-folder', async (event, basePath, monthName) => {
+    try {
+        const targetPath = path.join(basePath, monthName);
+        if (!fs.existsSync(targetPath)) {
+            fs.mkdirSync(targetPath, { recursive: true });
+        }
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('create-date-folder', async (event, basePath, month, date) => {
+  try {
+    const monthPath = path.join(basePath, month);
+    if (!fs.existsSync(monthPath)) fs.mkdirSync(monthPath, { recursive: true });
+    
+    const datePath = path.join(monthPath, date);
+    if (!fs.existsSync(datePath)) fs.mkdirSync(datePath, { recursive: true });
+    
+    return { success: true, path: datePath };
+  } catch (e) {
+    console.error("Error creating date folder:", e);
+    return { success: false, error: e.message };
+  }
+});
+
+ipcMain.handle('move-character-folder', async (event, charPath, targetBase, targetNova, month, date) => {
+  try {
+    const folderName = path.basename(charPath);
+    const isNova = folderName.toLowerCase().includes('nova');
+    
+    const finalBase = (isNova && targetNova) ? targetNova : targetBase;
+    if (!finalBase) return { success: false, error: 'Ruta base no definida' };
+
+    const monthPath = path.join(finalBase, month);
+    if (!fs.existsSync(monthPath)) fs.mkdirSync(monthPath, { recursive: true });
+    
+    const datePath = path.join(monthPath, date);
+    if (!fs.existsSync(datePath)) fs.mkdirSync(datePath, { recursive: true });
+
+    const newPath = path.join(datePath, folderName);
+    
+    fs.renameSync(charPath, newPath);
+    
+    return { success: true, newPath, isNova };
+  } catch (e) {
+    console.error("Error moving character folder:", e);
+    if (e.code === 'EXDEV') {
+        try {
+            const folderName = path.basename(charPath);
+            const isNova = folderName.toLowerCase().includes('nova');
+            const finalBase = (isNova && targetNova) ? targetNova : targetBase;
+            const newPath = path.join(finalBase, month, date, folderName);
+            
+            fs.cpSync(charPath, newPath, { recursive: true });
+            fs.rmSync(charPath, { recursive: true, force: true });
+            return { success: true, newPath, isNova };
+        } catch(e2) {
+            return { success: false, error: e2.message };
+        }
+    }
+    return { success: false, error: e.message };
+  }
+});
+
 
