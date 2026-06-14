@@ -240,6 +240,7 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
         let imagesCount = 0;
         let thumbnail = null;
         let imagePaths = [];
+        let createdAt = 0;
         try {
           const files = fs.readdirSync(subPath);
           const ext = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
@@ -249,6 +250,8 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
             thumbnail = "file://" + path.join(subPath, imageFiles[0]).replace(/\\/g, '/');
             imagePaths = imageFiles.map(f => path.join(subPath, f));
           }
+          const stats = fs.statSync(subPath);
+          createdAt = stats.birthtimeMs || stats.ctimeMs || 0;
         } catch(e) {}
 
         const title = `${character} - ${imagesCount} Pics - [${anime}]`;
@@ -266,7 +269,8 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
           title, 
           tags, 
           thumbnail,
-          imagePaths
+          imagePaths,
+          createdAt
         });
       }
     }
@@ -739,5 +743,63 @@ ipcMain.handle('open-in-explorer', async (event, folderPath) => {
         return { success: true };
     } catch (err) {
         return { success: false, error: err.message };
+    }
+});
+
+ipcMain.handle('search-characters', async (event, query, basePath, outputPath) => {
+    try {
+        const results = [];
+        const lowerQuery = query.toLowerCase();
+
+        // 1. Search in Output folder
+        if (outputPath && fs.existsSync(outputPath)) {
+            const outItems = fs.readdirSync(outputPath, { withFileTypes: true });
+            for (const item of outItems) {
+                if (item.isDirectory() && item.name.toLowerCase().includes(lowerQuery)) {
+                    if (!item.name.toLowerCase().includes('nova')) {
+                        results.push({
+                            folderName: item.name,
+                            type: 'output',
+                            locationText: 'Output',
+                            path: path.join(outputPath, item.name)
+                        });
+                    }
+                }
+            }
+        }
+
+        // 2. Search in Base Org folders (Months -> Dates -> Characters)
+        if (basePath && fs.existsSync(basePath)) {
+            const months = fs.readdirSync(basePath, { withFileTypes: true });
+            for (const m of months) {
+                if (m.isDirectory()) {
+                    const monthPath = path.join(basePath, m.name);
+                    const dates = fs.readdirSync(monthPath, { withFileTypes: true });
+                    for (const d of dates) {
+                        if (d.isDirectory()) {
+                            const datePath = path.join(monthPath, d.name);
+                            const chars = fs.readdirSync(datePath, { withFileTypes: true });
+                            for (const c of chars) {
+                                if (c.isDirectory() && c.name.toLowerCase().includes(lowerQuery)) {
+                                    results.push({
+                                        folderName: c.name,
+                                        type: 'organized',
+                                        locationText: `${m.name} / ${d.name}`,
+                                        path: path.join(datePath, c.name),
+                                        month: m.name,
+                                        date: d.name
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return { success: true, results };
+    } catch (e) {
+        console.error("Error searching characters:", e);
+        return { success: false, error: e.message };
     }
 });

@@ -1287,7 +1287,25 @@ async function loadGestorCharacters() {
     // Filtrar los de nova
     gestorState.outputCharacters = allPosts.filter(post => !post.folderName.toLowerCase().includes('nova'));
     
+    renderGestorCharactersList();
+}
+
+function renderGestorCharactersList() {
+    const container = document.getElementById('gestor-characters-list');
+    const countEl = document.getElementById('gestor-output-count');
+    
+    if (!gestorState.outputCharacters) return;
+
     countEl.textContent = `${gestorState.outputCharacters.length} encontrados (Ocultando versiones Nova)`;
+
+    const sortType = document.getElementById('gestor-output-sort') ? document.getElementById('gestor-output-sort').value : 'alpha';
+    if (sortType === 'alpha') {
+        gestorState.outputCharacters.sort((a, b) => a.folderName.localeCompare(b.folderName));
+    } else if (sortType === 'date-desc') {
+        gestorState.outputCharacters.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } else if (sortType === 'date-asc') {
+        gestorState.outputCharacters.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    }
 
     container.innerHTML = '';
     if (gestorState.outputCharacters.length === 0) {
@@ -1655,6 +1673,125 @@ document.addEventListener('DOMContentLoaded', () => {
         gestorTabBtn.addEventListener('click', () => {
             loadGestorData();
             loadGestorCharacters();
+        });
+    }
+
+    const btnOpenDateFolder = document.getElementById('btn-open-date-folder');
+    if (btnOpenDateFolder) {
+        btnOpenDateFolder.addEventListener('click', async () => {
+            if (!currentSession.baseOrgPath || !gestorState.selectedMonth || !gestorState.selectedDate) {
+                alert("Primero selecciona un mes y una fecha.");
+                return;
+            }
+            const targetPath = `${currentSession.baseOrgPath}\\${gestorState.selectedMonth}\\${gestorState.selectedDate}`;
+            await window.electronAPI.openInExplorer(targetPath);
+        });
+    }
+
+    const btnOpenOutputFolder = document.getElementById('btn-open-output-folder');
+    if (btnOpenOutputFolder) {
+        btnOpenOutputFolder.addEventListener('click', async () => {
+            if (!currentSession.outputPath) {
+                alert("Primero configura la carpeta Output en Ajustes.");
+                return;
+            }
+            await window.electronAPI.openInExplorer(currentSession.outputPath);
+        });
+    }
+
+    const outputSortSelect = document.getElementById('gestor-output-sort');
+    if (outputSortSelect) {
+        outputSortSelect.addEventListener('change', () => {
+            renderGestorCharactersList();
+            updateCharacterMoveButtons();
+        });
+    }
+
+    // Global Search Logic
+    const searchInput = document.getElementById('gestor-global-search');
+    const searchResults = document.getElementById('gestor-search-results');
+    let searchTimeout = null;
+
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            if (searchTimeout) clearTimeout(searchTimeout);
+            
+            if (query.length < 2) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            searchTimeout = setTimeout(async () => {
+                searchResults.style.display = 'block';
+                searchResults.innerHTML = '<div style="padding: 1rem; color: #94a3b8; text-align: center;">Buscando...</div>';
+
+                const response = await window.electronAPI.searchCharacters(
+                    query,
+                    currentSession.baseOrgPath,
+                    currentSession.outputPath
+                );
+
+                if (!response.success || response.results.length === 0) {
+                    searchResults.innerHTML = '<div style="padding: 1rem; color: #94a3b8; text-align: center;">No se encontraron resultados.</div>';
+                    return;
+                }
+
+                searchResults.innerHTML = '';
+                response.results.forEach(res => {
+                    const item = document.createElement('div');
+                    item.style.cssText = "padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center;";
+                    item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.05)';
+                    item.onmouseout = () => item.style.background = 'transparent';
+                    
+                    const badgeColor = res.type === 'output' ? '#f59e0b' : '#3b82f6';
+                    const badgeText = res.type === 'output' ? 'Output' : res.locationText;
+                    
+                    item.innerHTML = `
+                        <div style="font-weight: 500; color: #fff;">${res.folderName}</div>
+                        <div style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background: ${badgeColor}20; color: ${badgeColor}; border: 1px solid ${badgeColor}50; border-radius: 4px;">
+                            ${badgeText}
+                        </div>
+                    `;
+
+                    item.addEventListener('click', async () => {
+                        searchResults.style.display = 'none';
+                        searchInput.value = '';
+                        
+                        if (res.type === 'output') {
+                            document.getElementById('gestor-characters-list').scrollIntoView({ behavior: 'smooth' });
+                        } else if (res.type === 'organized') {
+                            const monthSelect = document.getElementById('gestor-month-select');
+                            monthSelect.value = res.month;
+                            gestorState.selectedMonth = res.month;
+                            renderGestorDates(res.month);
+                            
+                            // Highlight and select the date
+                            setTimeout(async () => {
+                                const datesList = document.getElementById('gestor-dates-list');
+                                const dateBtns = datesList.querySelectorAll('.btn-date');
+                                dateBtns.forEach(btn => {
+                                    if (btn.textContent.trim() === res.date) {
+                                        btn.click();
+                                        setTimeout(() => {
+                                            document.getElementById('gestor-date-contents-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                        }, 100);
+                                    }
+                                });
+                            }, 100);
+                        }
+                    });
+
+                    searchResults.appendChild(item);
+                });
+            }, 300);
+        });
+
+        // Close search results when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.style.display = 'none';
+            }
         });
     }
 });

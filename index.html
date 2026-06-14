@@ -146,9 +146,15 @@
 
             <!-- Gestor de Carpetas Dashboard -->
             <div id="dashboard-gestor" class="tab-content hidden">
-                <div class="grid-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h2 style="margin: 0; font-size: 1.25rem; font-weight: 500; color: #fff;">Gestor de Fechas y Personajes</h2>
-                    <button id="btn-refresh-gestor" class="btn" style="border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: #fff; font-size: 0.9rem; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;">🔄 Refrescar</button>
+                <div class="grid-actions" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; position: relative; z-index: 50;">
+                    <h2 style="margin: 0; font-size: 1.25rem; font-weight: 500; color: #fff; white-space: nowrap;">Gestor de Fechas y Personajes</h2>
+                    <div style="flex: 1; max-width: 400px; margin: 0 2rem; position: relative;">
+                        <input type="text" id="gestor-global-search" class="glass-input" placeholder="🔍 Buscar personaje (global)..." style="width: 100%; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem; background: rgba(0,0,0,0.2);">
+                        <div id="gestor-search-results" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #1e293b; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin-top: 0.5rem; max-height: 300px; overflow-y: auto; z-index: 100; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+                            <!-- Resultados insertados dinámicamente -->
+                        </div>
+                    </div>
+                    <button id="btn-refresh-gestor" class="btn" style="border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: #fff; font-size: 0.9rem; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; transition: all 0.2s; white-space: nowrap;">🔄 Refrescar</button>
                 </div>
                 
                 <div style="display: flex; gap: 1rem; align-items: stretch; margin-bottom: 1rem;">
@@ -178,10 +184,13 @@
                 </div>
 
                 <div class="glass-panel" style="padding: 1rem; margin-bottom: 1rem;">
-                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #fff; display: flex; justify-content: space-between;">
-                        <span>3. Personajes en Fecha Seleccionada</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="margin: 0; font-size: 1.1rem; color: #fff; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>3. Personajes en Fecha Seleccionada</span>
+                            <button id="btn-open-date-folder" class="btn" style="border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: #fff; padding: 0.2rem 0.5rem; font-size: 0.8rem; cursor: pointer; border-radius: 4px;" title="Abrir en Explorador">📂 Abrir</button>
+                        </h3>
                         <span id="gestor-date-contents-count" style="color: #94a3b8; font-size: 0.9rem;">0 encontrados</span>
-                    </h3>
+                    </div>
                     
                     <div id="gestor-date-contents-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
                         <div class="empty-state" style="grid-column: 1 / -1;">
@@ -191,10 +200,20 @@
                 </div>
 
                 <div class="glass-panel" style="padding: 1rem;">
-                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #fff; display: flex; justify-content: space-between;">
-                        <span>4. Personajes Pendientes (Output)</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="margin: 0; font-size: 1.1rem; color: #fff; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>4. Personajes Pendientes (Output)</span>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <select id="gestor-output-sort" class="glass-input" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">
+                                    <option value="alpha">A-Z</option>
+                                    <option value="date-desc">Más Recientes</option>
+                                    <option value="date-asc">Más Antiguos</option>
+                                </select>
+                                <button id="btn-open-output-folder" class="btn" style="border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: #fff; padding: 0.2rem 0.5rem; font-size: 0.8rem; cursor: pointer; border-radius: 4px;" title="Abrir en Explorador">📂 Abrir</button>
+                            </div>
+                        </h3>
                         <span id="gestor-output-count" style="color: #94a3b8; font-size: 0.9rem;">0 encontrados</span>
-                    </h3>
+                    </div>
                     
                     <div id="gestor-characters-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
                         <div class="empty-state" style="grid-column: 1 / -1;">
