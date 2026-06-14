@@ -248,6 +248,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentSession = await window.electronAPI.getSession() || { lastFolder: null, donePosts: {} };
     if (!currentSession.donePosts) currentSession.donePosts = {};
     if (!currentSession.patreonUrls) currentSession.patreonUrls = { nova: '', nicky: '' };
+    if (!currentSession.qcDone) currentSession.qcDone = {};
 
     // Lock Screen Logic
     const lockScreen = document.getElementById('lock-screen');
@@ -1104,6 +1105,26 @@ function renderGestorDates(monthName) {
                 showDateContextMenu(e.clientX, e.clientY, monthName, d.name);
             };
             container.appendChild(btn);
+
+            // Fetch contents to color code the button
+            const targetPath = `${currentSession.baseOrgPath}\\${monthName}\\${d.name}`;
+            window.electronAPI.readFolder(targetPath).then(allPosts => {
+                const characters = allPosts.filter(post => !post.folderName.toLowerCase().includes('nova'));
+                if (characters.length > 0) {
+                    const allDone = characters.every(c => currentSession.qcDone && currentSession.qcDone[c.folderName]);
+                    if (allDone) {
+                        // levemente verdosas
+                        btn.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+                        btn.style.background = gestorState.selectedDate === d.name ? 'rgba(34, 197, 94, 0.4)' : 'rgba(34, 197, 94, 0.1)';
+                        btn.style.boxShadow = '0 0 8px rgba(34, 197, 94, 0.3)';
+                    } else {
+                        // levemente rojas
+                        btn.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                        btn.style.background = gestorState.selectedDate === d.name ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.1)';
+                        btn.style.boxShadow = '0 0 8px rgba(239, 68, 68, 0.3)';
+                    }
+                }
+            }).catch(err => console.error("Error reading folder for color coding:", err));
         });
     }
 }
@@ -1162,15 +1183,43 @@ async function loadDateCharacters() {
         card.className = 'post-card';
         card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
         
+        const isQcDone = currentSession.qcDone && currentSession.qcDone[post.folderName];
+
         card.innerHTML = `
-            <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all;">${post.folderName}</div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all;">${post.folderName}</div>
+                <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
+                    ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
+                </button>
+            </div>
             <div style="font-size: 0.8rem; color: #94a3b8;">${post.imagesCount} Imágenes</div>
-            <button class="btn secondary-btn" style="margin-top: auto; padding: 0.4rem; font-size: 0.85rem;">
+            <button class="btn secondary-btn btn-move" style="margin-top: auto; padding: 0.4rem; font-size: 0.85rem;">
                 Mover a otra fecha...
             </button>
         `;
 
-        const btnMove = card.querySelector('button');
+        const btnQc = card.querySelector('.btn-qc');
+        btnQc.onclick = async () => {
+            const currentQc = currentSession.qcDone && currentSession.qcDone[post.folderName];
+            if (currentQc) {
+                currentSession.qcDone[post.folderName] = false;
+                btnQc.innerHTML = '❌ Sin QC';
+                btnQc.style.background = 'rgba(255,255,255,0.1)';
+                btnQc.style.color = '#fff';
+                btnQc.style.borderColor = 'rgba(255,255,255,0.2)';
+            } else {
+                if (!currentSession.qcDone) currentSession.qcDone = {};
+                currentSession.qcDone[post.folderName] = true;
+                btnQc.innerHTML = '✅ QC OK';
+                btnQc.style.background = 'rgba(34, 197, 94, 0.2)';
+                btnQc.style.color = '#4ade80';
+                btnQc.style.borderColor = '#4ade80';
+            }
+            await saveSession();
+            renderGestorDates(gestorState.selectedMonth); // refresh button colors
+        };
+
+        const btnMove = card.querySelector('.btn-move');
         btnMove.onclick = () => {
             openMoveCharModal(post.folderName, gestorState.selectedMonth, gestorState.selectedDate);
         };
@@ -1252,16 +1301,45 @@ async function loadGestorCharacters() {
         card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
         
         const novaBadge = ''; // Ya no mostramos la placa Nova porque solo mostramos los Nicky
+        const isQcDone = currentSession.qcDone && currentSession.qcDone[post.folderName];
 
         card.innerHTML = `
-            <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all;">${post.folderName} ${novaBadge}</div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all;">${post.folderName} ${novaBadge}</div>
+                <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
+                    ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
+                </button>
+            </div>
             <div style="font-size: 0.8rem; color: #94a3b8;">${post.imagesCount} Imágenes</div>
-            <button class="btn primary-btn" style="margin-top: auto; padding: 0.4rem; font-size: 0.85rem;" ${!gestorState.selectedDate ? 'disabled' : ''}>
+            <button class="btn primary-btn btn-move" style="margin-top: auto; padding: 0.4rem; font-size: 0.85rem;" ${!gestorState.selectedDate ? 'disabled' : ''}>
                 Mover a ${gestorState.selectedDate || 'Fecha no seleccionada'}
             </button>
         `;
 
-        const btnMove = card.querySelector('button');
+        const btnQc = card.querySelector('.btn-qc');
+        btnQc.onclick = async () => {
+            const currentQc = currentSession.qcDone && currentSession.qcDone[post.folderName];
+            if (currentQc) {
+                currentSession.qcDone[post.folderName] = false;
+                btnQc.innerHTML = '❌ Sin QC';
+                btnQc.style.background = 'rgba(255,255,255,0.1)';
+                btnQc.style.color = '#fff';
+                btnQc.style.borderColor = 'rgba(255,255,255,0.2)';
+            } else {
+                if (!currentSession.qcDone) currentSession.qcDone = {};
+                currentSession.qcDone[post.folderName] = true;
+                btnQc.innerHTML = '✅ QC OK';
+                btnQc.style.background = 'rgba(34, 197, 94, 0.2)';
+                btnQc.style.color = '#4ade80';
+                btnQc.style.borderColor = '#4ade80';
+            }
+            await saveSession();
+            if (gestorState.selectedMonth) {
+                renderGestorDates(gestorState.selectedMonth); // refresh button colors
+            }
+        };
+
+        const btnMove = card.querySelector('.btn-move');
         if (gestorState.selectedDate) {
             btnMove.onclick = async () => {
                 if (!gestorState.selectedMonth || !gestorState.selectedDate) return;
@@ -1299,7 +1377,7 @@ function updateCharacterMoveButtons() {
         const post = gestorState.outputCharacters[index];
         if (!post) return;
         
-        const btnMove = card.querySelector('button');
+        const btnMove = card.querySelector('.btn-move');
         if (!btnMove) return;
         
         if (!gestorState.selectedDate) {
