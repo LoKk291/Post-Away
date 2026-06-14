@@ -823,6 +823,14 @@ async function loadFolderData(folderPath) {
         });
 
         const btnCompress = card.querySelector('.btn-compress');
+        
+        if (post.hasRar) {
+            btnCompress.textContent = "¡Comprimido (Ya existía)!";
+            btnCompress.style.background = "var(--success-color)";
+            btnCompress.disabled = true;
+            btnCompress.style.opacity = "0.7";
+        }
+
         btnCompress.addEventListener('click', async () => {
             btnCompress.textContent = "Comprimiendo manualmente...";
             btnCompress.disabled = true;

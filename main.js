@@ -256,6 +256,9 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
 
         const title = `${character} - ${imagesCount} Pics - [${anime}]`;
         const tags = `${character}, ${anime}`;
+        
+        const rarPath = path.join(folderPath, `${folderName}.rar`);
+        const hasRar = fs.existsSync(rarPath);
 
         posts.push({
           id: Buffer.from(subPath).toString('base64'),
@@ -270,7 +273,8 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
           tags, 
           thumbnail,
           imagePaths,
-          createdAt
+          createdAt,
+          hasRar
         });
       }
     }
