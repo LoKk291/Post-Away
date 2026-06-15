@@ -285,6 +285,52 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
   }
 });
 
+ipcMain.handle('get-nova-folder-path', async (event, nickyPath, baseOrgPath, novaOrgPath) => {
+  try {
+    let searchDir = '';
+    let nickyBaseName = path.basename(nickyPath).toLowerCase().trim();
+
+    // Check if it's in org path
+    if (baseOrgPath && nickyPath.startsWith(baseOrgPath)) {
+      const relative = path.relative(baseOrgPath, nickyPath);
+      const parts = relative.split(path.sep);
+      if (parts.length >= 3) {
+        const month = parts[0];
+        const date = parts[1];
+        searchDir = path.join(novaOrgPath, month, date);
+      }
+    } else {
+      // It's in Output
+      searchDir = path.dirname(nickyPath);
+    }
+
+    if (!searchDir || !fs.existsSync(searchDir)) return null;
+
+    const allFiles = fs.readdirSync(searchDir, { withFileTypes: true });
+    
+    const novaFolder = allFiles.find(dirent => {
+        if (!dirent.isDirectory()) return false;
+        const name = dirent.name.toLowerCase();
+        
+        if (!name.includes('[nova]')) return false;
+        if (name.includes(nickyBaseName)) return true;
+        
+        const cleanNova = name.replace(/\[nova\]/g, '').replace(/[\[\]]/g, '').trim();
+        const cleanNicky = nickyBaseName.replace(/\[nicky\]/g, '').replace(/[\[\]]/g, '').trim();
+        
+        return cleanNova === cleanNicky || cleanNova.includes(cleanNicky) || cleanNicky.includes(cleanNova);
+    });
+
+    if (novaFolder) {
+        return path.join(searchDir, novaFolder.name);
+    }
+    return null;
+  } catch(e) {
+    console.error("Error getting nova folder:", e);
+    return null;
+  }
+});
+
 ipcMain.handle('get-folder-images', async (event, folderPath) => {
   try {
     if (!fs.existsSync(folderPath)) return [];
@@ -322,11 +368,8 @@ ipcMain.handle('rename-file', async (event, oldPath, newName) => {
 ipcMain.handle('delete-file-trash', async (event, filePath) => {
   try {
     if (fs.existsSync(filePath)) {
-      const parentDir = path.dirname(filePath);
-      const fileName = path.basename(filePath);
-      const trashPath = path.join(parentDir, fileName + '.deleted');
-      fs.renameSync(filePath, trashPath);
-      return { success: true, originalPath: filePath, trashPath };
+      await shell.trashItem(filePath);
+      return { success: true, originalPath: filePath };
     }
     return { success: false, error: 'Archivo no encontrado' };
   } catch (err) {
@@ -335,15 +378,9 @@ ipcMain.handle('delete-file-trash', async (event, filePath) => {
 });
 
 ipcMain.handle('restore-file-trash', async (event, trashPath, originalPath) => {
-  try {
-    if (fs.existsSync(trashPath)) {
-      fs.renameSync(trashPath, originalPath);
-      return { success: true };
-    }
-    return { success: false, error: 'Archivo eliminado (temporal) no encontrado' };
-  } catch (err) {
-    return { success: false, error: err.message };
-  }
+  // Ya no se usa porque usamos la papelera del sistema, 
+  // pero lo dejamos vacío para no romper el IPC.
+  return { success: false, error: 'La restauración desde la papelera de Windows debe hacerse manualmente.' };
 });
 
 // Broadcast payload to SSE Clients or prepare for polling

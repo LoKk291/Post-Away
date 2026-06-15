@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openInExplorer: (folderPath) => ipcRenderer.invoke('open-in-explorer', folderPath),
   searchCharacters: (query, basePath, outputPath) => ipcRenderer.invoke('search-characters', query, basePath, outputPath),
   getFolderImages: (folderPath) => ipcRenderer.invoke('get-folder-images', folderPath),
+  getNovaFolderPath: (nickyPath, baseOrgPath, novaOrgPath) => ipcRenderer.invoke('get-nova-folder-path', nickyPath, baseOrgPath, novaOrgPath),
   renameFile: (oldPath, newName) => ipcRenderer.invoke('rename-file', oldPath, newName),
   deleteFileTrash: (filePath) => ipcRenderer.invoke('delete-file-trash', filePath),
   restoreFileTrash: (trashPath, originalPath) => ipcRenderer.invoke('restore-file-trash', trashPath, originalPath)

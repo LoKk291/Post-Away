@@ -1821,10 +1821,11 @@ let viewerState = {
     selectedImagePath: null,
     deletedHistory: [],
     currentPage: 0,
-    pageSize: 4
+    pageSize: 4,
+    novaPath: null
 };
 
-async function openImageViewer(folderPath, folderName) {
+async function openImageViewer(folderPath, folderName, originalNickyPath = null) {
     viewerState.folderPath = folderPath;
     viewerState.selectedImagePath = null;
     viewerState.deletedHistory = [];
@@ -1850,6 +1851,31 @@ async function openImageViewer(folderPath, folderName) {
         }
     });
     
+    const btnNova = document.getElementById('btn-viewer-nova');
+    btnNova.style.display = 'none';
+    viewerState.novaPath = null;
+    
+    if (originalNickyPath) {
+        // Estamos viendo Nova, permitir volver a Nicky
+        btnNova.style.display = 'block';
+        btnNova.textContent = 'Modo Nicky';
+        btnNova.onclick = () => {
+            const cleanName = folderName.replace(' [Nova]', '');
+            openImageViewer(originalNickyPath, cleanName);
+        };
+    } else if (!folderName.includes('[Nova]')) {
+        // Estamos viendo Nicky, buscar si hay Nova
+        const novaPath = await window.electronAPI.getNovaFolderPath(folderPath, currentSession.baseOrgPath, currentSession.novaOrgPath);
+        if (novaPath) {
+            viewerState.novaPath = novaPath;
+            btnNova.style.display = 'block';
+            btnNova.textContent = 'Modo Nova';
+            btnNova.onclick = () => {
+                openImageViewer(novaPath, folderName + " [Nova]", folderPath);
+            };
+        }
+    }
+    
     await loadViewerImages();
     
     document.getElementById('image-viewer-modal').style.display = 'flex';
@@ -1866,7 +1892,7 @@ async function loadViewerImages() {
     
     if (images.length === 0) {
         grid.innerHTML = '<div style="color: #94a3b8; grid-column: 1/-1; text-align: center;">No se encontraron imágenes.</div>';
-        document.getElementById('page-indicator').textContent = '0 / 0';
+        document.getElementById('page-indicator').textContent = '0 de 0';
         return;
     }
     
@@ -1876,10 +1902,10 @@ async function loadViewerImages() {
         viewerState.currentPage = Math.max(0, totalPages - 1);
     }
     
-    document.getElementById('page-indicator').textContent = `${viewerState.currentPage + 1} / ${totalPages}`;
-    
     const startIdx = viewerState.currentPage * viewerState.pageSize;
-    const endIdx = startIdx + viewerState.pageSize;
+    const endIdx = Math.min(startIdx + viewerState.pageSize, images.length);
+    document.getElementById('page-indicator').textContent = `Imágenes ${startIdx + 1}-${endIdx} de ${images.length}`;
+    
     const pageImages = images.slice(startIdx, endIdx);
     
     pageImages.forEach(img => {
@@ -1954,15 +1980,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-close-viewer').onclick = () => {
         modal.style.display = 'none';
         viewerState.folderPath = null;
-        // Refrescar las listas por si cambió el contador de imágenes
-        if (typeof gestorState !== 'undefined' && gestorState.selectedMonth) {
-            if (typeof renderGestorDatesContents === 'function') {
-                renderGestorDatesContents(gestorState.selectedDate);
-            }
-        }
-        if (typeof loadGestorCharacters === 'function') {
-            loadGestorCharacters();
-        }
+        // Se elimina la recarga de carpetas para mejorar el rendimiento
     };
     
     // Paginación
@@ -2022,30 +2040,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await window.electronAPI.deleteFileTrash(pathToDelete);
             
             if (result.success) {
-                viewerState.deletedHistory.push({
-                    originalPath: result.originalPath,
-                    trashPath: result.trashPath
-                });
                 viewerState.selectedImagePath = null;
                 await loadViewerImages();
             } else {
                 alert("Error al borrar: " + result.error);
-            }
-        }
-        
-        // Deshacer (Ctrl+Z)
-        if (e.ctrlKey && e.key.toLowerCase() === 'z') {
-            if (viewerState.deletedHistory.length > 0) {
-                const lastDeleted = viewerState.deletedHistory.pop();
-                const result = await window.electronAPI.restoreFileTrash(lastDeleted.trashPath, lastDeleted.originalPath);
-                
-                if (result.success) {
-                    await loadViewerImages();
-                } else {
-                    alert("Error al deshacer: " + result.error);
-                    // Devolver al historial
-                    viewerState.deletedHistory.push(lastDeleted);
-                }
             }
         }
         

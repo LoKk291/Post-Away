@@ -292,18 +292,19 @@
     <div id="image-viewer-modal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; display: none; flex-direction: column; backdrop-filter: blur(5px);">
         <div style="padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.9);">
             <div style="display: flex; align-items: center; gap: 1rem;">
-                <h2 id="image-viewer-title" style="margin: 0; font-size: 1.25rem; color: #fff;">Visor de Imágenes</h2>
+                <h2 id="image-viewer-title" style="margin: 0; font-size: 1.25rem; color: #fff; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Visor de Imágenes</h2>
+                <button id="btn-viewer-nova" class="btn hidden" style="background: rgba(236, 72, 153, 0.2); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.4); padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem; cursor: pointer; display: none;">Modo Nova</button>
                 <div id="image-viewer-pagination" style="display: flex; gap: 0.5rem; align-items: center; background: rgba(0,0,0,0.3); padding: 0.2rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
                     <button id="btn-prev-page" class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: transparent; color: #fff; border: none; cursor: pointer;">&larr;</button>
-                    <span id="page-indicator" style="color: #cbd5e1; font-size: 0.85rem; min-width: 60px; text-align: center;">1 / 1</span>
+                    <span id="page-indicator" style="color: #cbd5e1; font-size: 0.85rem; min-width: 120px; text-align: center;">0 de 0</span>
                     <button id="btn-next-page" class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: transparent; color: #fff; border: none; cursor: pointer;">&rarr;</button>
                 </div>
                 <div style="display: flex; gap: 0.5rem; background: rgba(0,0,0,0.3); padding: 0.2rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
-                    <button class="btn btn-grid-size" data-size="3" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: transparent; color: #94a3b8; border: none;">3 Columnas</button>
-                    <button class="btn btn-grid-size active" data-size="4" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: none; border-radius: 4px;">4 Columnas</button>
-                    <button class="btn btn-grid-size" data-size="6" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: transparent; color: #94a3b8; border: none;">6 Columnas</button>
+                    <button class="btn btn-grid-size" data-size="3" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: transparent; color: #94a3b8; border: none;">3 Cols</button>
+                    <button class="btn btn-grid-size active" data-size="4" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: none; border-radius: 4px;">4 Cols</button>
+                    <button class="btn btn-grid-size" data-size="6" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: transparent; color: #94a3b8; border: none;">6 Cols</button>
                 </div>
-                <span style="color: #94a3b8; font-size: 0.85rem; margin-left: 1rem;">Doble Clic para renombrar • Suprimir para borrar (Ctrl+Z para deshacer)</span>
+                <span style="color: #94a3b8; font-size: 0.85rem; margin-left: 0.5rem;">Doble Clic para renombrar • Suprimir para borrar (Papelera de reciclaje)</span>
             </div>
             <button id="btn-close-viewer" class="btn" style="background: transparent; color: #fca5a5; border: none; font-size: 1.5rem; cursor: pointer; padding: 0 0.5rem;">✖</button>
         </div>
