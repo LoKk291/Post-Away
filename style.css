@@ -530,3 +530,53 @@ h1 {
     background: rgba(255, 255, 255, 0.05);
     border-radius: 4px;
 }
+
+/* Image Viewer Grid Styles */
+.viewer-grid.grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.viewer-grid.grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+.viewer-grid.grid-cols-6 { grid-template-columns: repeat(6, 1fr); }
+
+.viewer-image-card {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #000;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    aspect-ratio: 3 / 4; /* Proporción uniforme para todas las tarjetas */
+}
+.viewer-image-card.selected {
+    border-color: #a855f7;
+    box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+}
+.viewer-image-card img {
+    width: 100%;
+    flex: 1;
+    height: 0; /* Previene desbordamiento en flexbox */
+    object-fit: contain; /* Garantiza que la imagen NUNCA se recorte */
+    cursor: pointer;
+}
+.viewer-image-name {
+    padding: 0.5rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: #e2e8f0;
+    background: rgba(15, 23, 42, 0.95);
+    word-break: break-all;
+    cursor: text;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+.viewer-image-name-input {
+    width: 100%;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid #3b82f6;
+    color: white;
+    padding: 0.2rem;
+    text-align: center;
+    border-radius: 4px;
+    outline: none;
+    font-family: monospace;
+}
+

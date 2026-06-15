@@ -1200,11 +1200,15 @@ async function loadDateCharacters() {
                     ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
                 </button>
             </div>
-            <div style="font-size: 0.8rem; color: #94a3b8;">${post.imagesCount} Imágenes</div>
+            <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem;">${post.imagesCount} Imágenes</div>
+            <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-top: 0.2rem;">🖼️ Ver Imágenes</button>
             <button class="btn secondary-btn btn-move" style="margin-top: auto; padding: 0.4rem; font-size: 0.85rem;">
                 Mover a otra fecha...
             </button>
         `;
+
+        const btnViewImages = card.querySelector('.btn-view-images');
+        btnViewImages.onclick = () => openImageViewer(post.path, post.folderName);
 
         const btnQc = card.querySelector('.btn-qc');
         btnQc.onclick = async () => {
@@ -1336,11 +1340,15 @@ function renderGestorCharactersList() {
                     ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
                 </button>
             </div>
-            <div style="font-size: 0.8rem; color: #94a3b8;">${post.imagesCount} Imágenes</div>
+            <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem;">${post.imagesCount} Imágenes</div>
+            <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-top: 0.2rem;">🖼️ Ver Imágenes</button>
             <button class="btn primary-btn btn-move" style="margin-top: auto; padding: 0.4rem; font-size: 0.85rem;" ${!gestorState.selectedDate ? 'disabled' : ''}>
                 Mover a ${gestorState.selectedDate || 'Fecha no seleccionada'}
             </button>
         `;
+
+        const btnViewImages = card.querySelector('.btn-view-images');
+        btnViewImages.onclick = () => openImageViewer(post.path, post.folderName);
 
         const btnQc = card.querySelector('.btn-qc');
         btnQc.onclick = async () => {
@@ -1802,4 +1810,250 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+});
+
+// ==========================================
+// IMAGE VIEWER QC LOGIC
+// ==========================================
+let viewerState = {
+    folderPath: null,
+    images: [],
+    selectedImagePath: null,
+    deletedHistory: [],
+    currentPage: 0,
+    pageSize: 4
+};
+
+async function openImageViewer(folderPath, folderName) {
+    viewerState.folderPath = folderPath;
+    viewerState.selectedImagePath = null;
+    viewerState.deletedHistory = [];
+    document.getElementById('image-viewer-title').textContent = `QC: ${folderName}`;
+    
+    // Aplicar la preferencia de tamaño de cuadrícula
+    const savedSize = currentSession.qcGridSize || '4';
+    viewerState.pageSize = parseInt(savedSize, 10);
+    viewerState.currentPage = 0;
+    
+    const grid = document.getElementById('image-viewer-grid');
+    grid.className = `viewer-grid grid-cols-${savedSize}`;
+    
+    document.querySelectorAll('.btn-grid-size').forEach(b => {
+        if (b.dataset.size === savedSize) {
+            b.classList.add('active');
+            b.style.background = 'rgba(59, 130, 246, 0.2)';
+            b.style.color = '#60a5fa';
+        } else {
+            b.classList.remove('active');
+            b.style.background = 'transparent';
+            b.style.color = '#94a3b8';
+        }
+    });
+    
+    await loadViewerImages();
+    
+    document.getElementById('image-viewer-modal').style.display = 'flex';
+}
+
+async function loadViewerImages() {
+    const grid = document.getElementById('image-viewer-grid');
+    grid.innerHTML = '<div style="color: white; grid-column: 1/-1; text-align: center;">Cargando imágenes...</div>';
+    
+    const images = await window.electronAPI.getFolderImages(viewerState.folderPath);
+    viewerState.images = images;
+    
+    grid.innerHTML = '';
+    
+    if (images.length === 0) {
+        grid.innerHTML = '<div style="color: #94a3b8; grid-column: 1/-1; text-align: center;">No se encontraron imágenes.</div>';
+        document.getElementById('page-indicator').textContent = '0 / 0';
+        return;
+    }
+    
+    // Paginación
+    const totalPages = Math.ceil(images.length / viewerState.pageSize);
+    if (viewerState.currentPage >= totalPages) {
+        viewerState.currentPage = Math.max(0, totalPages - 1);
+    }
+    
+    document.getElementById('page-indicator').textContent = `${viewerState.currentPage + 1} / ${totalPages}`;
+    
+    const startIdx = viewerState.currentPage * viewerState.pageSize;
+    const endIdx = startIdx + viewerState.pageSize;
+    const pageImages = images.slice(startIdx, endIdx);
+    
+    pageImages.forEach(img => {
+        const card = document.createElement('div');
+        card.className = 'viewer-image-card';
+        if (viewerState.selectedImagePath === img.path) {
+            card.classList.add('selected');
+        }
+        
+        card.innerHTML = `
+            <img src="file://${img.path.replace(/\\/g, '/')}" alt="${img.name}" title="${img.name}">
+            <div class="viewer-image-name" title="Doble clic para renombrar">${img.name}</div>
+        `;
+        
+        const imgEl = card.querySelector('img');
+        const nameEl = card.querySelector('.viewer-image-name');
+        
+        // Selección
+        imgEl.onclick = () => {
+            document.querySelectorAll('.viewer-image-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            viewerState.selectedImagePath = img.path;
+        };
+        
+        // Renombrado (Doble Clic)
+        nameEl.ondblclick = () => {
+            const currentName = img.name;
+            nameEl.innerHTML = `<input type="text" class="viewer-image-name-input" value="${currentName}">`;
+            const input = nameEl.querySelector('input');
+            input.focus();
+            
+            // Seleccionar solo el nombre sin la extensión
+            const dotIndex = currentName.lastIndexOf('.');
+            if (dotIndex > 0) {
+                input.setSelectionRange(0, dotIndex);
+            }
+            
+            input.onblur = () => {
+                // Restaurar si pierde el foco
+                nameEl.textContent = currentName;
+            };
+            
+            input.onkeydown = async (e) => {
+                if (e.key === 'Escape') {
+                    nameEl.textContent = currentName;
+                } else if (e.key === 'Enter') {
+                    const newName = input.value.trim();
+                    if (newName && newName !== currentName) {
+                        const result = await window.electronAPI.renameFile(img.path, newName);
+                        if (result.success) {
+                            await loadViewerImages(); // recargar
+                        } else {
+                            alert("Error al renombrar: " + result.error);
+                            nameEl.textContent = currentName;
+                        }
+                    } else {
+                        nameEl.textContent = currentName;
+                    }
+                }
+            };
+        };
+        
+        grid.appendChild(card);
+    });
+}
+
+// Eventos globales para el visor
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('image-viewer-modal');
+    
+    // Cerrar visor
+    document.getElementById('btn-close-viewer').onclick = () => {
+        modal.style.display = 'none';
+        viewerState.folderPath = null;
+        // Refrescar las listas por si cambió el contador de imágenes
+        if (typeof gestorState !== 'undefined' && gestorState.selectedMonth) {
+            if (typeof renderGestorDatesContents === 'function') {
+                renderGestorDatesContents(gestorState.selectedDate);
+            }
+        }
+        if (typeof loadGestorCharacters === 'function') {
+            loadGestorCharacters();
+        }
+    };
+    
+    // Paginación
+    document.getElementById('btn-prev-page').onclick = () => {
+        if (viewerState.currentPage > 0) {
+            viewerState.currentPage--;
+            loadViewerImages();
+        }
+    };
+    
+    document.getElementById('btn-next-page').onclick = () => {
+        const totalPages = Math.ceil(viewerState.images.length / viewerState.pageSize);
+        if (viewerState.currentPage < totalPages - 1) {
+            viewerState.currentPage++;
+            loadViewerImages();
+        }
+    };
+
+    // Controles de tamaño de cuadrícula
+    document.querySelectorAll('.btn-grid-size').forEach(btn => {
+        btn.onclick = async () => {
+            document.querySelectorAll('.btn-grid-size').forEach(b => {
+                b.classList.remove('active');
+                b.style.background = 'transparent';
+                b.style.color = '#94a3b8';
+            });
+            btn.classList.add('active');
+            btn.style.background = 'rgba(59, 130, 246, 0.2)';
+            btn.style.color = '#60a5fa';
+            
+            const size = btn.dataset.size;
+            viewerState.pageSize = parseInt(size, 10);
+            viewerState.currentPage = 0; // Reiniciar a la primera página al cambiar vista
+            const grid = document.getElementById('image-viewer-grid');
+            grid.className = `viewer-grid grid-cols-${size}`;
+            
+            // Guardar preferencia
+            currentSession.qcGridSize = size;
+            await saveSession();
+            
+            // Recargar imágenes para aplicar nueva paginación
+            await loadViewerImages();
+        };
+    });
+    
+    // Atajos de teclado en el visor
+    document.addEventListener('keydown', async (e) => {
+        const modalEl = document.getElementById('image-viewer-modal');
+        if (!modalEl || modalEl.style.display === 'none') return;
+        
+        // Ignorar si el usuario está escribiendo en un input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        
+        // Borrar con Suprimir (Delete)
+        if (e.key === 'Delete' && viewerState.selectedImagePath) {
+            const pathToDelete = viewerState.selectedImagePath;
+            const result = await window.electronAPI.deleteFileTrash(pathToDelete);
+            
+            if (result.success) {
+                viewerState.deletedHistory.push({
+                    originalPath: result.originalPath,
+                    trashPath: result.trashPath
+                });
+                viewerState.selectedImagePath = null;
+                await loadViewerImages();
+            } else {
+                alert("Error al borrar: " + result.error);
+            }
+        }
+        
+        // Deshacer (Ctrl+Z)
+        if (e.ctrlKey && e.key.toLowerCase() === 'z') {
+            if (viewerState.deletedHistory.length > 0) {
+                const lastDeleted = viewerState.deletedHistory.pop();
+                const result = await window.electronAPI.restoreFileTrash(lastDeleted.trashPath, lastDeleted.originalPath);
+                
+                if (result.success) {
+                    await loadViewerImages();
+                } else {
+                    alert("Error al deshacer: " + result.error);
+                    // Devolver al historial
+                    viewerState.deletedHistory.push(lastDeleted);
+                }
+            }
+        }
+        
+        // Flechas para paginación
+        if (e.key === 'ArrowLeft') {
+            document.getElementById('btn-prev-page').click();
+        } else if (e.key === 'ArrowRight') {
+            document.getElementById('btn-next-page').click();
+        }
+    });
 });

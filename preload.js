@@ -26,5 +26,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteFolder: (folderPath) => ipcRenderer.invoke('delete-folder', folderPath),
   renameFolder: (folderPath, newName) => ipcRenderer.invoke('rename-folder', folderPath, newName),
   openInExplorer: (folderPath) => ipcRenderer.invoke('open-in-explorer', folderPath),
-  searchCharacters: (query, basePath, outputPath) => ipcRenderer.invoke('search-characters', query, basePath, outputPath)
+  searchCharacters: (query, basePath, outputPath) => ipcRenderer.invoke('search-characters', query, basePath, outputPath),
+  getFolderImages: (folderPath) => ipcRenderer.invoke('get-folder-images', folderPath),
+  renameFile: (oldPath, newName) => ipcRenderer.invoke('rename-file', oldPath, newName),
+  deleteFileTrash: (filePath) => ipcRenderer.invoke('delete-file-trash', filePath),
+  restoreFileTrash: (trashPath, originalPath) => ipcRenderer.invoke('restore-file-trash', trashPath, originalPath)
 });

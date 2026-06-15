@@ -285,6 +285,67 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
   }
 });
 
+ipcMain.handle('get-folder-images', async (event, folderPath) => {
+  try {
+    if (!fs.existsSync(folderPath)) return [];
+    const files = fs.readdirSync(folderPath);
+    const ext = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const imageFiles = files.filter(f => ext.includes(path.extname(f).toLowerCase()));
+    
+    // Sort logically to maintain consistent order
+    imageFiles.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+    
+    return imageFiles.map(f => ({
+      name: f,
+      path: path.join(folderPath, f)
+    }));
+  } catch(e) {
+    console.error("Error getting folder images:", e);
+    return [];
+  }
+});
+
+ipcMain.handle('rename-file', async (event, oldPath, newName) => {
+  try {
+    const parentDir = path.dirname(oldPath);
+    const newPath = path.join(parentDir, newName);
+    if (fs.existsSync(newPath)) {
+      return { success: false, error: 'El archivo ya existe.' };
+    }
+    fs.renameSync(oldPath, newPath);
+    return { success: true, newPath };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('delete-file-trash', async (event, filePath) => {
+  try {
+    if (fs.existsSync(filePath)) {
+      const parentDir = path.dirname(filePath);
+      const fileName = path.basename(filePath);
+      const trashPath = path.join(parentDir, fileName + '.deleted');
+      fs.renameSync(filePath, trashPath);
+      return { success: true, originalPath: filePath, trashPath };
+    }
+    return { success: false, error: 'Archivo no encontrado' };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('restore-file-trash', async (event, trashPath, originalPath) => {
+  try {
+    if (fs.existsSync(trashPath)) {
+      fs.renameSync(trashPath, originalPath);
+      return { success: true };
+    }
+    return { success: false, error: 'Archivo eliminado (temporal) no encontrado' };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 // Broadcast payload to SSE Clients or prepare for polling
 ipcMain.handle('fill-patreon', (event, data) => {
   const isPollingActive = (Date.now() - lastPollTime < 4000);
