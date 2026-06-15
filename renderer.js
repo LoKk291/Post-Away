@@ -1931,8 +1931,12 @@ async function loadViewerImages() {
         };
         
         // Renombrado (Doble Clic)
-        nameEl.ondblclick = () => {
+        nameEl.ondblclick = (e) => {
+            if (e.target.tagName === 'INPUT') return; // Evitar recrear si ya hay un input
+            
             const currentName = img.name;
+            let isSubmitting = false;
+            
             nameEl.innerHTML = `<input type="text" class="viewer-image-name-input" value="${currentName}">`;
             const input = nameEl.querySelector('input');
             input.focus();
@@ -1943,7 +1947,10 @@ async function loadViewerImages() {
                 input.setSelectionRange(0, dotIndex);
             }
             
+            input.ondblclick = (e) => e.stopPropagation(); // Evitar que el doble clic pase al contenedor
+            
             input.onblur = () => {
+                if (isSubmitting) return; // No hacer nada si estamos esperando resultado
                 // Restaurar si pierde el foco
                 nameEl.textContent = currentName;
             };
@@ -1952,14 +1959,19 @@ async function loadViewerImages() {
                 if (e.key === 'Escape') {
                     nameEl.textContent = currentName;
                 } else if (e.key === 'Enter') {
+                    e.preventDefault(); // Evitar comportamientos por defecto del Enter
                     const newName = input.value.trim();
                     if (newName && newName !== currentName) {
+                        isSubmitting = true;
+                        input.disabled = true; // Deshabilitar para evitar múltiples envíos y pérdida de foco normal
+                        
                         const result = await window.electronAPI.renameFile(img.path, newName);
                         if (result.success) {
                             await loadViewerImages(); // recargar
                         } else {
-                            alert("Error al renombrar: " + result.error);
                             nameEl.textContent = currentName;
+                            // Usar setTimeout para evitar el bug de foco de alert en Electron y permitir que el input se destruya antes del alert
+                            setTimeout(() => alert("Error al renombrar: " + result.error), 10);
                         }
                     } else {
                         nameEl.textContent = currentName;
