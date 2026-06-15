@@ -1822,7 +1822,8 @@ let viewerState = {
     deletedHistory: [],
     currentPage: 0,
     pageSize: 4,
-    novaPath: null
+    novaPath: null,
+    nickyPath: null
 };
 
 async function openImageViewer(folderPath, folderName, originalNickyPath = null) {
@@ -1854,6 +1855,7 @@ async function openImageViewer(folderPath, folderName, originalNickyPath = null)
     const btnNova = document.getElementById('btn-viewer-nova');
     btnNova.style.display = 'none';
     viewerState.novaPath = null;
+    viewerState.nickyPath = originalNickyPath || folderPath;
     
     if (originalNickyPath) {
         // Estamos viendo Nova, permitir volver a Nicky
@@ -2052,11 +2054,19 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        // Borrar con Suprimir (Delete)
-        if (e.key === 'Delete' && viewerState.selectedImagePath) {
+        // Borrar con Suprimir (Delete) o Retroceso (Backspace)
+        if ((e.key === 'Delete' || e.key === 'Backspace') && viewerState.selectedImagePath) {
             const pathToDelete = viewerState.selectedImagePath;
             const result = await window.electronAPI.deleteFileTrash(pathToDelete);
             
+            // Si estamos en modo Nova, borrar la homóloga en Nicky
+            if (result.success && viewerState.nickyPath && viewerState.folderPath !== viewerState.nickyPath) {
+                // Sacar solo el nombre del archivo
+                const fileName = window.electronAPI.pathBasename ? await window.electronAPI.pathBasename(pathToDelete) : pathToDelete.split('\\').pop().split('/').pop();
+                const nickyImgPath = viewerState.nickyPath + '\\' + fileName;
+                await window.electronAPI.deleteFileTrash(nickyImgPath);
+            }
+
             if (result.success) {
                 viewerState.selectedImagePath = null;
                 await loadViewerImages();
