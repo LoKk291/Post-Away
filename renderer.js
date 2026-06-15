@@ -2034,6 +2034,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Ignorar si el usuario está escribiendo en un input
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
         
+        // Cerrar con Escape
+        if (e.key === 'Escape') {
+            document.getElementById('btn-close-viewer').click();
+            return;
+        }
+        
         // Borrar con Suprimir (Delete)
         if (e.key === 'Delete' && viewerState.selectedImagePath) {
             const pathToDelete = viewerState.selectedImagePath;
