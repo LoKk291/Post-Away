@@ -1098,9 +1098,36 @@ function renderGestorDates(monthName) {
     } else {
         const sortedDates = monthData.dates.sort((a, b) => a.name.localeCompare(b.name));
         sortedDates.forEach(d => {
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'display: flex; align-items: stretch; gap: 0; border-radius: 6px; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s;';
+
+            if (!currentSession.doneDates) currentSession.doneDates = {};
+            const dateId = `${monthName}_${d.name}`;
+            const isDone = !!currentSession.doneDates[dateId];
+
+            const cbWrapper = document.createElement('div');
+            cbWrapper.style.cssText = `display: flex; align-items: center; justify-content: center; padding: 0 0.5rem; background: ${isDone ? 'rgba(139, 92, 246, 0.2)' : 'rgba(0,0,0,0.2)'}; border-right: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s;`;
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = isDone;
+            cb.style.cssText = 'cursor: pointer; width: 16px; height: 16px; accent-color: #8b5cf6; margin: 0;';
+            
+            cb.onchange = async (e) => {
+                currentSession.doneDates[dateId] = e.target.checked;
+                cbWrapper.style.background = e.target.checked ? 'rgba(139, 92, 246, 0.2)' : 'rgba(0,0,0,0.2)';
+                await saveSession();
+            };
+            cbWrapper.onclick = (e) => {
+                if (e.target !== cb) {
+                    cb.checked = !cb.checked;
+                    cb.dispatchEvent(new Event('change'));
+                }
+            };
+            cbWrapper.appendChild(cb);
+
             const btn = document.createElement('button');
             btn.className = 'btn';
-            btn.style.cssText = `border: 1px solid rgba(255,255,255,0.2); background: ${gestorState.selectedDate === d.name ? 'rgba(59, 130, 246, 0.4)' : 'rgba(255,255,255,0.05)'}; color: #fff; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;`;
+            btn.style.cssText = `border: none; background: ${gestorState.selectedDate === d.name ? 'rgba(59, 130, 246, 0.4)' : 'rgba(255,255,255,0.05)'}; color: #fff; padding: 0.5rem 1rem; border-radius: 0; cursor: pointer; transition: all 0.2s; flex: 1;`;
             btn.textContent = d.name;
             btn.onclick = () => {
                 gestorState.selectedDate = d.name;
@@ -1112,9 +1139,12 @@ function renderGestorDates(monthName) {
                 e.preventDefault();
                 showDateContextMenu(e.clientX, e.clientY, monthName, d.name);
             };
-            container.appendChild(btn);
 
-            // Fetch contents to color code the button
+            wrapper.appendChild(cbWrapper);
+            wrapper.appendChild(btn);
+            container.appendChild(wrapper);
+
+            // Fetch contents to color code the wrapper
             const targetPath = `${currentSession.baseOrgPath}\\${monthName}\\${d.name}`;
             window.electronAPI.readFolder(targetPath).then(allPosts => {
                 const characters = allPosts.filter(post => !post.folderName.toLowerCase().includes('nova'));
@@ -1122,14 +1152,14 @@ function renderGestorDates(monthName) {
                     const allDone = characters.every(c => currentSession.qcDone && currentSession.qcDone[c.folderName]);
                     if (allDone) {
                         // levemente verdosas
-                        btn.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+                        wrapper.style.borderColor = 'rgba(34, 197, 94, 0.5)';
                         btn.style.background = gestorState.selectedDate === d.name ? 'rgba(34, 197, 94, 0.4)' : 'rgba(34, 197, 94, 0.1)';
-                        btn.style.boxShadow = '0 0 8px rgba(34, 197, 94, 0.3)';
+                        wrapper.style.boxShadow = '0 0 8px rgba(34, 197, 94, 0.3)';
                     } else {
                         // levemente rojas
-                        btn.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                        wrapper.style.borderColor = 'rgba(239, 68, 68, 0.5)';
                         btn.style.background = gestorState.selectedDate === d.name ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.1)';
-                        btn.style.boxShadow = '0 0 8px rgba(239, 68, 68, 0.3)';
+                        wrapper.style.boxShadow = '0 0 8px rgba(239, 68, 68, 0.3)';
                     }
                 }
             }).catch(err => console.error("Error reading folder for color coding:", err));
