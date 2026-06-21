@@ -496,7 +496,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (btnCompressAll) btnCompressAll.style.display = 'none';
         document.getElementById('global-settings').classList.add('hidden');
         document.getElementById('path-indicator').classList.add('hidden');
-        document.getElementById('app-tabs').classList.add('hidden');
         document.querySelectorAll('.grid-actions').forEach(el => el.style.display = 'none');
         document.getElementById('posts-grid').innerHTML = `
             <div class="empty-state">
