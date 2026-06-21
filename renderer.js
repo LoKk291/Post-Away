@@ -1528,6 +1528,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const btnSelectRulex = document.getElementById('btn-select-rulex');
+    const inputRulex = document.getElementById('rulex-path');
+    setTimeout(() => {
+        if (currentSession.rulexPath) inputRulex.value = currentSession.rulexPath;
+    }, 100);
+    
+    btnSelectRulex.addEventListener('click', async () => {
+        const folder = await window.electronAPI.selectFolder();
+        if (folder) {
+            currentSession.rulexPath = folder;
+            inputRulex.value = folder;
+            await saveSession();
+        }
+    });
+
     // Rutas Modal Actions
     const modalRutas = document.getElementById('rutas-modal');
     const btnOpenRutas = document.getElementById('btn-open-rutas');
@@ -1568,6 +1583,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateCharacterMoveButtons();
             }
             await loadGestorData();
+        }
+        document.getElementById('date-context-menu').style.display = 'none';
+    });
+
+    document.getElementById('ctx-enviar-rulex').addEventListener('click', async () => {
+        if (!contextMenuTarget || !currentSession.baseOrgPath) return;
+        if (!currentSession.rulexPath) {
+            alert('Por favor configura la "Carpeta Rule y X" en los ajustes de Rutas (⚙️).');
+            return;
+        }
+        
+        const dateName = contextMenuTarget.date;
+        const monthName = contextMenuTarget.month;
+        const basePath = `${currentSession.baseOrgPath}\\${monthName}\\${dateName}`;
+        
+        const parts = dateName.split('-');
+        let targetMonthName = "desconocido";
+        if (parts.length >= 2) {
+            const m = parseInt(parts[1], 10);
+            const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+            if (m >= 1 && m <= 12) {
+                targetMonthName = meses[m - 1];
+            }
+        }
+        
+        const confirmSend = confirm(`¿Enviar la carpeta ${dateName} a Rule y X (${targetMonthName})?`);
+        if (confirmSend) {
+            const result = await window.electronAPI.sendToRuleX(basePath, currentSession.rulexPath, targetMonthName, dateName);
+            if (result.success) {
+                alert('Carpeta enviada exitosamente.');
+                if (gestorState.selectedDate === dateName) {
+                    gestorState.selectedDate = null;
+                    updateCharacterMoveButtons();
+                }
+                await loadGestorData();
+            } else {
+                alert('Error al enviar: ' + result.error);
+            }
         }
         document.getElementById('date-context-menu').style.display = 'none';
     });

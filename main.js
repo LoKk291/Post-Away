@@ -905,3 +905,62 @@ ipcMain.handle('search-characters', async (event, query, basePath, outputPath) =
         return { success: false, error: e.message };
     }
 });
+
+ipcMain.handle('send-to-rulex', async (event, basePath, rulexPath, targetMonthName, dateName) => {
+    try {
+        const sourcePath = basePath;
+        if (!fs.existsSync(sourcePath)) {
+            return { success: false, error: 'Carpeta de origen no encontrada.' };
+        }
+
+        const targetMonthPath = path.join(rulexPath, targetMonthName);
+        if (!fs.existsSync(targetMonthPath)) {
+            fs.mkdirSync(targetMonthPath, { recursive: true });
+        }
+
+        const targetPath = path.join(targetMonthPath, dateName);
+        if (!fs.existsSync(targetPath)) {
+            fs.mkdirSync(targetPath, { recursive: true });
+        }
+
+        // Leer el contenido de la carpeta fecha de origen
+        const items = fs.readdirSync(sourcePath, { withFileTypes: true });
+        let movedCount = 0;
+
+        for (const item of items) {
+            // Ignorar archivos sueltos, solo procesar carpetas (personajes)
+            if (item.isDirectory()) {
+                const folderName = item.name.toLowerCase();
+                // Si la carpeta NO contiene "nova", se considera de Nicky y se mueve
+                if (!folderName.includes('nova')) {
+                    const charSrc = path.join(sourcePath, item.name);
+                    const charDest = path.join(targetPath, item.name);
+                    
+                    try {
+                        fs.renameSync(charSrc, charDest);
+                        movedCount++;
+                    } catch (err) {
+                        if (err.code === 'EXDEV') {
+                            fs.cpSync(charSrc, charDest, { recursive: true });
+                            fs.rmSync(charSrc, { recursive: true, force: true });
+                            movedCount++;
+                        } else {
+                            throw err;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Si la carpeta original quedó vacía, la eliminamos
+        const remainingItems = fs.readdirSync(sourcePath);
+        if (remainingItems.length === 0) {
+            fs.rmdirSync(sourcePath);
+        }
+
+        return { success: true, moved: movedCount };
+    } catch (e) {
+        console.error("Error sending to Rule y X:", e);
+        return { success: false, error: e.message };
+    }
+});

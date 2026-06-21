@@ -31,5 +31,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getNovaFolderPath: (nickyPath, baseOrgPath, novaOrgPath) => ipcRenderer.invoke('get-nova-folder-path', nickyPath, baseOrgPath, novaOrgPath),
   renameFile: (oldPath, newName) => ipcRenderer.invoke('rename-file', oldPath, newName),
   deleteFileTrash: (filePath) => ipcRenderer.invoke('delete-file-trash', filePath),
-  restoreFileTrash: (trashPath, originalPath) => ipcRenderer.invoke('restore-file-trash', trashPath, originalPath)
+  restoreFileTrash: (trashPath, originalPath) => ipcRenderer.invoke('restore-file-trash', trashPath, originalPath),
+  sendToRuleX: (basePath, rulexPath, monthName, dateName) => ipcRenderer.invoke('send-to-rulex', basePath, rulexPath, monthName, dateName)
 });
