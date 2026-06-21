@@ -1543,6 +1543,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    const btnSelectYaSubido = document.getElementById('btn-select-yasubido');
+    const inputYaSubido = document.getElementById('yasubido-path');
+    setTimeout(() => {
+        if (currentSession.yaSubidoPath) inputYaSubido.value = currentSession.yaSubidoPath;
+    }, 100);
+    
+    btnSelectYaSubido.addEventListener('click', async () => {
+        const folder = await window.electronAPI.selectFolder();
+        if (folder) {
+            currentSession.yaSubidoPath = folder;
+            inputYaSubido.value = folder;
+            await saveSession();
+        }
+    });
+
     // Rutas Modal Actions
     const modalRutas = document.getElementById('rutas-modal');
     const btnOpenRutas = document.getElementById('btn-open-rutas');
@@ -1613,6 +1628,44 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await window.electronAPI.sendToRuleX(basePath, currentSession.rulexPath, targetMonthName, dateName);
             if (result.success) {
                 alert('Carpeta enviada exitosamente.');
+                if (gestorState.selectedDate === dateName) {
+                    gestorState.selectedDate = null;
+                    updateCharacterMoveButtons();
+                }
+                await loadGestorData();
+            } else {
+                alert('Error al enviar: ' + result.error);
+            }
+        }
+        document.getElementById('date-context-menu').style.display = 'none';
+    });
+
+    document.getElementById('ctx-enviar-yasubido').addEventListener('click', async () => {
+        if (!contextMenuTarget || !currentSession.baseOrgPath) return;
+        if (!currentSession.yaSubidoPath) {
+            alert('Por favor configura la "Carpeta Ya subido" en los ajustes de Rutas (⚙️).');
+            return;
+        }
+        
+        const dateName = contextMenuTarget.date;
+        const monthName = contextMenuTarget.month;
+        const basePath = `${currentSession.baseOrgPath}\\${monthName}\\${dateName}`;
+        
+        const parts = dateName.split('-');
+        let targetMonthName = "desconocido";
+        if (parts.length >= 2) {
+            const m = parseInt(parts[1], 10);
+            const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+            if (m >= 1 && m <= 12) {
+                targetMonthName = meses[m - 1];
+            }
+        }
+        
+        const confirmSend = confirm(`¿Enviar la carpeta ${dateName} a Ya subido (${targetMonthName})?`);
+        if (confirmSend) {
+            const result = await window.electronAPI.sendToYaSubido(basePath, currentSession.yaSubidoPath, targetMonthName, dateName);
+            if (result.success) {
+                alert('Carpeta enviada exitosamente a Ya subido.');
                 if (gestorState.selectedDate === dateName) {
                     gestorState.selectedDate = null;
                     updateCharacterMoveButtons();

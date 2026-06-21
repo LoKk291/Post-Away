@@ -964,3 +964,58 @@ ipcMain.handle('send-to-rulex', async (event, basePath, rulexPath, targetMonthNa
         return { success: false, error: e.message };
     }
 });
+
+ipcMain.handle('send-to-yasubido', async (event, basePath, yaSubidoPath, targetMonthName, dateName) => {
+    try {
+        const sourcePath = basePath;
+        if (!fs.existsSync(sourcePath)) {
+            return { success: false, error: 'Carpeta de origen no encontrada.' };
+        }
+
+        const targetMonthPath = path.join(yaSubidoPath, targetMonthName);
+        if (!fs.existsSync(targetMonthPath)) {
+            fs.mkdirSync(targetMonthPath, { recursive: true });
+        }
+
+        const targetPath = path.join(targetMonthPath, dateName);
+        if (!fs.existsSync(targetPath)) {
+            fs.mkdirSync(targetPath, { recursive: true });
+        }
+
+        const items = fs.readdirSync(sourcePath, { withFileTypes: true });
+        let movedCount = 0;
+
+        for (const item of items) {
+            if (item.isDirectory()) {
+                const folderName = item.name.toLowerCase();
+                if (!folderName.includes('nova')) {
+                    const charSrc = path.join(sourcePath, item.name);
+                    const charDest = path.join(targetPath, item.name);
+                    
+                    try {
+                        fs.renameSync(charSrc, charDest);
+                        movedCount++;
+                    } catch (err) {
+                        if (err.code === 'EXDEV') {
+                            fs.cpSync(charSrc, charDest, { recursive: true });
+                            fs.rmSync(charSrc, { recursive: true, force: true });
+                            movedCount++;
+                        } else {
+                            throw err;
+                        }
+                    }
+                }
+            }
+        }
+
+        const remainingItems = fs.readdirSync(sourcePath);
+        if (remainingItems.length === 0) {
+            fs.rmdirSync(sourcePath);
+        }
+
+        return { success: true, moved: movedCount };
+    } catch (e) {
+        console.error("Error sending to Ya subido:", e);
+        return { success: false, error: e.message };
+    }
+});
