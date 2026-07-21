@@ -2134,6 +2134,8 @@ async function loadViewerImages() {
         card.innerHTML = `
             <img src="file://${img.path.replace(/\\/g, '/')}" alt="${img.name}" title="${img.name}">
             <div class="viewer-image-name" title="Doble clic para renombrar">${img.name}</div>
+            <button class="btn btn-destacar" style="margin-top: 5px; width: 100%; background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.4); padding: 0.2rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">⭐ Destacar</button>
+            <button class="btn btn-eliminar" style="margin-top: 5px; width: 100%; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); padding: 0.2rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">🗑️ Eliminar</button>
         `;
         
         const imgEl = card.querySelector('img');
@@ -2194,6 +2196,86 @@ async function loadViewerImages() {
                     }
                 }
             };
+        };
+        
+        const btnDestacar = card.querySelector('.btn-destacar');
+        btnDestacar.onmouseover = () => btnDestacar.style.background = 'rgba(234, 179, 8, 0.3)';
+        btnDestacar.onmouseout = () => btnDestacar.style.background = 'rgba(234, 179, 8, 0.2)';
+        
+        btnDestacar.onclick = async (e) => {
+            e.stopPropagation();
+            
+            const dotIndex = img.name.lastIndexOf('.');
+            const ext = dotIndex !== -1 ? img.name.substring(dotIndex) : '';
+            const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+            let newName = null;
+            
+            const currentNames = viewerState.images.map(i => i.name.toLowerCase());
+            
+            for (let i = 0; i < alphabet.length; i++) {
+                const testName = alphabet[i] + ext.toLowerCase();
+                if (!currentNames.includes(testName)) {
+                    newName = alphabet[i] + ext;
+                    break;
+                }
+            }
+            
+            if (!newName) {
+                let index = 26;
+                while (!newName && index < 1000) {
+                    const char1 = alphabet[Math.floor(index / 26) - 1];
+                    const char2 = alphabet[index % 26];
+                    const testName = char1 + char2 + ext.toLowerCase();
+                    if (!currentNames.includes(testName)) {
+                        newName = char1 + char2 + ext;
+                    }
+                    index++;
+                }
+            }
+            
+            if (newName && newName !== img.name) {
+                btnDestacar.disabled = true;
+                btnDestacar.textContent = 'Destacando...';
+                const result = await window.electronAPI.renameFile(img.path, newName);
+                if (result.success) {
+                    await loadViewerImages();
+                } else {
+                    setTimeout(() => alert("Error al destacar: " + result.error), 10);
+                    btnDestacar.disabled = false;
+                    btnDestacar.textContent = '⭐ Destacar';
+                }
+            }
+        };
+
+        const btnEliminar = card.querySelector('.btn-eliminar');
+        btnEliminar.onmouseover = () => btnEliminar.style.background = 'rgba(239, 68, 68, 0.3)';
+        btnEliminar.onmouseout = () => btnEliminar.style.background = 'rgba(239, 68, 68, 0.2)';
+        
+        btnEliminar.onclick = async (e) => {
+            e.stopPropagation();
+            
+            btnEliminar.disabled = true;
+            btnEliminar.textContent = 'Eliminando...';
+            
+            const pathToDelete = img.path;
+            const result = await window.electronAPI.deleteFileTrash(pathToDelete);
+            
+            if (result.success && viewerState.nickyPath && viewerState.folderPath !== viewerState.nickyPath) {
+                const fileName = window.electronAPI.pathBasename ? await window.electronAPI.pathBasename(pathToDelete) : pathToDelete.split('\\').pop().split('/').pop();
+                const nickyImgPath = viewerState.nickyPath + '\\' + fileName;
+                await window.electronAPI.deleteFileTrash(nickyImgPath);
+            }
+
+            if (result.success) {
+                if (viewerState.selectedImagePath === pathToDelete) {
+                    viewerState.selectedImagePath = null;
+                }
+                await loadViewerImages();
+            } else {
+                setTimeout(() => alert("Error al borrar: " + result.error), 10);
+                btnEliminar.disabled = false;
+                btnEliminar.textContent = '🗑️ Eliminar';
+            }
         };
         
         grid.appendChild(card);
