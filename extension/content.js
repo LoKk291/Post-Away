@@ -539,15 +539,27 @@ function pollServer() {
             };
 
             await waitForUploadsToFinish();
+            
+            // Notify the backend that the batch step is complete
+            try {
+                await fetch('http://127.0.0.1:3030/upload-complete', { method: 'POST' });
+            } catch(e) {
+                console.error("Post-Away: Error notificando completado al backend", e);
+            }
 
             // Notify the user
-            alert("¡Post-Away: Todas las cargas (imágenes y .rar) han finalizado correctamente en Patreon! Ya puedes publicar.");
+            if (!data.isBatch || data.isLastBatchItem) {
+                alert("¡Post-Away: Todas las cargas (imágenes y .rar) han finalizado correctamente en Patreon! Ya puedes publicar.");
+            }
         };
 
         await uploadFiles();
 
         // ... end of runAutofill
         isAutofilling = false;
+        if (data.isBatch) {
+            clearInterval(pollInterval);
+        }
       } catch(err) {
         console.error("Error auto-rellenando:", err);
         isAutofilling = false;
@@ -559,4 +571,4 @@ function pollServer() {
   });
 }
 
-setInterval(pollServer, 1500);
+let pollInterval = setInterval(pollServer, 1500);

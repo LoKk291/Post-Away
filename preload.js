@@ -34,5 +34,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteFileTrash: (filePath) => ipcRenderer.invoke('delete-file-trash', filePath),
   restoreFileTrash: (trashPath, originalPath) => ipcRenderer.invoke('restore-file-trash', trashPath, originalPath),
   sendToRuleX: (basePath, rulexPath, monthName, dateName) => ipcRenderer.invoke('send-to-rulex', basePath, rulexPath, monthName, dateName),
-  sendToYaSubido: (basePath, yaSubidoPath, monthName, dateName) => ipcRenderer.invoke('send-to-yasubido', basePath, yaSubidoPath, monthName, dateName)
+  sendToYaSubido: (basePath, yaSubidoPath, monthName, dateName) => ipcRenderer.invoke('send-to-yasubido', basePath, yaSubidoPath, monthName, dateName),
+  onUploadComplete: (callback) => ipcRenderer.on('upload-complete', callback)
 });

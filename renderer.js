@@ -916,6 +916,7 @@ async function loadFolderData(folderPath) {
             const result = await window.electronAPI.compressFolder(post.path);
 
             if (result.success) {
+                post.hasRar = true;
                 btnCompress.textContent = "¡Comprimido!";
                 btnCompress.style.background = "var(--success-color)";
                 updateGlobalRarStatus(cardsElements);
@@ -1118,6 +1119,7 @@ async function startBackgroundCompression(elements, runToken) {
         if (currentCompressionRun !== runToken) return;
 
         if (result.success) {
+            post.hasRar = true;
             btnCompress.textContent = "¡Comprimido en 2do plano!";
             btnCompress.disabled = true;
             btnCompress.style.background = "var(--success-color)";
@@ -2379,3 +2381,134 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// ==========================================
+// BATCH AUTO UPLOAD LOGIC
+// ==========================================
+let autoUploadQueue = [];
+let isAutoUploading = false;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btnAutoBatch = document.getElementById('btn-auto-batch');
+    if (btnAutoBatch) {
+        btnAutoBatch.addEventListener('click', async () => {
+            if (isAutoUploading) {
+                const cancel = confirm('Ya hay una subida en progreso. ¿Deseas cancelarla?');
+                if (cancel) {
+                    isAutoUploading = false;
+                    autoUploadQueue = [];
+                    btnAutoBatch.innerHTML = '🚀 Subida Automática (Batch)';
+                }
+                return;
+            }
+
+            // Filtrar posts válidos (que tengan rar generado)
+            const postsReady = currentPosts.filter(p => p.hasRar);
+            if (postsReady.length === 0) {
+                return alert('No hay posts listos para subir. Asegúrate de que las carpetas tengan su archivo .rar generado.');
+            }
+
+            const confirmBatch = confirm(`¿Iniciar subida automática de ${postsReady.length} posts a Patreon? Las pestañas permanecerán abiertas para revisión final.`);
+            if (!confirmBatch) return;
+
+            autoUploadQueue = [...postsReady];
+            isAutoUploading = true;
+            btnAutoBatch.innerHTML = '⏹️ Cancelar Subida Batch';
+
+            await processNextAutoUpload();
+        });
+    }
+});
+
+async function processNextAutoUpload() {
+    if (!isAutoUploading) return;
+
+    if (autoUploadQueue.length === 0) {
+        isAutoUploading = false;
+        const btnAutoBatch = document.getElementById('btn-auto-batch');
+        if (btnAutoBatch) btnAutoBatch.innerHTML = '🚀 Subida Automática (Batch)';
+        alert("¡Subida Automática terminada! Revisa las pestañas abiertas y presiona Publicar o Programar en cada una.");
+        return;
+    }
+
+    const post = autoUploadQueue.shift();
+    
+    // Abrir nueva pestaña
+    await window.electronAPI.openPatreon(currentSession.activeProfile);
+    
+    // Esperar a que la página cargue y la extensión esté lista
+    let waitTime = 6000;
+    const chkSlow = document.getElementById('chk-slow-conn');
+    const numSlow = document.getElementById('num-slow-conn');
+    if (chkSlow && chkSlow.checked && numSlow) {
+        waitTime = parseInt(numSlow.value) * 1000;
+        if (isNaN(waitTime) || waitTime < 3000) waitTime = 6000;
+    }
+    
+    await new Promise(r => setTimeout(r, waitTime));
+    
+    if (!isAutoUploading) return; // user cancelled
+
+    // Construir payload igual que el botón individual
+    const globalDate = document.getElementById('global-date').value;
+    const globalTime = document.getElementById('global-time').value;
+    
+    const cardCheckbox = document.querySelector(`.done-checkbox[data-id="${post.id}"]`);
+    if (!cardCheckbox) {
+        // En caso de error, avanzar al siguiente
+        await processNextAutoUpload();
+        return;
+    }
+    
+    let card = cardCheckbox.closest('.post-card');
+    if (!card) card = cardCheckbox.parentElement.parentElement.parentElement;
+    
+    const editedTitle = card.querySelector('.title-value').value;
+    const editedBaseTags = card.querySelector('.tags-value').value;
+    
+    const rarPath = post.path + '.rar';
+    
+    // Determine override
+    let categoryOverride = null;
+    const categoryCbs = card.querySelectorAll('.category-cb');
+    categoryCbs.forEach(cb => { if (cb.checked) categoryOverride = cb.dataset.category; });
+
+    const collection = categoryOverride || post.anime;
+    const finalTags = categoryOverride ? editedBaseTags + ', ' + categoryOverride : editedBaseTags;
+
+    // Obtener link si existe, del DOM
+    let currentLink = '';
+    const linkEl = document.getElementById(`patreon-link-${post.id}`);
+    if (linkEl) currentLink = linkEl.value;
+    const linkPart = currentLink ? `${currentLink}\n\n` : '';
+
+    const payload = {
+        title: editedTitle,
+        tags: finalTags,
+        anime: collection,
+        scheduleDate: globalDate,
+        scheduleTime: globalTime,
+        rarPath: rarPath,
+        imagePaths: post.imagePaths || [],
+        isBatch: true,
+        isLastBatchItem: autoUploadQueue.length === 0,
+        twitterText: `${getRandomTwitterText()}\n\n${linkPart}${finalTags.split(',').map(t => '#' + t.trim().replace(/\\s+/g, '')).join(' ')}`
+    };
+
+    // Enviar a Patreon (Extensión)
+    const res = await window.electronAPI.fillPatreon(payload);
+    if (!res.success && res.receivers === 0) {
+        console.warn("Nadie recibió el payload, la extensión no está lista.");
+    }
+}
+
+// Escuchar el evento de completado desde la extensión
+if (window.electronAPI.onUploadComplete) {
+    window.electronAPI.onUploadComplete(async () => {
+        if (isAutoUploading) {
+            // Darle un respiro de 2 segundos entre post y post para no saturar el navegador
+            await new Promise(r => setTimeout(r, 2000));
+            await processNextAutoUpload();
+        }
+    });
+}

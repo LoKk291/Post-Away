@@ -36,6 +36,17 @@ function startLocalServer() {
       currentPayload = null; // clear after consumed
       return;
     }
+    if (req.method === 'POST' && req.url === '/upload-complete') {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Private-Network': 'true'
+      });
+      if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('upload-complete');
+      }
+      return res.end(JSON.stringify({ success: true }));
+    }
 
     if (req.method === 'GET' && req.url.startsWith('/download')) {
       const parsedUrl = new URL(req.url, 'http://127.0.0.1');

@@ -122,7 +122,15 @@
             <div id="dashboard-patreon" class="tab-content">
                 <div class="grid-actions" style="display: none; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <h2 style="margin: 0; font-size: 1.25rem; font-weight: 500; color: #fff;">Posts Detectados (Patreon)</h2>
-                    <button id="btn-toggle-all" class="btn" style="border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: #fff; font-size: 0.9rem; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;">☑️ Marcar / Desmarcar Todos</button>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <label style="display: flex; align-items: center; gap: 5px; color: #fff; font-size: 0.85rem; cursor: pointer; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);" title="Si tu internet o PC es lenta, aumenta el tiempo de espera (en segundos) antes de que se envíen los datos a la pestaña nueva.">
+                            <input type="checkbox" id="chk-slow-conn" style="accent-color: #8b5cf6;">
+                            Conexión lenta:
+                            <input type="number" id="num-slow-conn" value="10" min="3" max="60" style="width: 50px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 4px; padding: 2px 4px; text-align: center;"> s
+                        </label>
+                        <button id="btn-auto-batch" class="btn primary-btn" style="background: linear-gradient(135deg, #8b5cf6, #6366f1); box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4); font-size: 0.9rem; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; transition: all 0.2s; border: none; color: white; font-weight: bold;">🚀 Subida Automática (Batch)</button>
+                        <button id="btn-toggle-all" class="btn" style="border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color: #fff; font-size: 0.9rem; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;">☑️ Marcar / Desmarcar Todos</button>
+                    </div>
                 </div>
                 <div id="posts-grid" class="posts-grid">
                     <div class="empty-state">
