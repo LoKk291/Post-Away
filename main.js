@@ -593,6 +593,14 @@ ipcMain.handle('check-folder-exists', (event, folderPath) => {
   }
 });
 
+ipcMain.handle('check-is-directory', (event, folderPath) => {
+  try {
+    return fs.statSync(folderPath).isDirectory();
+  } catch(e) {
+    return false;
+  }
+});
+
 ipcMain.handle('merge-folder', async (event, sourcePath) => {
   try {
     const targetPath = sourcePath.replace(/_agregados$/i, '');

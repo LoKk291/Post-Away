@@ -475,40 +475,119 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     document.getElementById('btn-clear').addEventListener('click', async () => {
-        if (!confirm('¿Estás seguro de que quieres limpiar toda la grilla de posts? Esto removerá la carpeta actual y reiniciará tu panel.')) return;
+        await clearCurrentSession(false);
+    });
 
-        if (currentPosts && currentPosts.length > 0) {
-            const folderPaths = currentPosts.map(p => p.path);
-            await window.electronAPI.deleteRars(folderPaths);
-        }
+    // Drag & Drop Folder functionality for Patreon and Twitter dashboards
+    const dashPatreon = document.getElementById('dashboard-patreon');
+    const dashTwitter = document.getElementById('dashboard-twitter');
+    const dropTargets = [dashPatreon, dashTwitter].filter(Boolean);
 
-        currentSession.lastFolder = null;
-        currentSession.donePosts = {};
-        await saveSession();
+    dropTargets.forEach(target => {
+        let dragCounter = 0;
 
-        currentPosts = [];
-        currentCardsElements = [];
-        isCompressingBackground = false;
-        currentCompressionRun = null;
+        target.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dragCounter++;
+            if (dragCounter === 1) {
+                target.classList.add('drag-over-active');
+            }
+        });
 
-        document.getElementById('btn-clear').style.display = 'none';
-        const btnCompressAll = document.getElementById('btn-compress-all');
-        if (btnCompressAll) btnCompressAll.style.display = 'none';
-        document.getElementById('global-settings').classList.add('hidden');
-        document.getElementById('path-indicator').classList.add('hidden');
-        document.querySelectorAll('.grid-actions').forEach(el => el.style.display = 'none');
-        document.getElementById('posts-grid').innerHTML = `
+        target.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (e.dataTransfer) {
+                e.dataTransfer.dropEffect = 'copy';
+            }
+        });
+
+        target.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dragCounter--;
+            if (dragCounter <= 0) {
+                dragCounter = 0;
+                target.classList.remove('drag-over-active');
+            }
+        });
+
+        target.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dragCounter = 0;
+            target.classList.remove('drag-over-active');
+
+            const files = e.dataTransfer.files;
+            if (!files || files.length === 0) return;
+
+            const droppedPath = files[0].path;
+            if (!droppedPath) return;
+
+            const isDir = await window.electronAPI.checkIsDirectory(droppedPath);
+            if (!isDir) {
+                alert('⚠️ Por favor, arrastra una carpeta válida desde el explorador de archivos.');
+                return;
+            }
+
+            // Limpiar sesión anterior si había una carpeta abierta, como si se clickeara limpiar sesión
+            if (currentSession.lastFolder || (currentPosts && currentPosts.length > 0) || Object.keys(currentSession.donePosts || {}).length > 0) {
+                await clearCurrentSession(true);
+            }
+
+            await navigateToFolder(droppedPath);
+        });
+    });
+});
+
+async function clearCurrentSession(skipConfirm = false) {
+    if (!skipConfirm) {
+        if (!confirm('¿Estás seguro de que quieres limpiar toda la grilla de posts? Esto removerá la carpeta actual y reiniciará tu panel.')) return false;
+    }
+
+    if (currentPosts && currentPosts.length > 0) {
+        const folderPaths = currentPosts.map(p => p.path);
+        await window.electronAPI.deleteRars(folderPaths);
+    }
+
+    currentSession.lastFolder = null;
+    currentSession.donePosts = {};
+    await saveSession();
+
+    currentPosts = [];
+    currentCardsElements = [];
+    isCompressingBackground = false;
+    currentCompressionRun = null;
+
+    const btnClear = document.getElementById('btn-clear');
+    if (btnClear) btnClear.style.display = 'none';
+    const btnCompressAll = document.getElementById('btn-compress-all');
+    if (btnCompressAll) btnCompressAll.style.display = 'none';
+    const globalSettings = document.getElementById('global-settings');
+    if (globalSettings) globalSettings.classList.add('hidden');
+    const pathIndicator = document.getElementById('path-indicator');
+    if (pathIndicator) pathIndicator.classList.add('hidden');
+    document.querySelectorAll('.grid-actions').forEach(el => el.style.display = 'none');
+    
+    const postsGrid = document.getElementById('posts-grid');
+    if (postsGrid) {
+        postsGrid.innerHTML = `
             <div class="empty-state">
                 Selecciona una carpeta para comenzar a organizar tus posts.
             </div>
         `;
-        document.getElementById('twitter-grid').innerHTML = `
+    }
+    const twitterGrid = document.getElementById('twitter-grid');
+    if (twitterGrid) {
+        twitterGrid.innerHTML = `
             <div class="empty-state">
                 No hay carpetas seleccionadas.
             </div>
         `;
-    });
-});
+    }
+    return true;
+}
 
 async function navigateToFolder(newPath) {
     if (!newPath) return;

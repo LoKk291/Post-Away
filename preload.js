@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteRars: (folderPaths) => ipcRenderer.invoke('delete-rars', folderPaths),
   getSiblingFolders: (folderPath) => ipcRenderer.invoke('get-sibling-folders', folderPath),
   checkFolderExists: (folderPath) => ipcRenderer.invoke('check-folder-exists', folderPath),
+  checkIsDirectory: (folderPath) => ipcRenderer.invoke('check-is-directory', folderPath),
   mergeFolder: (folderPath) => ipcRenderer.invoke('merge-folder', folderPath),
   getOrgFolders: (basePath) => ipcRenderer.invoke('get-org-folders', basePath),
   createMonthFolder: (basePath, monthName) => ipcRenderer.invoke('create-month-folder', basePath, monthName),
