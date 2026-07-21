@@ -466,19 +466,85 @@ function pollServer() {
             // B. Subir Archivo Adjunto (.rar)
             if (data.rarPath) {
                 console.log(`Post-Away: Iniciando subida del archivo adjunto ${data.rarPath}...`);
-                chrome.runtime.sendMessage({ type: 'upload', files: [data.rarPath], isAttachment: true }, (response) => {
-                    if (chrome.runtime.lastError) {
-                        console.error("Post-Away: Error subiendo .rar", chrome.runtime.lastError);
-                    } else if (response && response.success) {
-                        console.log("Post-Away: Archivo .rar cargado exitosamente.");
-                    } else {
-                        console.error("Post-Away: Fallo subiendo .rar", response ? response.error : "Unknown error");
-                    }
+                await new Promise(resolve => {
+                    chrome.runtime.sendMessage({ type: 'upload', files: [data.rarPath], isAttachment: true }, (response) => {
+                        if (chrome.runtime.lastError) {
+                            console.error("Post-Away: Error subiendo .rar", chrome.runtime.lastError);
+                        } else if (response && response.success) {
+                            console.log("Post-Away: Archivo .rar cargado exitosamente.");
+                        } else {
+                            console.error("Post-Away: Fallo subiendo .rar", response ? response.error : "Unknown error");
+                        }
+                        resolve();
+                    });
                 });
             }
+            
+            const waitForUploadsToFinish = async () => {
+                console.log("Post-Away: Esperando a que comiencen las subidas en la red (5 segundos)...");
+                await new Promise(r => setTimeout(r, 5000));
+                
+                let checkInterval = 1000;
+                let maxWaitTime = 10 * 60 * 1000; // 10 minutos max
+                let elapsed = 0;
+                
+                return new Promise((resolve) => {
+                    const check = () => {
+                        elapsed += checkInterval;
+                        
+                        const progressBars = document.querySelectorAll('[role="progressbar"], progress, svg > circle[stroke-dasharray]');
+                        const uploadingTexts = Array.from(document.querySelectorAll('span, div, p, label')).filter(el => {
+                            if (el.children.length > 1) return false;
+                            const txt = (el.textContent || '').trim().toLowerCase();
+                            return txt === 'uploading...' || txt === 'uploading' || 
+                                   txt === 'subiendo...' || txt === 'subiendo' || 
+                                   txt === 'procesando...' || txt === 'procesando' || 
+                                   txt === 'processing...' || txt === 'processing' ||
+                                   txt === 'saving...' || txt === 'guardando...' ||
+                                   /^\d+\s*\%$/.test(txt);
+                        });
+                        
+                        const isUploading = progressBars.length > 0 || uploadingTexts.length > 0;
+                        
+                        if (!isUploading) {
+                            setTimeout(() => {
+                                const pb2 = document.querySelectorAll('[role="progressbar"], progress, svg > circle[stroke-dasharray]');
+                                const ut2 = Array.from(document.querySelectorAll('span, div, p, label')).filter(el => {
+                                    if (el.children.length > 1) return false;
+                                    const txt = (el.textContent || '').trim().toLowerCase();
+                                    return txt === 'uploading...' || txt === 'uploading' || 
+                                           txt === 'subiendo...' || txt === 'subiendo' || 
+                                           txt === 'procesando...' || txt === 'procesando' || 
+                                           txt === 'processing...' || txt === 'processing' ||
+                                           txt === 'saving...' || txt === 'guardando...' ||
+                                           /^\d+\s*\%$/.test(txt);
+                                });
+                                if (pb2.length === 0 && ut2.length === 0) {
+                                    console.log("Post-Away: Subida de archivos terminada.");
+                                    resolve();
+                                } else {
+                                    setTimeout(check, checkInterval);
+                                }
+                            }, 3000);
+                        } else if (elapsed >= maxWaitTime) {
+                            console.log("Post-Away: Tiempo máximo de espera alcanzado.");
+                            resolve();
+                        } else {
+                            console.log("Post-Away: Subida en progreso... (" + progressBars.length + " barras, " + uploadingTexts.length + " textos)");
+                            setTimeout(check, checkInterval);
+                        }
+                    };
+                    check();
+                });
+            };
+
+            await waitForUploadsToFinish();
+
+            // Notify the user
+            alert("¡Post-Away: Todas las cargas (imágenes y .rar) han finalizado correctamente en Patreon! Ya puedes publicar.");
         };
 
-        uploadFiles();
+        await uploadFiles();
 
         // ... end of runAutofill
         isAutofilling = false;
