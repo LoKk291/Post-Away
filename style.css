@@ -1,12 +1,16 @@
+
 :root {
-    --bg-color: #0f172a;
-    --text-color: #f8fafc;
-    --glass-bg: rgba(30, 41, 59, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.1);
-    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-    --primary-color: #3b82f6;
-    --primary-hover: #2563eb;
-    --success-color: #10b981;
+    --bg-color: #16161A;
+    --text-color: #E2E8F0;
+    --text-muted: #94A3B8;
+    --panel-bg: #222228;
+    --border-color: #35353E;
+    --primary-color: #6D639E;
+    --primary-hover: #5A5285;
+    --success-color: #5BA87B;
+    --glass-bg: var(--panel-bg);
+    --glass-border: var(--border-color);
+    --glass-shadow: none;
 }
 
 * {
@@ -18,7 +22,6 @@
 
 body {
     background: var(--bg-color);
-    background-image: radial-gradient(circle at top right, #1e293b, #0f172a);
     color: var(--text-color);
     min-height: 100vh;
     overflow-x: hidden;
@@ -38,7 +41,6 @@ body {
     width: 100%;
     height: 100%;
     background: var(--bg-color);
-    background-image: radial-gradient(circle at top right, #1e293b, #0f172a);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -67,67 +69,59 @@ body {
     letter-spacing: 0.5rem;
 }
 
-
 .glass-header {
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
-    border-radius: 16px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
     padding: 1.5rem 2rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: var(--glass-shadow);
     margin-bottom: 2rem;
 }
 
 h1 {
     font-size: 1.5rem;
     font-weight: 700;
-    background: linear-gradient(135deg, #60a5fa, #a78bfa);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--text-color);
 }
 
 .btn {
     padding: 0.75rem 1.5rem;
     border-radius: 8px;
-    border: none;
+    border: 1px solid transparent;
     font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
+    background: transparent;
+    color: var(--text-color);
 }
 
 .primary-btn {
     background: var(--primary-color);
-    color: white;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    color: #E2E8F0;
 }
 
 .primary-btn:hover {
     background: var(--primary-hover);
-    transform: translateY(-2px);
 }
 
 .secondary-btn {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    border: 1px solid var(--glass-border);
+    background: var(--panel-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
 }
 
 .secondary-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--border-color);
 }
 
 #path-indicator {
-    background: var(--glass-bg);
-    backdrop-filter: blur(8px);
-    border: 1px solid var(--glass-border);
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
     padding: 1rem 1.5rem;
-    border-radius: 12px;
+    border-radius: 8px;
     margin-bottom: 2rem;
     font-size: 0.9rem;
 }
@@ -138,7 +132,7 @@ h1 {
 
 .path-text {
     font-family: monospace;
-    color: #94a3b8;
+    color: var(--text-muted);
     margin-left: 0.5rem;
 }
 
@@ -152,25 +146,22 @@ h1 {
     grid-column: 1 / -1;
     text-align: center;
     padding: 4rem;
-    color: #64748b;
+    color: var(--text-muted);
     font-size: 1.1rem;
-    background: var(--glass-bg);
-    border-radius: 16px;
-    border: 1px dashed var(--glass-border);
+    background: var(--panel-bg);
+    border-radius: 12px;
+    border: 1px dashed var(--border-color);
 }
 
 .post-card {
-    background: rgba(30, 41, 59, 0.6);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid var(--glass-border);
-    border-radius: 16px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
     padding: 1.5rem;
-    box-shadow: var(--glass-shadow);
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s ease;
     position: relative;
     overflow: hidden;
 }
@@ -184,8 +175,7 @@ h1 {
 }
 
 .post-card.done {
-    background: rgba(15, 23, 42, 0.8);
-    transform: scale(0.98);
+    background: var(--bg-color);
 }
 
 .post-card.done::after {
@@ -196,8 +186,7 @@ h1 {
     transform: translate(-50%, -50%);
     font-size: 3.5rem;
     font-weight: 800;
-    color: rgba(16, 185, 129, 0.9);
-    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+    color: var(--success-color);
     pointer-events: none;
     z-index: 10;
 }
@@ -211,7 +200,7 @@ h1 {
 .folder-name {
     font-size: 1.1rem;
     font-weight: 600;
-    color: #e2e8f0;
+    color: var(--text-color);
 }
 
 .checkbox-wrapper {
@@ -225,8 +214,8 @@ h1 {
     width: 24px;
     height: 24px;
     border-radius: 6px;
-    border: 2px solid var(--glass-border);
-    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -252,9 +241,9 @@ h1 {
 .thumbnail-container {
     width: 100%;
     height: 180px;
-    border-radius: 12px;
+    border-radius: 8px;
     overflow: hidden;
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--bg-color);
     position: relative;
 }
 
@@ -262,11 +251,11 @@ h1 {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.5s ease;
+    transition: transform 0.2s ease;
 }
 
 .post-card:hover:not(.done) .thumbnail {
-    transform: scale(1.05);
+    transform: scale(1.02);
 }
 
 .no-thumbnail {
@@ -274,21 +263,21 @@ h1 {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: #64748b;
+    color: var(--text-muted);
     font-size: 0.9rem;
 }
 
 .info-group {
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--bg-color);
     border-radius: 8px;
     padding: 0.75rem;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
 }
 
 .info-label {
     font-size: 0.75rem;
     text-transform: uppercase;
-    color: #64748b;
+    color: var(--text-muted);
     margin-bottom: 0.25rem;
     letter-spacing: 0.05em;
     font-weight: 600;
@@ -305,11 +294,11 @@ h1 {
 .copy-btn {
     position: absolute;
     right: 0;
-    top: -24px; /* Align with label or top of container */
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    top: -24px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
     cursor: pointer;
-    color: #94a3b8;
+    color: var(--text-muted);
     padding: 0.4rem;
     border-radius: 6px;
     transition: all 0.2s;
@@ -333,18 +322,17 @@ h1 {
 
 .info-value {
     font-size: 0.95rem;
-    color: #cbd5e1;
+    color: var(--text-color);
     line-height: 1.4;
     flex: 1;
 }
 
 .title-value {
     font-weight: 500;
-    color: #fff;
 }
 
 .tags-value {
-    color: #93c5fd;
+    color: var(--primary-color);
 }
 
 .card-actions {
@@ -355,18 +343,19 @@ h1 {
 
 .btn-compress {
     width: 100%;
-    background: rgba(139, 92, 246, 0.6);
-    border-color: rgba(139, 92, 246, 0.8);
+    background: var(--primary-color);
+    color: #E2E8F0;
+    border: none;
 }
 
 .btn-compress:hover {
-    background: rgba(139, 92, 246, 0.9);
+    background: var(--primary-hover);
 }
 
 .btn-compress:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-    background: rgba(100, 116, 139, 0.3);
+    background: var(--border-color);
 }
 
 .checkmark-svg {
@@ -380,13 +369,10 @@ h1 {
 }
 
 .glass-panel {
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
-    border-radius: 16px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
     padding: 1.5rem 2rem;
-    box-shadow: var(--glass-shadow);
     margin-bottom: 2rem;
 }
 
@@ -394,10 +380,9 @@ h1 {
     display: none;
 }
 
-.glass-panel h2 {
-    font-size: 1.2rem;
+.glass-panel h2, .glass-panel h3 {
     margin-bottom: 1rem;
-    color: #e2e8f0;
+    color: var(--text-color);
 }
 
 .settings-grid {
@@ -413,16 +398,16 @@ h1 {
 
 .setting-item label {
     font-size: 0.85rem;
-    color: #94a3b8;
+    color: var(--text-muted);
     font-weight: 500;
 }
 
 .glass-input {
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 0.75rem 1rem;
-    color: white;
+    color: var(--text-color);
     font-family: 'Inter', sans-serif;
     outline: none;
     transition: all 0.2s;
@@ -430,11 +415,10 @@ h1 {
 
 .glass-input:focus {
     border-color: var(--primary-color);
-    background: rgba(0, 0, 0, 0.3);
 }
 
 ::-webkit-calendar-picker-indicator {
-    filter: invert(1);
+    filter: invert(0.8);
     opacity: 0.6;
     cursor: pointer;
 }
@@ -443,11 +427,7 @@ h1 {
 }
 
 .post-card.active-upload {
-    border: 2px solid #a855f7 !important; 
-    box-shadow: 0 0 20px rgba(168, 85, 247, 0.4) !important;
-    transform: scale(1.02);
-    transition: all 0.3s ease;
-    z-index: 10;
+    border: 1px solid var(--primary-color) !important; 
 }
 
 /* Tabs Styling */
@@ -456,9 +436,9 @@ h1 {
     gap: 1rem;
     margin-bottom: 2rem;
     padding: 0.5rem;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--panel-bg);
     border-radius: 12px;
-    border: 1px solid var(--glass-border);
+    border: 1px solid var(--border-color);
 }
 
 .tabs-nav.hidden {
@@ -471,7 +451,7 @@ h1 {
     border: none;
     border-radius: 8px;
     background: transparent;
-    color: #94a3b8;
+    color: var(--text-muted);
     font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
@@ -479,18 +459,17 @@ h1 {
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }
 
 .tab-btn:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: #fff;
+    background: var(--border-color);
+    color: var(--text-color);
 }
 
 .tab-btn.active {
     background: var(--primary-color);
-    color: white;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    color: #E2E8F0;
 }
 
 .tab-content.hidden {
@@ -499,9 +478,9 @@ h1 {
 
 .twitter-text {
     font-style: italic;
-    color: #fca5a5;
-    background: rgba(248, 113, 113, 0.05);
-    border-left: 3px solid #fca5a5;
+    color: var(--text-muted);
+    background: var(--bg-color);
+    border-left: 3px solid var(--primary-color);
     padding: 0.5rem 1rem;
     border-radius: 0 8px 8px 0;
 }
@@ -527,7 +506,7 @@ h1 {
 }
 
 .edit-area:focus {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--bg-color);
     border-radius: 4px;
 }
 
@@ -540,39 +519,38 @@ h1 {
     position: relative;
     border-radius: 8px;
     overflow: hidden;
-    background: #000;
-    border: 2px solid transparent;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
     transition: all 0.2s;
     display: flex;
     flex-direction: column;
-    aspect-ratio: 3 / 4; /* Proporción uniforme para todas las tarjetas */
+    aspect-ratio: 3 / 4;
 }
 .viewer-image-card.selected {
-    border-color: #a855f7;
-    box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+    border-color: var(--primary-color);
 }
 .viewer-image-card img {
     width: 100%;
     flex: 1;
-    height: 0; /* Previene desbordamiento en flexbox */
-    object-fit: contain; /* Garantiza que la imagen NUNCA se recorte */
+    height: 0;
+    object-fit: contain;
     cursor: pointer;
 }
 .viewer-image-name {
     padding: 0.5rem;
     text-align: center;
     font-size: 0.85rem;
-    color: #e2e8f0;
-    background: rgba(15, 23, 42, 0.95);
+    color: var(--text-color);
+    background: var(--panel-bg);
     word-break: break-all;
     cursor: text;
-    border-top: 1px solid rgba(255,255,255,0.1);
+    border-top: 1px solid var(--border-color);
 }
 .viewer-image-name-input {
     width: 100%;
-    background: rgba(0,0,0,0.5);
-    border: 1px solid #3b82f6;
-    color: white;
+    background: var(--bg-color);
+    border: 1px solid var(--primary-color);
+    color: var(--text-color);
     padding: 0.2rem;
     text-align: center;
     border-radius: 4px;
@@ -580,7 +558,6 @@ h1 {
     font-family: monospace;
 }
 
-/* Drag & Drop Visual Feedback */
 #dashboard-patreon, #dashboard-twitter {
     position: relative;
     min-height: 250px;
@@ -593,24 +570,15 @@ h1 {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(15, 23, 42, 0.88);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 2px dashed #60a5fa;
+    background: var(--panel-bg);
+    border: 1px dashed var(--primary-color);
     border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.4rem;
     font-weight: 600;
-    color: #60a5fa;
+    color: var(--primary-color);
     z-index: 9999;
     pointer-events: none;
-    box-shadow: inset 0 0 30px rgba(59, 130, 246, 0.25);
-    animation: fadeInDrop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes fadeInDrop {
-    from { opacity: 0; transform: scale(0.98); }
-    to { opacity: 1; transform: scale(1); }
 }

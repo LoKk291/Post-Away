@@ -221,17 +221,17 @@ function updateGlobalRarStatus(elements) {
     }
 
     if (completed >= elements.length && elements.length > 0) {
-        rarStatus.style.background = 'rgba(16, 185, 129, 0.2)';
-        rarStatus.style.color = '#6ee7b7';
-        rarStatus.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+        rarStatus.style.background = 'var(--panel-bg)';
+        rarStatus.style.color = 'var(--success-color)';
+        rarStatus.style.borderColor = 'var(--success-color)';
         rarStatus.innerHTML = `✅ ¡Todos los .rar están listos! (${completed}/${elements.length})`;
 
         const btnCompressAll = document.getElementById('btn-compress-all');
         if (btnCompressAll) btnCompressAll.style.display = 'none';
     } else if (elements.length > 0) {
-        rarStatus.style.background = 'rgba(234, 179, 8, 0.2)';
-        rarStatus.style.color = '#fde047';
-        rarStatus.style.borderColor = 'rgba(234, 179, 8, 0.5)';
+        rarStatus.style.background = 'var(--panel-bg)';
+        rarStatus.style.color = 'var(--text-muted)';
+        rarStatus.style.borderColor = 'var(--border-color)';
         if (isCompressingBackground) {
             rarStatus.innerHTML = `⏳ Generando archivos .rar en segundo plano... (<span id="rar-count">${completed}</span>/<span id="rar-total">${elements.length}</span>)`;
         } else {
@@ -292,8 +292,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isNova = currentSession.activeProfile === 'nova';
         profileNova.checked = isNova;
         profileNicky.checked = !isNova;
-        profileNovaLabel.style.background = isNova ? 'rgba(244, 114, 182, 0.2)' : 'transparent';
-        profileNickyLabel.style.background = !isNova ? 'rgba(96, 165, 250, 0.2)' : 'transparent';
+        profileNovaLabel.style.background = isNova ? 'var(--primary-color)' : 'var(--bg-color)';
+        profileNovaLabel.style.borderColor = isNova ? 'var(--primary-color)' : 'var(--border-color)';
+        profileNovaLabel.style.color = isNova ? '#E2E8F0' : 'var(--text-color)';
+        profileNickyLabel.style.background = !isNova ? 'var(--primary-color)' : 'var(--bg-color)';
+        profileNickyLabel.style.borderColor = !isNova ? 'var(--primary-color)' : 'var(--border-color)';
+        profileNickyLabel.style.color = !isNova ? '#E2E8F0' : 'var(--text-color)';
         
         const patreonUrl = document.getElementById('patreon-url');
         if (patreonUrl) {
@@ -563,7 +567,9 @@ async function clearCurrentSession(skipConfirm = false) {
     const btnClear = document.getElementById('btn-clear');
     if (btnClear) btnClear.style.display = 'none';
     const btnCompressAll = document.getElementById('btn-compress-all');
+    const batchContainer = document.getElementById('batch-upload-container');
     if (btnCompressAll) btnCompressAll.style.display = 'none';
+    if (batchContainer) batchContainer.style.display = 'none';
     const globalSettings = document.getElementById('global-settings');
     if (globalSettings) globalSettings.classList.add('hidden');
     const pathIndicator = document.getElementById('path-indicator');
@@ -649,23 +655,23 @@ async function loadFolderData(folderPath) {
         if (isAgregados) {
             agregadosBanner.className = '';
             agregadosBanner.style.display = 'flex';
-            agregadosBanner.style.background = 'rgba(168, 85, 247, 0.2)';
-            agregadosBanner.style.color = '#d8b4fe';
-            agregadosBanner.style.border = '1px solid rgba(168, 85, 247, 0.5)';
+            agregadosBanner.style.background = 'var(--panel-bg)';
+            agregadosBanner.style.color = 'var(--primary-color)';
+            agregadosBanner.style.border = '1px solid var(--border-color)';
             agregadosBannerIcon.innerHTML = '🟣';
             agregadosBannerText.textContent = 'Estás en MODO AGREGADOS. Gestiona los nuevos personajes y fusiónalos al terminar.';
             
-            headerElement.style.borderBottom = '2px solid rgba(168, 85, 247, 0.6)';
+            headerElement.style.borderBottom = '1px solid var(--border-color)';
 
             const btnBack = document.createElement('button');
-            btnBack.className = 'btn';
-            btnBack.style.cssText = 'background: rgba(255,255,255,0.1); color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer;';
+            btnBack.className = 'btn secondary-btn';
+            btnBack.style.cssText = '';
             btnBack.textContent = '🔙 Volver a la original';
             btnBack.onclick = () => navigateToFolder(folderPath.replace(/_agregados$/i, ''));
 
             const btnMerge = document.createElement('button');
             btnMerge.className = 'btn primary-btn';
-            btnMerge.style.cssText = 'background: linear-gradient(135deg, #9333ea, #7e22ce); border: none; padding: 0.4rem 0.8rem;';
+            btnMerge.style.cssText = '';
             btnMerge.textContent = '🔄 Fusionar con Original';
             btnMerge.onclick = async () => {
                 if (confirm(`¿Estás seguro de que deseas fusionar y mover estos agregados a la carpeta original y ELIMINAR esta carpeta de agregados?`)) {
@@ -692,15 +698,15 @@ async function loadFolderData(folderPath) {
             if (hasAgregados) {
                 agregadosBanner.className = '';
                 agregadosBanner.style.display = 'flex';
-                agregadosBanner.style.background = 'rgba(234, 179, 8, 0.2)';
-                agregadosBanner.style.color = '#fde047';
-                agregadosBanner.style.border = '1px solid rgba(234, 179, 8, 0.5)';
+                agregadosBanner.style.background = 'var(--panel-bg)';
+                agregadosBanner.style.color = 'var(--text-muted)';
+                agregadosBanner.style.border = '1px solid var(--border-color)';
                 agregadosBannerIcon.innerHTML = '⚠️';
                 agregadosBannerText.textContent = 'Tienes personajes agregados pendientes de fusionar en una carpeta separada.';
                 
                 const btnGo = document.createElement('button');
-                btnGo.className = 'btn';
-                btnGo.style.cssText = 'background: rgba(234, 179, 8, 0.3); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.5); padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer;';
+                btnGo.className = 'btn secondary-btn';
+                btnGo.style.cssText = '';
                 btnGo.textContent = 'Ir a Agregados ➡️';
                 btnGo.onclick = () => navigateToFolder(targetAgregadosPath);
                 agregadosBannerActions.appendChild(btnGo);
@@ -732,12 +738,16 @@ async function loadFolderData(folderPath) {
     currentCompressionRun = null;
 
     const btnCompressAll = document.getElementById('btn-compress-all');
+    const batchContainer = document.getElementById('batch-upload-container');
     if (btnCompressAll) {
         btnCompressAll.style.display = 'block';
         btnCompressAll.disabled = false;
         btnCompressAll.textContent = "📦 Iniciar Compresión de Todos los .rar";
         btnCompressAll.style.cursor = "pointer";
         btnCompressAll.style.opacity = "1";
+    }
+    if (batchContainer) {
+        batchContainer.style.display = 'flex';
     }
 
     posts.forEach(post => {
