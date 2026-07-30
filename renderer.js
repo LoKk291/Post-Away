@@ -1428,7 +1428,16 @@ function renderGestorCharactersList() {
     
     if (!gestorState.outputCharacters) return;
 
-    countEl.textContent = `${gestorState.outputCharacters.length} encontrados (Ocultando versiones Nova)`;
+    let verifiedCount = 0;
+    let unverifiedCount = 0;
+    gestorState.outputCharacters.forEach(c => {
+        if (currentSession.qcDone && currentSession.qcDone[c.folderName]) {
+            verifiedCount++;
+        } else {
+            unverifiedCount++;
+        }
+    });
+    countEl.innerHTML = `${gestorState.outputCharacters.length} encontrados <span style="color: #4ade80;">(${verifiedCount} verificados)</span> <span style="color: #f87171;">(${unverifiedCount} faltan)</span> (Ocultando versiones Nova)`;
 
     const sortType = document.getElementById('gestor-output-sort') ? document.getElementById('gestor-output-sort').value : 'alpha';
     if (sortType === 'alpha') {
@@ -1510,7 +1519,14 @@ function renderGestorCharactersList() {
                 );
 
                 if (result.success) {
-                    await loadGestorCharacters();
+                    if (gestorState.outputCharacters) {
+                        gestorState.outputCharacters = gestorState.outputCharacters.filter(c => c.path !== post.path);
+                        renderGestorCharactersList();
+                    }
+                    if (gestorState.selectedMonth && gestorState.selectedDate) {
+                        loadDateCharacters();
+                        renderGestorDates(gestorState.selectedMonth);
+                    }
                 } else {
                     alert("Error moviendo carpeta: " + result.error);
                     btnMove.textContent = `Mover a ${gestorState.selectedDate}`;
@@ -1556,7 +1572,14 @@ function updateCharacterMoveButtons() {
                 );
 
                 if (result.success) {
-                    await loadGestorCharacters();
+                    if (gestorState.outputCharacters) {
+                        gestorState.outputCharacters = gestorState.outputCharacters.filter(c => c.path !== post.path);
+                        renderGestorCharactersList();
+                    }
+                    if (gestorState.selectedMonth && gestorState.selectedDate) {
+                        loadDateCharacters();
+                        renderGestorDates(gestorState.selectedMonth);
+                    }
                 } else {
                     alert("Error moviendo carpeta: " + result.error);
                     btnMove.textContent = `Mover a ${gestorState.selectedDate}`;
@@ -2103,7 +2126,74 @@ async function openImageViewer(folderPath, folderName, originalNickyPath = null)
             };
         }
     }
-    
+    const btnQcViewer = document.getElementById('btn-viewer-qc');
+    if (btnQcViewer) {
+        let isQcDone = currentSession.qcDone && currentSession.qcDone[folderName];
+        if (isQcDone) {
+            btnQcViewer.innerHTML = '✅ QC OK';
+            btnQcViewer.style.background = 'rgba(34, 197, 94, 0.2)';
+            btnQcViewer.style.color = '#4ade80';
+            btnQcViewer.style.borderColor = '#4ade80';
+        } else {
+            btnQcViewer.innerHTML = '❌ Sin QC';
+            btnQcViewer.style.background = 'rgba(255,255,255,0.1)';
+            btnQcViewer.style.color = '#fff';
+            btnQcViewer.style.borderColor = 'rgba(255,255,255,0.2)';
+        }
+
+        btnQcViewer.onclick = async () => {
+            if (!currentSession.qcDone) currentSession.qcDone = {};
+            let currentQc = currentSession.qcDone[folderName];
+            
+            if (currentQc) {
+                currentSession.qcDone[folderName] = false;
+                btnQcViewer.innerHTML = '❌ Sin QC';
+                btnQcViewer.style.background = 'rgba(255,255,255,0.1)';
+                btnQcViewer.style.color = '#fff';
+                btnQcViewer.style.borderColor = 'rgba(255,255,255,0.2)';
+            } else {
+                currentSession.qcDone[folderName] = true;
+                btnQcViewer.innerHTML = '✅ QC OK';
+                btnQcViewer.style.background = 'rgba(34, 197, 94, 0.2)';
+                btnQcViewer.style.color = '#4ade80';
+                btnQcViewer.style.borderColor = '#4ade80';
+            }
+            await saveSession();
+            
+            // Actualizar botones de QC en la lista de fondo si existen
+            const cards = document.querySelectorAll('.post-card');
+            cards.forEach(card => {
+                const nameEls = card.querySelectorAll('div');
+                let found = false;
+                nameEls.forEach(el => {
+                    if (el.textContent.trim().startsWith(folderName)) found = true;
+                });
+                if (found) {
+                    const btnQc = card.querySelector('.btn-qc');
+                    if (btnQc) {
+                        const newQc = currentSession.qcDone[folderName];
+                        if (!newQc) {
+                            btnQc.innerHTML = '❌ Sin QC';
+                            btnQc.style.background = 'rgba(255,255,255,0.1)';
+                            btnQc.style.color = '#fff';
+                            btnQc.style.borderColor = 'rgba(255,255,255,0.2)';
+                        } else {
+                            btnQc.innerHTML = '✅ QC OK';
+                            btnQc.style.background = 'rgba(34, 197, 94, 0.2)';
+                            btnQc.style.color = '#4ade80';
+                            btnQc.style.borderColor = '#4ade80';
+                        }
+                    }
+                }
+            });
+
+            // Actualizar el contador del Gestor si estamos ah y la lista est cargada
+            if (gestorState.outputCharacters) {
+                renderGestorCharactersList();
+            }
+        };
+    }
+
     await loadViewerImages();
     
     document.getElementById('image-viewer-modal').style.display = 'flex';
