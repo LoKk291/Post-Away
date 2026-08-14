@@ -250,6 +250,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!currentSession.patreonUrls) currentSession.patreonUrls = { nova: '', nicky: '' };
     if (!currentSession.qcDone) currentSession.qcDone = {};
     if (!currentSession.specialRequests) currentSession.specialRequests = {};
+    if (!currentSession.viewMode) currentSession.viewMode = 'grid';
+    
+    // Configurar texto del botón de vista si existe
+    const btnToggleView = document.getElementById('btn-toggle-view');
+    if (btnToggleView) {
+        btnToggleView.innerHTML = currentSession.viewMode === 'list' ? '🗂️ Vista: Lista' : '🗂️ Vista: Cajas';
+        
+        btnToggleView.addEventListener('click', async () => {
+            currentSession.viewMode = currentSession.viewMode === 'list' ? 'grid' : 'list';
+            btnToggleView.innerHTML = currentSession.viewMode === 'list' ? '🗂️ Vista: Lista' : '🗂️ Vista: Cajas';
+            await window.electronAPI.saveSession(currentSession);
+            
+            if (gestorState.selectedMonth && gestorState.selectedDate) {
+                renderGestorDateContentsList();
+            }
+            if (gestorState.outputCharacters) {
+                renderGestorCharactersList();
+            }
+        });
+    }
 
     // Lock Screen Logic
     const lockScreen = document.getElementById('lock-screen');
@@ -1307,46 +1327,49 @@ async function loadDateCharacters() {
         return;
     }
 
+    if (currentSession.viewMode === 'list') {
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '0.5rem';
+    } else {
+        container.style.display = 'grid';
+        container.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
+        container.style.gap = '1rem';
+    }
+
     characters.forEach(post => {
         const card = document.createElement('div');
         card.className = 'post-card' + (currentSession.specialRequests && currentSession.specialRequests[post.folderName] ? ' special-request' : '');
         card.tabIndex = 0;
-        card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
-        
-        card.addEventListener('keydown', async (e) => {
-            if (e.ctrlKey && e.key.toLowerCase() === 'd') {
-                e.preventDefault();
-                if (!currentSession.specialRequests) currentSession.specialRequests = {};
-                currentSession.specialRequests[post.folderName] = !currentSession.specialRequests[post.folderName];
-                if (currentSession.specialRequests[post.folderName]) {
-                    card.classList.add('special-request');
-                } else {
-                    card.classList.remove('special-request');
-                }
-                await window.electronAPI.saveSession(currentSession);
-                
-                // Actualizar también en la otra lista si existe
-                if (gestorState.outputCharacters) {
-                    renderGestorCharactersList();
-                }
-            }
-        });
-        
-        const isQcDone = currentSession.qcDone && currentSession.qcDone[post.folderName];
-
-        card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all;">${post.folderName}</div>
-                <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
+        if (currentSession.viewMode === 'list') {
+            card.style.cssText = "padding: 1rem; display: flex; flex-direction: row; align-items: center; gap: 1rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 0;";
+            card.innerHTML = `
+                <div style="font-weight: 600; font-size: 0.95rem; color: #fff; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${post.folderName}</div>
+                <div style="font-size: 0.8rem; color: #94a3b8; width: 80px; text-align: center;">${post.imagesCount} Img</div>
+                <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;">🖼️ Ver Imágenes</button>
+                <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; width: 80px;" title="Marcar Control de Calidad">
                     ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
                 </button>
-            </div>
-            <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem;">${post.imagesCount} Imágenes</div>
-            <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-top: 0.2rem;">🖼️ Ver Imágenes</button>
-            <button class="btn secondary-btn btn-move" style="margin-top: auto; padding: 0.4rem; font-size: 0.85rem;">
-                Mover a otra fecha...
-            </button>
-        `;
+                <button class="btn secondary-btn btn-move" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; white-space: nowrap;">
+                    Mover a...
+                </button>
+            `;
+        } else {
+            card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all;">${post.folderName}</div>
+                    <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
+                        ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
+                    </button>
+                </div>
+                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem;">${post.imagesCount} Imágenes</div>
+                <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-top: 0.2rem;">🖼️ Ver Imágenes</button>
+                <button class="btn secondary-btn btn-move" style="margin-top: auto; padding: 0.4rem; font-size: 0.85rem;">
+                    Mover a otra fecha...
+                </button>
+            `;
+        }
 
         const btnViewImages = card.querySelector('.btn-view-images');
         btnViewImages.onclick = () => openImageViewer(post.path, post.folderName);
@@ -1463,6 +1486,8 @@ function renderGestorCharactersList() {
     const sortType = document.getElementById('gestor-output-sort') ? document.getElementById('gestor-output-sort').value : 'alpha';
     if (sortType === 'alpha') {
         gestorState.outputCharacters.sort((a, b) => a.folderName.localeCompare(b.folderName));
+    } else if (sortType === 'alpha-desc') {
+        gestorState.outputCharacters.sort((a, b) => b.folderName.localeCompare(a.folderName));
     } else if (sortType === 'date-desc') {
         gestorState.outputCharacters.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     } else if (sortType === 'date-asc') {
@@ -1473,6 +1498,16 @@ function renderGestorCharactersList() {
     if (gestorState.outputCharacters.length === 0) {
         container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">No hay personajes en Output.</div>';
         return;
+    }
+
+    if (currentSession.viewMode === 'list') {
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '0.5rem';
+    } else {
+        container.style.display = 'grid';
+        container.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
+        container.style.gap = '1rem';
     }
 
     gestorState.outputCharacters.forEach(post => {
@@ -1500,22 +1535,39 @@ function renderGestorCharactersList() {
             }
         });
         
+        
         const novaBadge = ''; // Ya no mostramos la placa Nova porque solo mostramos los Nicky
         const isQcDone = currentSession.qcDone && currentSession.qcDone[post.folderName];
 
-        card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all;">${post.folderName} ${novaBadge}</div>
-                <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
+        if (currentSession.viewMode === 'list') {
+            card.style.cssText = "padding: 1rem; display: flex; flex-direction: row; align-items: center; gap: 1rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 0;";
+            card.innerHTML = `
+                <div style="font-weight: 600; font-size: 0.95rem; color: #fff; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${post.folderName} ${novaBadge}</div>
+                <div style="font-size: 0.8rem; color: #94a3b8; width: 80px; text-align: center;">${post.imagesCount} Img</div>
+                <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;">🖼️ Ver Imágenes</button>
+                <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; width: 80px;" title="Marcar Control de Calidad">
                     ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
                 </button>
-            </div>
-            <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem;">${post.imagesCount} Imágenes</div>
-            <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-top: 0.2rem;">🖼️ Ver Imágenes</button>
-            <button class="btn primary-btn btn-move" style="margin-top: auto; padding: 0.4rem; font-size: 0.85rem;" ${!gestorState.selectedDate ? 'disabled' : ''}>
-                Mover a ${gestorState.selectedDate || 'Fecha no seleccionada'}
-            </button>
-        `;
+                <button class="btn primary-btn btn-move" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; white-space: nowrap;" ${!gestorState.selectedDate ? 'disabled' : ''}>
+                    Mover a ${gestorState.selectedDate || 'Fecha no seleccionada'}
+                </button>
+            `;
+        } else {
+            card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all;">${post.folderName} ${novaBadge}</div>
+                    <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
+                        ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
+                    </button>
+                </div>
+                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem;">${post.imagesCount} Imágenes</div>
+                <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-top: 0.2rem;">🖼️ Ver Imágenes</button>
+                <button class="btn primary-btn btn-move" style="margin-top: auto; padding: 0.4rem; font-size: 0.85rem;" ${!gestorState.selectedDate ? 'disabled' : ''}>
+                    Mover a ${gestorState.selectedDate || 'Fecha no seleccionada'}
+                </button>
+            `;
+        }
 
         const btnViewImages = card.querySelector('.btn-view-images');
         btnViewImages.onclick = () => openImageViewer(post.path, post.folderName);

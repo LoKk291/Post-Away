@@ -164,7 +164,10 @@
                             <!-- Resultados insertados dinámicamente -->
                         </div>
                     </div>
-                    <button id="btn-refresh-gestor" class="btn" class="btn secondary-btn">🔄 Refrescar</button>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <button id="btn-toggle-view" class="btn secondary-btn" title="Alternar Vista">🗂️ Vista: Cajas</button>
+                        <button id="btn-refresh-gestor" class="btn secondary-btn">🔄 Refrescar</button>
+                    </div>
                 </div>
                 
                 <div style="display: flex; gap: 1rem; align-items: stretch; margin-bottom: 1rem;">
@@ -216,6 +219,7 @@
                             <div style="display: flex; gap: 0.5rem; align-items: center;">
                                 <select id="gestor-output-sort" class="glass-input" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;">
                                     <option value="alpha">A-Z</option>
+                                    <option value="alpha-desc">Z-A</option>
                                     <option value="date-desc">Más Recientes</option>
                                     <option value="date-asc">Más Antiguos</option>
                                 </select>
