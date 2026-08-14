@@ -249,6 +249,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!currentSession.donePosts) currentSession.donePosts = {};
     if (!currentSession.patreonUrls) currentSession.patreonUrls = { nova: '', nicky: '' };
     if (!currentSession.qcDone) currentSession.qcDone = {};
+    if (!currentSession.specialRequests) currentSession.specialRequests = {};
 
     // Lock Screen Logic
     const lockScreen = document.getElementById('lock-screen');
@@ -1308,8 +1309,28 @@ async function loadDateCharacters() {
 
     characters.forEach(post => {
         const card = document.createElement('div');
-        card.className = 'post-card';
+        card.className = 'post-card' + (currentSession.specialRequests && currentSession.specialRequests[post.folderName] ? ' special-request' : '');
+        card.tabIndex = 0;
         card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
+        
+        card.addEventListener('keydown', async (e) => {
+            if (e.ctrlKey && e.key.toLowerCase() === 'd') {
+                e.preventDefault();
+                if (!currentSession.specialRequests) currentSession.specialRequests = {};
+                currentSession.specialRequests[post.folderName] = !currentSession.specialRequests[post.folderName];
+                if (currentSession.specialRequests[post.folderName]) {
+                    card.classList.add('special-request');
+                } else {
+                    card.classList.remove('special-request');
+                }
+                await window.electronAPI.saveSession(currentSession);
+                
+                // Actualizar también en la otra lista si existe
+                if (gestorState.outputCharacters) {
+                    renderGestorCharactersList();
+                }
+            }
+        });
         
         const isQcDone = currentSession.qcDone && currentSession.qcDone[post.folderName];
 
@@ -1456,8 +1477,28 @@ function renderGestorCharactersList() {
 
     gestorState.outputCharacters.forEach(post => {
         const card = document.createElement('div');
-        card.className = 'post-card';
+        card.className = 'post-card' + (currentSession.specialRequests && currentSession.specialRequests[post.folderName] ? ' special-request' : '');
+        card.tabIndex = 0;
         card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
+        
+        card.addEventListener('keydown', async (e) => {
+            if (e.ctrlKey && e.key.toLowerCase() === 'd') {
+                e.preventDefault();
+                if (!currentSession.specialRequests) currentSession.specialRequests = {};
+                currentSession.specialRequests[post.folderName] = !currentSession.specialRequests[post.folderName];
+                if (currentSession.specialRequests[post.folderName]) {
+                    card.classList.add('special-request');
+                } else {
+                    card.classList.remove('special-request');
+                }
+                await window.electronAPI.saveSession(currentSession);
+                
+                // Actualizar también en la otra lista si es visible
+                if (gestorState.selectedMonth && gestorState.selectedDate) {
+                    renderGestorDateContentsList();
+                }
+            }
+        });
         
         const novaBadge = ''; // Ya no mostramos la placa Nova porque solo mostramos los Nicky
         const isQcDone = currentSession.qcDone && currentSession.qcDone[post.folderName];
@@ -2205,6 +2246,18 @@ async function loadViewerImages() {
     
     const images = await window.electronAPI.getFolderImages(viewerState.folderPath);
     viewerState.images = images;
+    
+    // Contar destacadas
+    const destacadasCount = images.filter(img => {
+        const dotIndex = img.name.lastIndexOf('.');
+        const nameWithoutExt = dotIndex !== -1 ? img.name.substring(0, dotIndex) : img.name;
+        return /^[a-z]{1,2}$/i.test(nameWithoutExt);
+    }).length;
+    
+    const destacadasEl = document.getElementById('destacadas-count');
+    if (destacadasEl) {
+        destacadasEl.textContent = destacadasCount;
+    }
     
     grid.innerHTML = '';
     

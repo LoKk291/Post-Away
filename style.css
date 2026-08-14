@@ -166,6 +166,16 @@ h1 {
     overflow: hidden;
 }
 
+.post-card:focus {
+    outline: 2px solid rgba(139, 92, 246, 0.8);
+    outline-offset: 2px;
+}
+
+.post-card.special-request {
+    box-shadow: 0 0 15px rgba(250, 204, 21, 0.6) !important;
+    border-color: rgba(250, 204, 21, 0.8) !important;
+}
+
 .post-card.done .card-header,
 .post-card.done .thumbnail-container,
 .post-card.done .info-group,
