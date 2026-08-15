@@ -78,7 +78,7 @@ function pollServer() {
         for (const sel of tagSelectors) {
             const el = document.querySelector(sel);
             if (el) { 
-                const tagsArray = data.tags.split(',').map(t => t.trim()).filter(Boolean);
+                const tagsArray = data.tags.split(',').map(t => t.trim().substring(0, 25)).filter(Boolean);
                 for (const tag of tagsArray) {
                     setNativeValue(el, tag); 
                     await new Promise(r => setTimeout(r, 50));
