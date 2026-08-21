@@ -1166,6 +1166,16 @@ async function startBackgroundCompression(elements, runToken) {
 
 // ==================== GESTOR DE CARPETAS LOGIC ====================
 
+function getCleanCharacterName(rawName) {
+    if (!rawName) return '';
+    return rawName
+        .replace(/\s*-\s*\[Nicky\]/gi, '')
+        .replace(/\s*\[Nicky\]/gi, '')
+        .replace(/\s*-\s*\[Nova\]/gi, '')
+        .replace(/\s*\[Nova\]/gi, '')
+        .trim();
+}
+
 let gestorState = {
     months: [],
     selectedMonth: null,
@@ -1344,10 +1354,7 @@ async function loadDateCharacters() {
         if (currentSession.viewMode === 'list') {
             card.style.cssText = "padding: 1rem; display: flex; flex-direction: row; align-items: center; gap: 1rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 0;";
             card.innerHTML = `
-                <div style="font-weight: 600; font-size: 0.95rem; color: #fff; flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.5rem;">
-                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${post.folderName}">${post.folderName}</span>
-                    <button class="btn-rename" style="background: transparent; border: none; cursor: pointer; opacity: 0.7; font-size: 0.8rem; padding: 0;" title="Renombrar">✏️</button>
-                </div>
+                <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: #fff; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)}</div>
                 <div style="font-size: 0.8rem; color: #94a3b8; width: 80px; text-align: center;">${post.imagesCount} Img</div>
                 <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;">🖼️ Ver Imágenes</button>
                 <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; width: 80px;" title="Marcar Control de Calidad">
@@ -1361,10 +1368,7 @@ async function loadDateCharacters() {
             card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all; display: flex; align-items: center; gap: 0.5rem;">
-                        <span>${post.folderName}</span>
-                        <button class="btn-rename" style="background: transparent; border: none; cursor: pointer; opacity: 0.7; font-size: 0.8rem; padding: 0;" title="Renombrar">✏️</button>
-                    </div>
+                    <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)}</div>
                     <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
                         ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
                     </button>
@@ -1380,12 +1384,12 @@ async function loadDateCharacters() {
         const btnViewImages = card.querySelector('.btn-view-images');
         btnViewImages.onclick = () => openImageViewer(post.path, post.folderName);
 
-        const btnRename = card.querySelector('.btn-rename');
-        if (btnRename) {
-            btnRename.onclick = (e) => {
+        const nameContainer = card.querySelector('.char-name-container');
+        if (nameContainer) {
+            nameContainer.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
-                handleRenameCharacter(post.path, post.folderName);
-            };
+                handleRenameCharacter(nameContainer, post.path, post.folderName, false);
+            });
         }
 
         const btnQc = card.querySelector('.btn-qc');
@@ -1556,10 +1560,7 @@ function renderGestorCharactersList() {
         if (currentSession.viewMode === 'list') {
             card.style.cssText = "padding: 1rem; display: flex; flex-direction: row; align-items: center; gap: 1rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 0;";
             card.innerHTML = `
-                <div style="font-weight: 600; font-size: 0.95rem; color: #fff; flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.5rem;">
-                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${post.folderName}">${post.folderName} ${novaBadge}</span>
-                    <button class="btn-rename" style="background: transparent; border: none; cursor: pointer; opacity: 0.7; font-size: 0.8rem; padding: 0;" title="Renombrar">✏️</button>
-                </div>
+                <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: #fff; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)} ${novaBadge}</div>
                 <div style="font-size: 0.8rem; color: #94a3b8; width: 80px; text-align: center;">${post.imagesCount} Img</div>
                 <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;">🖼️ Ver Imágenes</button>
                 <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; width: 80px;" title="Marcar Control de Calidad">
@@ -1573,10 +1574,7 @@ function renderGestorCharactersList() {
             card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all; display: flex; align-items: center; gap: 0.5rem;">
-                        <span>${post.folderName} ${novaBadge}</span>
-                        <button class="btn-rename" style="background: transparent; border: none; cursor: pointer; opacity: 0.7; font-size: 0.8rem; padding: 0;" title="Renombrar">✏️</button>
-                    </div>
+                    <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)} ${novaBadge}</div>
                     <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
                         ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
                     </button>
@@ -1592,12 +1590,12 @@ function renderGestorCharactersList() {
         const btnViewImages = card.querySelector('.btn-view-images');
         btnViewImages.onclick = () => openImageViewer(post.path, post.folderName);
 
-        const btnRename = card.querySelector('.btn-rename');
-        if (btnRename) {
-            btnRename.onclick = (e) => {
+        const nameContainer = card.querySelector('.char-name-container');
+        if (nameContainer) {
+            nameContainer.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
-                handleRenameCharacter(post.path, post.folderName);
-            };
+                handleRenameCharacter(nameContainer, post.path, post.folderName, false);
+            });
         }
 
         const btnQc = card.querySelector('.btn-qc');
@@ -2200,7 +2198,14 @@ async function openImageViewer(folderPath, folderName, originalNickyPath = null)
     viewerState.folderPath = folderPath;
     viewerState.selectedImagePath = null;
     viewerState.deletedHistory = [];
-    document.getElementById('image-viewer-title').textContent = `QC: ${folderName}`;
+    const titleEl = document.getElementById('image-viewer-title');
+    titleEl.textContent = `QC: ${folderName}`;
+    titleEl.style.cursor = 'pointer';
+    titleEl.title = "Doble clic para renombrar";
+    titleEl.ondblclick = (e) => {
+        e.stopPropagation();
+        handleRenameCharacter(titleEl, viewerState.folderPath, folderName, true);
+    };
     
     // Aplicar la preferencia de tamaño de cuadrícula
     const savedSize = currentSession.qcGridSize || '4';
@@ -2247,13 +2252,6 @@ async function openImageViewer(folderPath, folderName, originalNickyPath = null)
             };
         }
     }
-    const btnViewerRename = document.getElementById('btn-viewer-rename');
-    if (btnViewerRename) {
-        btnViewerRename.onclick = () => {
-            handleRenameCharacter(viewerState.folderPath, folderName, true);
-        };
-    }
-
     const btnQcViewer = document.getElementById('btn-viewer-qc');
     if (btnQcViewer) {
         let isQcDone = currentSession.qcDone && currentSession.qcDone[folderName];
@@ -2753,37 +2751,97 @@ if (window.electronAPI.onUploadComplete) {
     });
 }
 
-async function handleRenameCharacter(folderPath, oldName, isFromViewer = false) {
-    const newName = prompt(`Introduce el nuevo nombre para "${oldName}":`, oldName);
-    if (!newName || newName.trim() === '' || newName === oldName) return;
+async function handleRenameCharacter(element, folderPath, folderName, isViewer = false) {
+    if (element.querySelector('input')) return;
     
-    const result = await window.electronAPI.renameFolder(folderPath, newName.trim());
-    if (result.success) {
-        // Actualizar QC status history
-        if (currentSession.qcDone && currentSession.qcDone[oldName] !== undefined) {
-            currentSession.qcDone[newName.trim()] = currentSession.qcDone[oldName];
-            delete currentSession.qcDone[oldName];
-            await window.electronAPI.saveSession(currentSession);
-        }
-        
-        // Actualizar listas UI
-        if (gestorState.selectedMonth && gestorState.selectedDate) {
-            loadDateCharacters();
-        }
-        if (gestorState.outputCharacters) {
-            loadGestorCharacters();
-        }
-        
-        if (isFromViewer) {
-            // Actualizar el path local del visor ya que cambió
-            const parentDir = folderPath.substring(0, folderPath.lastIndexOf('\\'));
-            viewerState.folderPath = `${parentDir}\\${newName.trim()}`;
-            document.getElementById('image-viewer-title').textContent = `QC: ${newName.trim()}`;
-            
-            // Recargar el visor
-            openImageViewer(viewerState.folderPath, newName.trim());
-        }
-    } else {
-        alert("Error al renombrar: " + result.error);
+    let cleanName = folderName;
+    if (isViewer && folderName.startsWith('QC: ')) {
+        cleanName = folderName.replace('QC: ', '');
     }
+    
+    const displayCleanName = getCleanCharacterName(cleanName);
+    const exactNovaPath = await window.electronAPI.getNovaFolderPath(folderPath, currentSession.baseOrgPath, currentSession.novaOrgPath);
+    
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = displayCleanName;
+    input.className = 'glass-input';
+    if (isViewer) {
+        input.style.cssText = 'width: 100%; padding: 0.2rem; font-size: 1.25rem; font-weight: 500; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 4px;';
+    } else {
+        input.style.cssText = 'width: 100%; padding: 0.2rem; font-size: 0.95rem; font-weight: 600; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 4px; flex: 1;';
+    }
+
+    const originalContent = element.innerHTML;
+    
+    element.innerHTML = '';
+    element.appendChild(input);
+    input.focus();
+    input.select();
+
+    const commitRename = async () => {
+        const newName = input.value.trim();
+        if (newName && newName !== displayCleanName) {
+            let success = true;
+            
+            // Renombrar Nicky (la ruta actual base)
+            const oldNickyName = folderPath.substring(folderPath.lastIndexOf('\\') + 1);
+            const regexNicky = new RegExp(displayCleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+            const newNickyName = oldNickyName.replace(regexNicky, newName);
+            
+            const res1 = await window.electronAPI.renameFolder(folderPath, newNickyName);
+            if (!res1.success) {
+                alert("Error renombrando carpeta Nocky: " + res1.error);
+                success = false;
+            } else {
+                if (exactNovaPath) {
+                    const oldNovaName = exactNovaPath.substring(exactNovaPath.lastIndexOf('\\') + 1);
+                    const regexNova = new RegExp(displayCleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+                    const newNovaName = oldNovaName.replace(regexNova, newName);
+                    const res2 = await window.electronAPI.renameFolder(exactNovaPath, newNovaName);
+                    if (res2 && !res2.success) {
+                        console.error("Error renombrando carpeta Nova: " + res2.error);
+                    }
+                }
+            }
+            if (success) {
+                if (isViewer) {
+                    const parent = folderPath.substring(0, folderPath.lastIndexOf('\\'));
+                    viewerState.folderPath = parent + '\\' + newNickyName;
+                    element.innerHTML = `QC: ${newName}`;
+                    element.ondblclick = (e) => {
+                        e.stopPropagation();
+                        handleRenameCharacter(element, viewerState.folderPath, newNickyName, true);
+                    };
+                }
+                
+                if (gestorState.selectedMonth && gestorState.selectedDate) {
+                    await loadDateCharacters();
+                    renderGestorDateContentsList();
+                }
+                if (gestorState.outputCharacters) {
+                    const post = gestorState.outputCharacters.find(p => p.path === folderPath);
+                    if (post) {
+                        const parent = folderPath.substring(0, folderPath.lastIndexOf('\\'));
+                        post.path = parent + '\\' + newNickyName;
+                        post.folderName = newNickyName;
+                    }
+                    renderGestorCharactersList();
+                }
+                return;
+            }
+        }
+        element.innerHTML = originalContent;
+    };
+
+    input.addEventListener('blur', commitRename);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            input.blur();
+        } else if (e.key === 'Escape') {
+            element.innerHTML = originalContent;
+        }
+    });
 }
+
