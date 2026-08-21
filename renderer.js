@@ -1344,7 +1344,10 @@ async function loadDateCharacters() {
         if (currentSession.viewMode === 'list') {
             card.style.cssText = "padding: 1rem; display: flex; flex-direction: row; align-items: center; gap: 1rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 0;";
             card.innerHTML = `
-                <div style="font-weight: 600; font-size: 0.95rem; color: #fff; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${post.folderName}</div>
+                <div style="font-weight: 600; font-size: 0.95rem; color: #fff; flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${post.folderName}">${post.folderName}</span>
+                    <button class="btn-rename" style="background: transparent; border: none; cursor: pointer; opacity: 0.7; font-size: 0.8rem; padding: 0;" title="Renombrar">✏️</button>
+                </div>
                 <div style="font-size: 0.8rem; color: #94a3b8; width: 80px; text-align: center;">${post.imagesCount} Img</div>
                 <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;">🖼️ Ver Imágenes</button>
                 <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; width: 80px;" title="Marcar Control de Calidad">
@@ -1358,7 +1361,10 @@ async function loadDateCharacters() {
             card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all;">${post.folderName}</div>
+                    <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all; display: flex; align-items: center; gap: 0.5rem;">
+                        <span>${post.folderName}</span>
+                        <button class="btn-rename" style="background: transparent; border: none; cursor: pointer; opacity: 0.7; font-size: 0.8rem; padding: 0;" title="Renombrar">✏️</button>
+                    </div>
                     <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
                         ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
                     </button>
@@ -1373,6 +1379,14 @@ async function loadDateCharacters() {
 
         const btnViewImages = card.querySelector('.btn-view-images');
         btnViewImages.onclick = () => openImageViewer(post.path, post.folderName);
+
+        const btnRename = card.querySelector('.btn-rename');
+        if (btnRename) {
+            btnRename.onclick = (e) => {
+                e.stopPropagation();
+                handleRenameCharacter(post.path, post.folderName);
+            };
+        }
 
         const btnQc = card.querySelector('.btn-qc');
         btnQc.onclick = async () => {
@@ -1542,7 +1556,10 @@ function renderGestorCharactersList() {
         if (currentSession.viewMode === 'list') {
             card.style.cssText = "padding: 1rem; display: flex; flex-direction: row; align-items: center; gap: 1rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 0;";
             card.innerHTML = `
-                <div style="font-weight: 600; font-size: 0.95rem; color: #fff; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${post.folderName} ${novaBadge}</div>
+                <div style="font-weight: 600; font-size: 0.95rem; color: #fff; flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${post.folderName}">${post.folderName} ${novaBadge}</span>
+                    <button class="btn-rename" style="background: transparent; border: none; cursor: pointer; opacity: 0.7; font-size: 0.8rem; padding: 0;" title="Renombrar">✏️</button>
+                </div>
                 <div style="font-size: 0.8rem; color: #94a3b8; width: 80px; text-align: center;">${post.imagesCount} Img</div>
                 <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;">🖼️ Ver Imágenes</button>
                 <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; width: 80px;" title="Marcar Control de Calidad">
@@ -1556,7 +1573,10 @@ function renderGestorCharactersList() {
             card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all;">${post.folderName} ${novaBadge}</div>
+                    <div style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all; display: flex; align-items: center; gap: 0.5rem;">
+                        <span>${post.folderName} ${novaBadge}</span>
+                        <button class="btn-rename" style="background: transparent; border: none; cursor: pointer; opacity: 0.7; font-size: 0.8rem; padding: 0;" title="Renombrar">✏️</button>
+                    </div>
                     <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
                         ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
                     </button>
@@ -1571,6 +1591,14 @@ function renderGestorCharactersList() {
 
         const btnViewImages = card.querySelector('.btn-view-images');
         btnViewImages.onclick = () => openImageViewer(post.path, post.folderName);
+
+        const btnRename = card.querySelector('.btn-rename');
+        if (btnRename) {
+            btnRename.onclick = (e) => {
+                e.stopPropagation();
+                handleRenameCharacter(post.path, post.folderName);
+            };
+        }
 
         const btnQc = card.querySelector('.btn-qc');
         btnQc.onclick = async () => {
@@ -2219,6 +2247,13 @@ async function openImageViewer(folderPath, folderName, originalNickyPath = null)
             };
         }
     }
+    const btnViewerRename = document.getElementById('btn-viewer-rename');
+    if (btnViewerRename) {
+        btnViewerRename.onclick = () => {
+            handleRenameCharacter(viewerState.folderPath, folderName, true);
+        };
+    }
+
     const btnQcViewer = document.getElementById('btn-viewer-qc');
     if (btnQcViewer) {
         let isQcDone = currentSession.qcDone && currentSession.qcDone[folderName];
@@ -2716,4 +2751,39 @@ if (window.electronAPI.onUploadComplete) {
             await processNextAutoUpload();
         }
     });
+}
+
+async function handleRenameCharacter(folderPath, oldName, isFromViewer = false) {
+    const newName = prompt(`Introduce el nuevo nombre para "${oldName}":`, oldName);
+    if (!newName || newName.trim() === '' || newName === oldName) return;
+    
+    const result = await window.electronAPI.renameFolder(folderPath, newName.trim());
+    if (result.success) {
+        // Actualizar QC status history
+        if (currentSession.qcDone && currentSession.qcDone[oldName] !== undefined) {
+            currentSession.qcDone[newName.trim()] = currentSession.qcDone[oldName];
+            delete currentSession.qcDone[oldName];
+            await window.electronAPI.saveSession(currentSession);
+        }
+        
+        // Actualizar listas UI
+        if (gestorState.selectedMonth && gestorState.selectedDate) {
+            loadDateCharacters();
+        }
+        if (gestorState.outputCharacters) {
+            loadGestorCharacters();
+        }
+        
+        if (isFromViewer) {
+            // Actualizar el path local del visor ya que cambió
+            const parentDir = folderPath.substring(0, folderPath.lastIndexOf('\\'));
+            viewerState.folderPath = `${parentDir}\\${newName.trim()}`;
+            document.getElementById('image-viewer-title').textContent = `QC: ${newName.trim()}`;
+            
+            // Recargar el visor
+            openImageViewer(viewerState.folderPath, newName.trim());
+        }
+    } else {
+        alert("Error al renombrar: " + result.error);
+    }
 }

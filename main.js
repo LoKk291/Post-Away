@@ -114,6 +114,7 @@ function createWindow() {
     height: 800,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      backgroundThrottling: false
     }
   });
   mainWindow.loadFile('index.html');
@@ -397,12 +398,10 @@ ipcMain.handle('restore-file-trash', async (event, trashPath, originalPath) => {
 // Broadcast payload to SSE Clients or prepare for polling
 ipcMain.handle('fill-patreon', (event, data) => {
   const isPollingActive = (Date.now() - lastPollTime < 4000);
-  if (isPollingActive) {
-    currentPayload = data;
-  }
+  currentPayload = data; // Siempre guardar el payload
   const payload = JSON.stringify(data);
   sseClients.forEach(res => res.write(`data: ${payload}\n\n`));
-  return { success: true, receivers: sseClients.length + (isPollingActive ? 1 : 0) };
+  return { success: true, receivers: sseClients.length + 1 };
 });
 
 ipcMain.handle('open-patreon', (event, profile) => {
