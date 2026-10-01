@@ -13,6 +13,8 @@ let sseClients = [];
 let lastPollTime = 0;
 let currentPayload = null;
 let currentTwitterPayload = null;
+let currentTwitterFeed = [];
+let currentTwitterFeedIndex = 0;
 
 function startLocalServer() {
   localServer = http.createServer((req, res) => {
@@ -46,6 +48,82 @@ function startLocalServer() {
       });
       res.end(JSON.stringify({ payload: currentTwitterPayload }));
       currentTwitterPayload = null; // clear after consumed
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/twitter-feed') {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Private-Network': 'true'
+      });
+      res.end(JSON.stringify({
+        posts: currentTwitterFeed || [],
+        currentIndex: currentTwitterFeedIndex || 0,
+        activeProfile: loadSession()?.activeProfile || 'nicky'
+      }));
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/twitter-feed/update-post') {
+      let body = '';
+      req.on('data', chunk => body += chunk.toString());
+      req.on('end', () => {
+        try {
+          const updated = JSON.parse(body);
+          if (currentTwitterFeed && updated.id) {
+            const item = currentTwitterFeed.find(p => p.id === updated.id);
+            if (item) {
+              if (updated.combinedText !== undefined) item.combinedText = updated.combinedText;
+              if (updated.scheduleDate !== undefined) item.scheduleDate = updated.scheduleDate;
+              if (updated.scheduleTime !== undefined) item.scheduleTime = updated.scheduleTime;
+            }
+          }
+          const session = loadSession();
+          if (!session.twitterSchedule) session.twitterSchedule = {};
+          if (updated.id) {
+            session.twitterSchedule[updated.id] = {
+              date: updated.scheduleDate,
+              time: updated.scheduleTime
+            };
+            saveSession(session);
+          }
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('twitter-post-updated', updated);
+          }
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Private-Network': 'true'
+          });
+          res.end(JSON.stringify({ success: true }));
+        } catch (e) {
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
+
+    if (req.method === 'GET' && req.url.startsWith('/thumbnail')) {
+      const parsedUrl = new URL(req.url, 'http://127.0.0.1');
+      const filePath = parsedUrl.searchParams.get('file');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Private-Network', 'true');
+      if (!filePath || !fs.existsSync(filePath)) {
+        res.writeHead(404);
+        return res.end("Not Found");
+      }
+      const ext = path.extname(filePath).toLowerCase();
+      const mimeTypes = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif'
+      };
+      res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'image/jpeg' });
+      fs.createReadStream(filePath).pipe(res);
       return;
     }
     if (req.method === 'POST' && req.url === '/upload-complete') {
@@ -769,6 +847,12 @@ ipcMain.handle('open-patreon', (event, profile) => {
 
 ipcMain.handle('fill-twitter', (event, data) => {
   currentTwitterPayload = data;
+  return { success: true };
+});
+
+ipcMain.handle('set-twitter-feed', (event, feedData) => {
+  currentTwitterFeed = feedData.posts || [];
+  currentTwitterFeedIndex = feedData.currentIndex || 0;
   return { success: true };
 });
 

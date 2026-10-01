@@ -1262,6 +1262,7 @@ function renderTwitterGrid(posts) {
                 time: timeInput.value
             };
             saveSession();
+            syncTwitterFeedToMain();
         };
         dateInput.addEventListener('change', updateSavedSchedule);
         timeInput.addEventListener('change', updateSavedSchedule);
@@ -1351,10 +1352,98 @@ function renderTwitterGrid(posts) {
             tx.addEventListener('input', () => {
                 tx.style.height = 'auto';
                 tx.style.height = (tx.scrollHeight) + 'px';
+                syncTwitterFeedToMain();
             });
         });
 
         twitterGrid.appendChild(card);
+    });
+
+    syncTwitterFeedToMain();
+}
+
+let syncTwitterTimeout = null;
+async function syncTwitterFeedToMain() {
+    if (syncTwitterTimeout) clearTimeout(syncTwitterTimeout);
+    syncTwitterTimeout = setTimeout(async () => {
+        const cards = document.querySelectorAll('#twitter-grid .post-card');
+        if (cards.length === 0 || !currentPosts || currentPosts.length === 0) {
+            if (window.electronAPI && window.electronAPI.setTwitterFeed) {
+                await window.electronAPI.setTwitterFeed({ posts: [], currentIndex: 0 });
+            }
+            return;
+        }
+
+        const feedPosts = [];
+        for (let i = 0; i < currentPosts.length; i++) {
+            const post = currentPosts[i];
+            const card = cards[i];
+            if (!card) continue;
+
+            const enText = card.querySelector('.edit-en')?.value || '';
+            const esText = card.querySelector('.edit-es')?.value || '';
+            const tagsText = card.querySelector('.edit-tags')?.value || '';
+            const patreonLink = card.querySelector('.edit-patreon-link')?.value || '';
+            const dateInput = card.querySelector('.twitter-post-date');
+            const timeInput = card.querySelector('.twitter-post-time');
+
+            const linkPart = patreonLink.trim() ? `${patreonLink.trim()}\n\n` : '';
+            const combinedText = `${enText}\n${esText}\n\n${linkPart}${tagsText}`.trim();
+
+            if (!post.watermarkImages) {
+                try {
+                    post.watermarkImages = await window.electronAPI.getWatermarkImages(post.path);
+                } catch (e) {
+                    post.watermarkImages = [];
+                }
+            }
+
+            const thumbPath = (post.imagePaths && post.imagePaths[0]) ? post.imagePaths[0] : (post.watermarkImages && post.watermarkImages[0] ? post.watermarkImages[0] : (post.path ? post.path : ''));
+
+            feedPosts.push({
+                id: post.id,
+                index: i,
+                folderName: post.folderName,
+                characterName: getCleanCharacterName(post.folderName),
+                path: post.path,
+                thumbnailPath: thumbPath,
+                watermarkImages: post.watermarkImages || [],
+                enText: enText,
+                esText: esText,
+                tags: tagsText,
+                patreonLink: patreonLink,
+                combinedText: combinedText,
+                scheduleDate: dateInput?.value || '',
+                scheduleTime: timeInput?.value || ''
+            });
+        }
+
+        if (window.electronAPI && window.electronAPI.setTwitterFeed) {
+            await window.electronAPI.setTwitterFeed({
+                posts: feedPosts,
+                currentIndex: 0
+            });
+        }
+    }, 250);
+}
+
+if (window.electronAPI && window.electronAPI.onTwitterPostUpdated) {
+    window.electronAPI.onTwitterPostUpdated((updated) => {
+        if (!updated || !updated.id) return;
+        const cards = document.querySelectorAll('#twitter-grid .post-card');
+        cards.forEach((card, idx) => {
+            const post = currentPosts && currentPosts[idx];
+            if (post && post.id === updated.id) {
+                if (updated.scheduleDate) {
+                    const dInput = card.querySelector('.twitter-post-date');
+                    if (dInput) dInput.value = updated.scheduleDate;
+                }
+                if (updated.scheduleTime) {
+                    const tInput = card.querySelector('.twitter-post-time');
+                    if (tInput) tInput.value = updated.scheduleTime;
+                }
+            }
+        });
     });
 }
 

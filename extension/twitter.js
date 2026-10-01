@@ -3,8 +3,7 @@ console.log("Post-Away: Script de automatización de X (Twitter) cargado.");
 let isAutofilling = false;
 
 function shouldPoll() {
-    if (document.visibilityState === 'visible') return true;
-    if (window.location.href.includes('/compose/post')) return true;
+    if (document.visibilityState === 'visible' && document.hasFocus()) return true;
     return false;
 }
 
@@ -457,3 +456,927 @@ async function configureScheduleModal(dialog, scheduleDate, scheduleTime) {
     console.log("Post-Away: Selects configurados exitosamente en X.");
     showStatusToast(`Post-Away v1.2: ¡Configurado para ${targetDay}/${targetMonth}/${targetYear} ${String(h24).padStart(2, '0')}:${String(targetMin).padStart(2, '0')}!`);
 }
+
+// ==============================================================
+// POST-AWAY X FLOATING ASSISTANT WIDGET
+// ==============================================================
+
+let floatFeed = [];
+let floatIndex = -1; // -1 indica no asignado aún para esta pestaña
+let floatThumbCache = {};
+let isFloatMinimized = false;
+let isFloatExecuting = false;
+let editSyncTimeout = null;
+let openMode = localStorage.getItem('postaway_open_mode') || 'tab'; // 'tab' o 'window'
+
+// Consultar inmediatamente a background si esta pestaña fue creada con un índice asignado
+chrome.runtime.sendMessage({ type: 'get-tab-post-index' }, (res) => {
+    if (!chrome.runtime.lastError && res && res.assignedIndex !== null && res.assignedIndex !== undefined) {
+        sessionStorage.setItem('postaway_tab_index', res.assignedIndex.toString());
+        if (floatIndex === -1) {
+            floatIndex = res.assignedIndex;
+            if (floatFeed.length > 0) renderCurrentPost();
+        }
+    }
+});
+
+function getTabPostIndex() {
+    // 1. Prioridad: Hash en la URL (#postaway_idx=X)
+    const hash = window.location.hash || '';
+    const match = hash.match(/postaway_idx=(\d+)/);
+    if (match) {
+        const parsed = parseInt(match[1], 10);
+        if (!isNaN(parsed) && parsed >= 0) {
+            sessionStorage.setItem('postaway_tab_index', parsed.toString());
+            try {
+                history.replaceState(null, document.title, window.location.pathname + window.location.search);
+            } catch (e) {}
+            return parsed;
+        }
+    }
+
+    // 2. Prioridad: sessionStorage propio y aislado de esta pestaña
+    const stored = sessionStorage.getItem('postaway_tab_index');
+    if (stored !== null) {
+        const parsed = parseInt(stored, 10);
+        if (!isNaN(parsed) && parsed >= 0) {
+            return parsed;
+        }
+    }
+    return null;
+}
+
+function isPostUploaded(idx) {
+    const targetIdx = (idx !== undefined) ? idx : floatIndex;
+    if (!floatFeed || !floatFeed[targetIdx]) return false;
+    const postId = floatFeed[targetIdx].id || ('idx_' + targetIdx);
+    return sessionStorage.getItem('postaway_uploaded_' + postId) === 'true';
+}
+
+function markPostUploaded(idx) {
+    const targetIdx = (idx !== undefined) ? idx : floatIndex;
+    if (!floatFeed || !floatFeed[targetIdx]) return;
+    const postId = floatFeed[targetIdx].id || ('idx_' + targetIdx);
+    sessionStorage.setItem('postaway_uploaded_' + postId, 'true');
+}
+
+function openNextPostInNewTab(targetIdx) {
+    const nextIdx = (targetIdx !== undefined) ? targetIdx : (floatIndex + 1);
+    if (!floatFeed || nextIdx >= floatFeed.length) {
+        showStatusToast("🎉 ¡No hay más posts! Has completado la lista.");
+        return;
+    }
+
+    const asWindow = (openMode === 'window');
+    const modeLabel = asWindow ? 'ventana' : 'pestaña';
+    showStatusToast(`🚀 Abriendo Post ${nextIdx + 1} en nueva ${modeLabel} de X...`);
+
+    chrome.runtime.sendMessage({
+        type: 'open-next-x-tab',
+        postIndex: nextIdx,
+        asWindow: asWindow
+    }, (res) => {
+        if (chrome.runtime.lastError || !res || !res.success) {
+            const targetUrl = `https://x.com/compose/post#postaway_idx=${nextIdx}`;
+            if (asWindow) {
+                window.open(targetUrl, '_blank', 'width=1280,height=800');
+            } else {
+                window.open(targetUrl, '_blank');
+            }
+        }
+    });
+}
+
+function injectFloatingStyles() {
+    if (document.getElementById('postaway-twitter-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'postaway-twitter-styles';
+    style.textContent = `
+        #postaway-twitter-panel {
+            position: fixed;
+            top: 75px;
+            right: 20px;
+            width: 325px;
+            background: rgba(15, 23, 42, 0.96);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 14px;
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.65);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #e2e8f0;
+            z-index: 999999;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        #postaway-twitter-panel * {
+            box-sizing: border-box;
+        }
+        #postaway-twitter-panel input,
+        #postaway-twitter-panel textarea {
+            user-select: text;
+        }
+        .postaway-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 9px 12px;
+            background: rgba(30, 41, 59, 0.9);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: move;
+        }
+        .postaway-header-title {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #38bdf8;
+        }
+        .postaway-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 6px #22c55e;
+            display: inline-block;
+        }
+        .postaway-status-dot.disconnected {
+            background: #ef4444;
+            box-shadow: 0 0 6px #ef4444;
+        }
+        .postaway-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .postaway-icon-btn {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: all 0.15s ease;
+        }
+        .postaway-icon-btn:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.12);
+        }
+        .postaway-mode-badge {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #38bdf8;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.15s ease;
+        }
+        .postaway-mode-badge:hover {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: #38bdf8;
+        }
+        .postaway-nav-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 12px;
+            background: rgba(0, 0, 0, 0.25);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .postaway-nav-btn {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #e2e8f0;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .postaway-nav-btn:hover:not(:disabled) {
+            background: rgba(29, 155, 240, 0.25);
+            border-color: #1d9bf0;
+            color: #38bdf8;
+        }
+        .postaway-nav-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+        .postaway-nav-next-highlight {
+            background: linear-gradient(135deg, rgba(29, 155, 240, 0.35), rgba(2, 132, 199, 0.45)) !important;
+            border-color: #38bdf8 !important;
+            color: #38bdf8 !important;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+        }
+        .postaway-nav-next-highlight:hover:not(:disabled) {
+            background: linear-gradient(135deg, rgba(29, 155, 240, 0.55), rgba(2, 132, 199, 0.65)) !important;
+            color: #fff !important;
+        }
+        .postaway-counter {
+            font-size: 11px;
+            font-weight: 700;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .postaway-badge-uploaded {
+            display: inline-block;
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            border-radius: 4px;
+            font-size: 9px;
+            padding: 1px 4px;
+            font-weight: 700;
+        }
+        .postaway-content {
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 520px;
+            overflow-y: auto;
+        }
+        .postaway-char-name {
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.3;
+        }
+        .postaway-thumb-box {
+            width: 100%;
+            height: 115px;
+            background: rgba(0, 0, 0, 0.45);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .postaway-thumb-img {
+            max-height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+            display: none;
+            transition: transform 0.2s;
+        }
+        .postaway-thumb-img:hover {
+            transform: scale(1.03);
+        }
+        .postaway-thumb-placeholder {
+            color: #64748b;
+            font-size: 11px;
+            text-align: center;
+            padding: 8px;
+        }
+        .postaway-schedule-grid {
+            display: flex;
+            gap: 6px;
+        }
+        .postaway-field-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .postaway-field-label {
+            font-size: 10px;
+            color: #94a3b8;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .postaway-input {
+            width: 100%;
+            padding: 5px 7px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 11px;
+        }
+        .postaway-input:focus {
+            border-color: #1d9bf0;
+            outline: none;
+        }
+        .postaway-textarea-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 10px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+        .postaway-textarea {
+            width: 100%;
+            padding: 6px 8px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 11px;
+            line-height: 1.35;
+            resize: vertical;
+            min-height: 65px;
+            max-height: 140px;
+            font-family: inherit;
+        }
+        .postaway-textarea:focus {
+            border-color: #1d9bf0;
+            outline: none;
+        }
+        .postaway-btn-upload {
+            width: 100%;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #1d9bf0, #0284c7);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 4px 14px rgba(29, 155, 240, 0.4);
+            transition: all 0.2s ease;
+            margin-top: 2px;
+        }
+        .postaway-btn-upload:hover:not(:disabled) {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(29, 155, 240, 0.55);
+        }
+        .postaway-btn-upload:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        .postaway-btn-upload:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        #postaway-twitter-min-pill {
+            position: fixed;
+            top: 75px;
+            right: 20px;
+            z-index: 999999;
+            background: linear-gradient(135deg, #1d9bf0, #0284c7);
+            color: #ffffff;
+            padding: 7px 13px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            gap: 7px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            user-select: none;
+        }
+        #postaway-twitter-min-pill:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(29, 155, 240, 0.6);
+        }
+        .postaway-empty-box {
+            padding: 24px 14px;
+            text-align: center;
+            color: #94a3b8;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+function makeDraggable(element, handle) {
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    handle.onmousedown = dragMouseDown;
+
+    function dragMouseDown(e) {
+        if (e.target.tagName === 'BUTTON' || e.target.classList.contains('postaway-icon-btn')) return;
+        e.preventDefault();
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        document.onmousemove = elementDrag;
+    }
+
+    function elementDrag(e) {
+        e.preventDefault();
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+
+        const newTop = element.offsetTop - pos2;
+        const newLeft = element.offsetLeft - pos1;
+
+        const maxTop = window.innerHeight - 80;
+        const maxLeft = window.innerWidth - element.offsetWidth - 10;
+        element.style.top = Math.max(10, Math.min(maxTop, newTop)) + "px";
+        element.style.left = Math.max(10, Math.min(maxLeft, newLeft)) + "px";
+        element.style.right = 'auto';
+    }
+
+    function closeDragElement() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+    }
+}
+
+function updatePillCounter() {
+    const pillCounter = document.getElementById('postaway-pill-counter');
+    if (pillCounter) {
+        if (floatFeed && floatFeed.length > 0) {
+            pillCounter.textContent = `(${floatIndex + 1}/${floatFeed.length})`;
+        } else {
+            pillCounter.textContent = `(0)`;
+        }
+    }
+}
+
+function updateCharCount() {
+    const textInput = document.getElementById('postaway-input-text');
+    const counterEl = document.getElementById('postaway-char-count');
+    if (textInput && counterEl) {
+        const count = textInput.value.length;
+        counterEl.textContent = `${count} car.`;
+        counterEl.style.color = count > 280 ? '#f87171' : '#94a3b8';
+    }
+}
+
+function saveCurrentPostEdits() {
+    if (!floatFeed || floatFeed.length === 0 || !floatFeed[floatIndex]) return;
+    const post = floatFeed[floatIndex];
+    const dateInput = document.getElementById('postaway-input-date');
+    const timeInput = document.getElementById('postaway-input-time');
+    const textInput = document.getElementById('postaway-input-text');
+    if (dateInput && dateInput.value) post.scheduleDate = dateInput.value;
+    if (timeInput && timeInput.value) post.scheduleTime = timeInput.value;
+    if (textInput) post.combinedText = textInput.value;
+}
+
+function triggerPostEditSync() {
+    saveCurrentPostEdits();
+    if (!floatFeed || !floatFeed[floatIndex]) return;
+    const post = floatFeed[floatIndex];
+
+    if (editSyncTimeout) clearTimeout(editSyncTimeout);
+    editSyncTimeout = setTimeout(() => {
+        chrome.runtime.sendMessage({
+            type: 'update-twitter-post',
+            post: {
+                id: post.id,
+                combinedText: post.combinedText,
+                scheduleDate: post.scheduleDate,
+                scheduleTime: post.scheduleTime
+            }
+        });
+    }, 300);
+}
+
+function handlePrevPostAction() {
+    saveCurrentPostEdits();
+    if (!floatFeed || floatFeed.length === 0) return;
+    if (floatIndex > 0) {
+        floatIndex--;
+        sessionStorage.setItem('postaway_tab_index', floatIndex.toString());
+        renderCurrentPost();
+    }
+}
+
+function handleNextPostAction() {
+    saveCurrentPostEdits();
+    if (!floatFeed || floatFeed.length === 0) return;
+
+    const nextIdx = floatIndex + 1;
+    if (nextIdx >= floatFeed.length) {
+        showStatusToast("🎉 ¡Este es el último post de la lista!");
+        return;
+    }
+
+    // Si el post actual ya fue preparado / subido en esta pestaña:
+    if (isPostUploaded(floatIndex)) {
+        openNextPostInNewTab(nextIdx);
+    } else {
+        floatIndex = nextIdx;
+        sessionStorage.setItem('postaway_tab_index', floatIndex.toString());
+        renderCurrentPost();
+    }
+}
+
+function navigatePost(direction) {
+    if (direction < 0) {
+        handlePrevPostAction();
+    } else {
+        handleNextPostAction();
+    }
+}
+
+function loadThumbnailForPost(post) {
+    const thumbImg = document.getElementById('postaway-thumb-img');
+    const placeholder = document.getElementById('postaway-thumb-placeholder');
+
+    if (!post.thumbnailPath) {
+        thumbImg.style.display = 'none';
+        placeholder.textContent = '🖼️ Sin imagen';
+        placeholder.style.display = 'block';
+        return;
+    }
+
+    if (floatThumbCache[post.thumbnailPath]) {
+        thumbImg.src = floatThumbCache[post.thumbnailPath];
+        thumbImg.style.display = 'block';
+        placeholder.style.display = 'none';
+        return;
+    }
+
+    thumbImg.style.display = 'none';
+    placeholder.textContent = '🖼️ Cargando miniatura...';
+    placeholder.style.display = 'block';
+
+    chrome.runtime.sendMessage({
+        type: 'get-thumbnail-data',
+        filePath: post.thumbnailPath
+    }, (res) => {
+        if (chrome.runtime.lastError) {
+            placeholder.textContent = '🖼️ Error al cargar';
+            return;
+        }
+        if (res && res.success && res.dataUrl) {
+            floatThumbCache[post.thumbnailPath] = res.dataUrl;
+            if (floatFeed[floatIndex] && floatFeed[floatIndex].thumbnailPath === post.thumbnailPath) {
+                thumbImg.src = res.dataUrl;
+                thumbImg.style.display = 'block';
+                placeholder.style.display = 'none';
+            }
+        } else {
+            placeholder.textContent = '🖼️ Sin vista previa';
+        }
+    });
+}
+
+function renderCurrentPost() {
+    if (!floatFeed || floatFeed.length === 0) {
+        document.getElementById('postaway-empty-state').style.display = 'flex';
+        document.getElementById('postaway-post-form').style.display = 'none';
+        document.getElementById('postaway-nav-row').style.display = 'none';
+        document.getElementById('postaway-status-dot').className = 'postaway-status-dot disconnected';
+        updatePillCounter();
+        return;
+    }
+
+    if (floatIndex < 0) floatIndex = 0;
+    if (floatIndex >= floatFeed.length) floatIndex = floatFeed.length - 1;
+
+    const post = floatFeed[floatIndex];
+
+    document.getElementById('postaway-empty-state').style.display = 'none';
+    document.getElementById('postaway-post-form').style.display = 'flex';
+    document.getElementById('postaway-nav-row').style.display = 'flex';
+    document.getElementById('postaway-status-dot').className = 'postaway-status-dot';
+
+    const isUploaded = isPostUploaded(floatIndex);
+    const navPrev = document.getElementById('postaway-nav-prev');
+    const navNext = document.getElementById('postaway-nav-next');
+    const counterEl = document.getElementById('postaway-counter');
+
+    navPrev.disabled = (floatIndex === 0);
+    navNext.disabled = (floatIndex >= floatFeed.length - 1);
+
+    if (isUploaded) {
+        counterEl.innerHTML = `<span>Post ${floatIndex + 1} de ${floatFeed.length}</span> <span class="postaway-badge-uploaded">✓ Subido</span>`;
+        if (floatIndex < floatFeed.length - 1) {
+            const modeText = (openMode === 'window') ? 'Ventana' : 'Pestaña';
+            navNext.innerHTML = `Siguiente ↗`;
+            navNext.title = `Abrir Post ${floatIndex + 2} en una nueva ${modeText.toLowerCase()} de X`;
+            navNext.classList.add('postaway-nav-next-highlight');
+        } else {
+            navNext.innerHTML = `Siguiente ▶`;
+            navNext.title = `Fin de la lista`;
+            navNext.classList.remove('postaway-nav-next-highlight');
+        }
+    } else {
+        counterEl.textContent = `Post ${floatIndex + 1} de ${floatFeed.length}`;
+        navNext.innerHTML = `Siguiente ▶`;
+        navNext.title = `Siguiente post (Alt + Flecha Der)`;
+        navNext.classList.remove('postaway-nav-next-highlight');
+    }
+    updatePillCounter();
+
+    document.getElementById('postaway-char-name').textContent = post.characterName || post.folderName || 'Personaje';
+    document.getElementById('postaway-char-name').title = post.folderName || '';
+
+    const dateInput = document.getElementById('postaway-input-date');
+    const timeInput = document.getElementById('postaway-input-time');
+    dateInput.value = post.scheduleDate || '';
+    timeInput.value = post.scheduleTime || '';
+
+    const textInput = document.getElementById('postaway-input-text');
+    textInput.value = post.combinedText || '';
+    updateCharCount();
+
+    const uploadBtn = document.getElementById('postaway-btn-upload');
+    uploadBtn.disabled = false;
+    if (isUploaded && floatIndex < floatFeed.length - 1) {
+        const nextNum = floatIndex + 2;
+        const modeText = (openMode === 'window') ? 'ventana' : 'pestaña';
+        uploadBtn.innerHTML = `<span>✅ ¡Subido! Siguiente en nueva ${modeText} (${nextNum}/${floatFeed.length}) ↗</span>`;
+        uploadBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        uploadBtn.onclick = () => {
+            openNextPostInNewTab(floatIndex + 1);
+        };
+    } else {
+        uploadBtn.innerHTML = `<span>🚀 Subir / Programar en X</span>`;
+        uploadBtn.style.background = 'linear-gradient(135deg, #1d9bf0, #0284c7)';
+        uploadBtn.onclick = executeCurrentPostUpload;
+    }
+
+    loadThumbnailForPost(post);
+}
+
+async function executeCurrentPostUpload() {
+    if (isFloatExecuting || isAutofilling || !floatFeed || !floatFeed[floatIndex]) return;
+
+    saveCurrentPostEdits();
+    const post = floatFeed[floatIndex];
+
+    const uploadBtn = document.getElementById('postaway-btn-upload');
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = `<span>⏳ Preparando post en X...</span>`;
+    uploadBtn.style.background = 'rgba(29, 155, 240, 0.6)';
+
+    isFloatExecuting = true;
+    isAutofilling = true;
+
+    try {
+        await runTwitterAutofill({
+            text: post.combinedText,
+            imagePaths: post.watermarkImages || [],
+            scheduleDate: post.scheduleDate,
+            scheduleTime: post.scheduleTime
+        });
+
+        markPostUploaded(floatIndex);
+
+        uploadBtn.disabled = false;
+        uploadBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+        
+        if (floatIndex < floatFeed.length - 1) {
+            const nextNum = floatIndex + 2;
+            const modeText = (openMode === 'window') ? 'ventana' : 'pestaña';
+            uploadBtn.innerHTML = `<span>✅ ¡Preparado! Siguiente en nueva ${modeText} (${nextNum}/${floatFeed.length}) ↗</span>`;
+            uploadBtn.onclick = () => {
+                openNextPostInNewTab(floatIndex + 1);
+            };
+        } else {
+            uploadBtn.innerHTML = `<span>✅ ¡Último post preparado con éxito!</span>`;
+            setTimeout(() => {
+                uploadBtn.innerHTML = `<span>🚀 Subir / Programar de nuevo</span>`;
+                uploadBtn.style.background = 'linear-gradient(135deg, #1d9bf0, #0284c7)';
+                uploadBtn.onclick = executeCurrentPostUpload;
+            }, 3000);
+        }
+
+        renderCurrentPost();
+        showStatusToast("Post preparado en X. Haz clic en 'Siguiente' para abrir el próximo post.");
+    } catch (err) {
+        console.error("Error executing post upload:", err);
+        uploadBtn.disabled = false;
+        uploadBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+        uploadBtn.innerHTML = `<span>⚠️ Error al preparar post</span>`;
+        setTimeout(() => {
+            uploadBtn.innerHTML = `<span>🚀 Reintentar</span>`;
+            uploadBtn.style.background = 'linear-gradient(135deg, #1d9bf0, #0284c7)';
+            uploadBtn.onclick = executeCurrentPostUpload;
+        }, 3000);
+    } finally {
+        isFloatExecuting = false;
+        isAutofilling = false;
+    }
+}
+
+function fetchTwitterFeed(showFeedback = false) {
+    chrome.runtime.sendMessage({ type: 'get-twitter-feed' }, (response) => {
+        if (chrome.runtime.lastError) {
+            if (showFeedback) showStatusToast("Post-Away: No se pudo conectar a la aplicación", true);
+            return;
+        }
+        if (response && response.posts) {
+            floatFeed = response.posts;
+
+            if (floatIndex === -1) {
+                const tabIdx = getTabPostIndex();
+                if (tabIdx !== null && tabIdx >= 0) {
+                    floatIndex = tabIdx;
+                } else {
+                    floatIndex = response.currentIndex || 0;
+                }
+                sessionStorage.setItem('postaway_tab_index', floatIndex.toString());
+            }
+
+            if (floatFeed.length > 0) {
+                if (floatIndex < 0) floatIndex = 0;
+                if (floatIndex >= floatFeed.length) floatIndex = floatFeed.length - 1;
+            }
+
+            const activeEl = document.activeElement;
+            const isEditingText = activeEl && activeEl.id === 'postaway-input-text';
+            const isEditingDate = activeEl && activeEl.id === 'postaway-input-date';
+            const isEditingTime = activeEl && activeEl.id === 'postaway-input-time';
+
+            if (!isEditingText && !isEditingDate && !isEditingTime) {
+                renderCurrentPost();
+            }
+
+            if (showFeedback && floatFeed.length > 0) {
+                showStatusToast(`Post-Away: ${floatFeed.length} posts sincronizados.`);
+            }
+        }
+    });
+}
+
+function createFloatingPanel() {
+    if (document.getElementById('postaway-twitter-panel')) return;
+
+    injectFloatingStyles();
+
+    // Minimized pill button
+    const pill = document.createElement('div');
+    pill.id = 'postaway-twitter-min-pill';
+    pill.innerHTML = `<span>✨ Post-Away</span> <span id="postaway-pill-counter">(0)</span> <span>▾</span>`;
+    pill.onclick = () => {
+        isFloatMinimized = false;
+        pill.style.display = 'none';
+        const p = document.getElementById('postaway-twitter-panel');
+        if (p) p.style.display = 'flex';
+    };
+    document.body.appendChild(pill);
+
+    // Main Floating Panel
+    const panel = document.createElement('div');
+    panel.id = 'postaway-twitter-panel';
+    panel.innerHTML = `
+        <div class="postaway-header" id="postaway-header-drag">
+            <div class="postaway-header-title">
+                <span class="postaway-status-dot disconnected" id="postaway-status-dot"></span>
+                <span>✨ Post-Away X</span>
+            </div>
+            <div class="postaway-header-actions">
+                <button class="postaway-mode-badge" id="postaway-btn-mode" title="Cambiar modo de apertura: Pestaña o Ventana nueva">${openMode === 'window' ? '🪟 Ventana' : '📑 Pestaña'}</button>
+                <button class="postaway-icon-btn" id="postaway-btn-open-new" title="Abrir este post en nueva ventana/pestaña de X">↗</button>
+                <button class="postaway-icon-btn" id="postaway-btn-refresh" title="Recargar posts de Post-Away">🔄</button>
+                <button class="postaway-icon-btn" id="postaway-btn-minimize" title="Minimizar panel">➖</button>
+            </div>
+        </div>
+
+        <div class="postaway-nav-row" id="postaway-nav-row" style="display: none;">
+            <button class="postaway-nav-btn" id="postaway-nav-prev" title="Post anterior (Alt + Flecha Izq)">◀ Anterior</button>
+            <span class="postaway-counter" id="postaway-counter">Post 0 de 0</span>
+            <button class="postaway-nav-btn" id="postaway-nav-next" title="Siguiente post (Alt + Flecha Der)">Siguiente ▶</button>
+        </div>
+
+        <div class="postaway-content" id="postaway-content-box">
+            <div class="postaway-empty-box" id="postaway-empty-state">
+                <div style="font-size: 28px;">📭</div>
+                <div>Esperando posts de Post-Away... Carga una carpeta en la aplicación.</div>
+                <button class="postaway-nav-btn" id="postaway-btn-connect" style="margin-top: 4px; padding: 6px 14px; color: #38bdf8;">🔄 Conectar</button>
+            </div>
+
+            <div id="postaway-post-form" style="display: none; flex-direction: column; gap: 8px;">
+                <div class="postaway-char-name" id="postaway-char-name">Personaje</div>
+                
+                <div class="postaway-thumb-box">
+                    <img class="postaway-thumb-img" id="postaway-thumb-img" alt="Miniatura">
+                    <div class="postaway-thumb-placeholder" id="postaway-thumb-placeholder">🖼️ Cargando miniatura...</div>
+                </div>
+
+                <div class="postaway-schedule-grid">
+                    <div class="postaway-field-group">
+                        <label class="postaway-field-label">📅 Fecha Programada</label>
+                        <input type="date" class="postaway-input" id="postaway-input-date">
+                    </div>
+                    <div class="postaway-field-group">
+                        <label class="postaway-field-label">⏰ Hora (24hs)</label>
+                        <input type="time" class="postaway-input" id="postaway-input-time">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="postaway-textarea-header">
+                        <span class="postaway-field-label">📝 Texto del Post (Editable)</span>
+                        <span id="postaway-char-count">0 car.</span>
+                    </div>
+                    <textarea class="postaway-textarea" id="postaway-input-text" rows="4" placeholder="Texto que se publicará en X..."></textarea>
+                </div>
+
+                <button class="postaway-btn-upload" id="postaway-btn-upload">
+                    <span>🚀 Subir / Programar en X</span>
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(panel);
+
+    makeDraggable(panel, document.getElementById('postaway-header-drag'));
+
+    document.getElementById('postaway-btn-minimize').onclick = () => {
+        isFloatMinimized = true;
+        panel.style.display = 'none';
+        pill.style.display = 'flex';
+        updatePillCounter();
+    };
+
+    const btnMode = document.getElementById('postaway-btn-mode');
+    if (btnMode) {
+        btnMode.onclick = () => {
+            openMode = (openMode === 'window') ? 'tab' : 'window';
+            localStorage.setItem('postaway_open_mode', openMode);
+            btnMode.textContent = (openMode === 'window') ? '🪟 Ventana' : '📑 Pestaña';
+            renderCurrentPost();
+            showStatusToast(`Modo cambiado: abrir en nueva ${openMode === 'window' ? 'ventana' : 'pestaña'}`);
+        };
+    }
+
+    const btnOpenNew = document.getElementById('postaway-btn-open-new');
+    if (btnOpenNew) {
+        btnOpenNew.onclick = () => {
+            openNextPostInNewTab(floatIndex);
+        };
+    }
+
+    document.getElementById('postaway-btn-refresh').onclick = () => fetchTwitterFeed(true);
+    document.getElementById('postaway-btn-connect').onclick = () => fetchTwitterFeed(true);
+
+    document.getElementById('postaway-nav-prev').onclick = () => navigatePost(-1);
+    document.getElementById('postaway-nav-next').onclick = () => navigatePost(1);
+
+    const dateInput = document.getElementById('postaway-input-date');
+    const timeInput = document.getElementById('postaway-input-time');
+    const textInput = document.getElementById('postaway-input-text');
+
+    dateInput.addEventListener('change', () => triggerPostEditSync());
+    timeInput.addEventListener('change', () => triggerPostEditSync());
+    textInput.addEventListener('input', () => {
+        updateCharCount();
+        triggerPostEditSync();
+    });
+
+    document.getElementById('postaway-btn-upload').onclick = executeCurrentPostUpload;
+
+    window.addEventListener('keydown', (e) => {
+        if (e.altKey && e.key === 'ArrowLeft') {
+            e.preventDefault();
+            navigatePost(-1);
+        } else if (e.altKey && e.key === 'ArrowRight') {
+            e.preventDefault();
+            navigatePost(1);
+        }
+    });
+
+    fetchTwitterFeed(false);
+}
+
+// Periodically check feed
+setInterval(() => {
+    if (!isFloatExecuting && !isAutofilling) {
+        fetchTwitterFeed(false);
+    }
+}, 3500);
+
+// Initialize floating panel once page is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(createFloatingPanel, 1000);
+    });
+} else {
+    setTimeout(createFloatingPanel, 1000);
+}
+
+// Ensure panel remains present in Twitter's SPA
+setInterval(() => {
+    if (!document.getElementById('postaway-twitter-panel')) {
+        createFloatingPanel();
+    }
+}, 6000);
