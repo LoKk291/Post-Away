@@ -11,6 +11,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true; // indicates asynchronous response
     }
 
+    if (message.type === 'poll-twitter') {
+        fetch('http://127.0.0.1:3030/poll-twitter')
+            .then(response => response.json())
+            .then(data => {
+                sendResponse(data);
+            })
+            .catch(err => {
+                sendResponse({ error: err.toString() });
+            });
+        return true; // indicates asynchronous response
+    }
+
     if (message.type === 'upload') {
         const tabId = sender.tab.id;
         
@@ -46,14 +58,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                                 });
                                 const attrs = attrsRes.attributes || [];
                                 let isImageAccept = false;
+                                let isFileInputTestId = false;
                                 for (let i = 0; i < attrs.length; i += 2) {
-                                    if (attrs[i].toLowerCase() === 'accept' && attrs[i+1].includes('image')) {
+                                    const attrName = (attrs[i] || '').toLowerCase();
+                                    const attrVal = (attrs[i+1] || '').toLowerCase();
+                                    if (attrName === 'accept' && attrVal.includes('image')) {
                                         isImageAccept = true;
-                                        break;
+                                    }
+                                    if (attrName === 'data-testid' && attrVal === 'fileinput') {
+                                        isFileInputTestId = true;
                                     }
                                 }
                                 
-                                if (message.isGallery && isImageAccept) {
+                                if (message.isTwitter && (isFileInputTestId || isImageAccept)) {
+                                    targetNodeId = id; break;
+                                } else if (message.isGallery && isImageAccept) {
                                     targetNodeId = id; break;
                                 } else if (message.isAttachment && !isImageAccept) {
                                     targetNodeId = id; break;

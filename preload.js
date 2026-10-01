@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readFolder: (folderPath) => ipcRenderer.invoke('read-folder', folderPath),
   compressFolder: (folderPath) => ipcRenderer.invoke('compress-folder', folderPath),
   getSession: () => ipcRenderer.invoke('get-session'),
+  getLocalIp: () => ipcRenderer.invoke('get-local-ip'),
+  getHostname: () => ipcRenderer.invoke('get-hostname'),
   saveSession: (data) => ipcRenderer.invoke('save-session', data),
   fillPatreon: (data) => ipcRenderer.invoke('fill-patreon', data),
   openPatreon: (profile) => ipcRenderer.invoke('open-patreon', profile),
@@ -35,5 +37,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restoreFileTrash: (trashPath, originalPath) => ipcRenderer.invoke('restore-file-trash', trashPath, originalPath),
   sendToRuleX: (basePath, rulexPath, monthName, dateName) => ipcRenderer.invoke('send-to-rulex', basePath, rulexPath, monthName, dateName),
   sendToYaSubido: (basePath, yaSubidoPath, monthName, dateName) => ipcRenderer.invoke('send-to-yasubido', basePath, yaSubidoPath, monthName, dateName),
-  onUploadComplete: (callback) => ipcRenderer.on('upload-complete', callback)
+  onUploadComplete: (callback) => ipcRenderer.on('upload-complete', callback),
+  fillTwitter: (data) => ipcRenderer.invoke('fill-twitter', data),
+  openTwitter: (profile) => ipcRenderer.invoke('open-twitter', profile),
+  getWatermarkImages: (folderPath) => ipcRenderer.invoke('get-watermark-images', folderPath)
 });

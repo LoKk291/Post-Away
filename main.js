@@ -12,6 +12,7 @@ let localServer = null;
 let sseClients = [];
 let lastPollTime = 0;
 let currentPayload = null;
+let currentTwitterPayload = null;
 
 function startLocalServer() {
   localServer = http.createServer((req, res) => {
@@ -34,6 +35,17 @@ function startLocalServer() {
       lastPollTime = Date.now();
       res.end(JSON.stringify({ payload: currentPayload }));
       currentPayload = null; // clear after consumed
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/poll-twitter') {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Private-Network': 'true'
+      });
+      res.end(JSON.stringify({ payload: currentTwitterPayload }));
+      currentTwitterPayload = null; // clear after consumed
       return;
     }
     if (req.method === 'POST' && req.url === '/upload-complete') {
@@ -108,6 +120,332 @@ function startLocalServer() {
   });
 }
 
+let mobileServer = null;
+
+function getLocalIP() {
+  const os = require('os');
+  const interfaces = os.networkInterfaces();
+  let fallbackIp = '127.0.0.1';
+  
+  for (const name of Object.keys(interfaces)) {
+    // Evitar adaptadores de máquinas virtuales (VMware, VirtualBox, WSL)
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('vmware') || lowerName.includes('virtual') || lowerName.includes('wsl') || lowerName.includes('veth')) {
+        continue;
+    }
+    
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        // Priorizar IPs de redes domésticas (192.168.x.x)
+        if (iface.address.startsWith('192.168.')) {
+            return iface.address;
+        }
+        if (fallbackIp === '127.0.0.1') {
+            fallbackIp = iface.address;
+        }
+      }
+    }
+  }
+  return fallbackIp;
+}
+
+function startMobileServer() {
+  mobileServer = http.createServer(async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200);
+      return res.end();
+    }
+
+    const parsedUrl = new URL(req.url, 'http://localhost');
+
+    if (req.method === 'GET' && parsedUrl.pathname === '/') {
+      try {
+        const html = fs.readFileSync(path.join(__dirname, 'mobile.html'));
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        return res.end(html);
+      } catch (e) {
+        res.writeHead(404);
+        return res.end('Not found');
+      }
+    }
+    if (req.method === 'GET' && parsedUrl.pathname === '/mobile.css') {
+      try {
+        const css = fs.readFileSync(path.join(__dirname, 'mobile.css'));
+        res.writeHead(200, { 'Content-Type': 'text/css' });
+        return res.end(css);
+      } catch (e) {
+        res.writeHead(404);
+        return res.end('Not found');
+      }
+    }
+    if (req.method === 'GET' && parsedUrl.pathname === '/mobile.js') {
+      try {
+        const js = fs.readFileSync(path.join(__dirname, 'mobile.js'));
+        res.writeHead(200, { 'Content-Type': 'application/javascript' });
+        return res.end(js);
+      } catch (e) {
+        res.writeHead(404);
+        return res.end('Not found');
+      }
+    }
+
+    // API ENDPOINTS
+    if (req.method === 'POST' && parsedUrl.pathname === '/api/rename') {
+      let body = '';
+      req.on('data', chunk => body += chunk.toString());
+      req.on('end', () => {
+          try {
+              const { oldPath, newName } = JSON.parse(body);
+              const newPath = path.join(path.dirname(oldPath), newName);
+              fs.renameSync(oldPath, newPath);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: true, newPath }));
+          } catch (e) {
+              res.writeHead(500);
+              res.end(JSON.stringify({ error: e.message }));
+          }
+      });
+      return;
+    }
+
+    if (req.method === 'GET' && parsedUrl.pathname === '/api/toggle-nicky-nova') {
+      const folderPath = parsedUrl.searchParams.get('path');
+      const session = loadSession();
+      if (!folderPath) {
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: 'Missing path' }));
+      }
+      try {
+        let searchDir = '';
+        let baseName = path.basename(folderPath).trim();
+        const baseOrgPath = session.baseOrgPath;
+        const novaOrgPath = session.novaOrgPath;
+        const isCurrentlyNova = baseName.toLowerCase().includes('[nova]');
+        
+        // Find searchDir
+        if (baseOrgPath && folderPath.startsWith(baseOrgPath)) {
+          const relative = path.relative(baseOrgPath, folderPath);
+          const parts = relative.split(path.sep);
+          if (parts.length >= 3) {
+            const month = parts[0];
+            const date = parts[1];
+            searchDir = path.join(novaOrgPath, month, date);
+          }
+        } else if (novaOrgPath && folderPath.startsWith(novaOrgPath)) {
+          const relative = path.relative(novaOrgPath, folderPath);
+          const parts = relative.split(path.sep);
+          if (parts.length >= 3) {
+            const month = parts[0];
+            const date = parts[1];
+            searchDir = path.join(baseOrgPath, month, date);
+          }
+        } else {
+          searchDir = path.dirname(folderPath);
+        }
+
+        let counterpartPath = null;
+        if (searchDir && fs.existsSync(searchDir)) {
+            const items = fs.readdirSync(searchDir, { withFileTypes: true });
+            for (const item of items) {
+              if (item.isDirectory()) {
+                let checkName = item.name.toLowerCase().trim();
+                let cleanOriginal = baseName.toLowerCase().replace(/\s*-\s*\[nicky\].*$/, '').replace(/\s*-\s*\[nova\].*$/, '');
+                let cleanCheck = checkName.replace(/\s*-\s*\[nicky\].*$/, '').replace(/\s*-\s*\[nova\].*$/, '');
+                
+                if (cleanOriginal === cleanCheck) {
+                  const checkIsNova = checkName.includes('[nova]');
+                  if (isCurrentlyNova && !checkIsNova) {
+                    counterpartPath = path.join(searchDir, item.name);
+                    break;
+                  }
+                  if (!isCurrentlyNova && checkIsNova) {
+                    counterpartPath = path.join(searchDir, item.name);
+                    break;
+                  }
+                }
+              }
+            }
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ counterpartPath, isTargetNova: !isCurrentlyNova }));
+      } catch (e) {
+        res.writeHead(500);
+        return res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
+    if (parsedUrl.pathname === '/api/qc') {
+      if (req.method === 'GET') {
+        const session = loadSession();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify(session.qcDone || {}));
+      } else if (req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk.toString());
+        req.on('end', () => {
+            try {
+                const { folderName, isDone } = JSON.parse(body);
+                const session = loadSession();
+                if (!session.qcDone) session.qcDone = {};
+                session.qcDone[folderName] = isDone;
+                saveSession(session);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true }));
+            } catch (e) {
+                res.writeHead(400);
+                res.end(JSON.stringify({ error: e.message }));
+            }
+        });
+        return;
+      }
+    }
+
+    if (req.method === 'GET' && parsedUrl.pathname === '/api/output-folders') {
+      const session = loadSession();
+      const basePath = session.outputPath;
+      if (!basePath || !fs.existsSync(basePath)) {
+        res.writeHead(404);
+        return res.end(JSON.stringify({ error: 'Output path not set or not found' }));
+      }
+      try {
+        const items = fs.readdirSync(basePath, { withFileTypes: true });
+        const folders = items.filter(i => i.isDirectory() && !i.name.toLowerCase().includes('nova')).map(i => ({
+          name: i.name,
+          path: path.join(basePath, i.name)
+        }));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify(folders));
+      } catch (e) {
+        res.writeHead(500);
+        return res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
+    if (req.method === 'GET' && parsedUrl.pathname === '/api/gestor') {
+      const session = loadSession();
+      const basePath = session.baseOrgPath;
+      if (!basePath || !fs.existsSync(basePath)) {
+        res.writeHead(404);
+        return res.end(JSON.stringify({ error: 'Gestor base path not set or not found' }));
+      }
+      try {
+        const items = fs.readdirSync(basePath, { withFileTypes: true });
+        const folders = [];
+        for (const item of items) {
+          if (item.isDirectory()) {
+            const monthPath = path.join(basePath, item.name);
+            const dateItems = fs.readdirSync(monthPath, { withFileTypes: true });
+            const dates = dateItems
+                .filter(d => d.isDirectory())
+                .map(d => ({ name: d.name, path: path.join(monthPath, d.name) }));
+            folders.push({ name: item.name, path: monthPath, dates });
+          }
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify(folders));
+      } catch (e) {
+        res.writeHead(500);
+        return res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
+    if (req.method === 'GET' && parsedUrl.pathname === '/api/current-folder') {
+      const session = loadSession();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ folder: session.lastFolder }));
+    }
+
+    if (req.method === 'GET' && parsedUrl.pathname === '/api/folders') {
+      const folderPath = parsedUrl.searchParams.get('path');
+      if (!folderPath || !fs.existsSync(folderPath)) {
+        res.writeHead(404);
+        return res.end(JSON.stringify({ error: 'Not found' }));
+      }
+      try {
+        const items = fs.readdirSync(folderPath, { withFileTypes: true });
+        const folders = items.filter(i => i.isDirectory()).map(i => ({
+          name: i.name,
+          path: path.join(folderPath, i.name)
+        }));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify(folders));
+      } catch (e) {
+        res.writeHead(500);
+        return res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
+    if (req.method === 'GET' && parsedUrl.pathname === '/api/images') {
+      const folderPath = parsedUrl.searchParams.get('path');
+      if (!folderPath || !fs.existsSync(folderPath)) {
+        res.writeHead(404);
+        return res.end(JSON.stringify({ error: 'Not found' }));
+      }
+      try {
+        const files = fs.readdirSync(folderPath);
+        const ext = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+        const imageFiles = files.filter(f => ext.includes(path.extname(f).toLowerCase()));
+        imageFiles.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+        
+        const result = imageFiles.map(f => ({
+          name: f,
+          path: path.join(folderPath, f)
+        }));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify(result));
+      } catch (e) {
+        res.writeHead(500);
+        return res.end(JSON.stringify({ error: e.message }));
+      }
+    }
+
+    if (req.method === 'GET' && parsedUrl.pathname === '/api/image') {
+      const filePath = parsedUrl.searchParams.get('path');
+      if (!filePath || !fs.existsSync(filePath)) {
+        res.writeHead(404);
+        return res.end("Not Found");
+      }
+      res.writeHead(200);
+      const readStream = fs.createReadStream(filePath);
+      return readStream.pipe(res);
+    }
+
+    if (req.method === 'POST' && parsedUrl.pathname === '/api/delete') {
+      let body = '';
+      req.on('data', chunk => {
+        body += chunk.toString();
+      });
+      req.on('end', async () => {
+        try {
+          const data = JSON.parse(body);
+          if (data.path && fs.existsSync(data.path)) {
+            await shell.trashItem(data.path);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ success: true }));
+          }
+          res.writeHead(404);
+          return res.end(JSON.stringify({ success: false, error: 'Not found' }));
+        } catch (e) {
+          res.writeHead(500);
+          return res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+      });
+      return;
+    }
+
+    res.writeHead(404);
+    res.end();
+  });
+
+  mobileServer.listen(3031, () => {
+    console.log("Mobile Server running on all interfaces:3031");
+  });
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -122,7 +460,9 @@ function createWindow() {
 
 app.whenReady().then(() => {
   startLocalServer();
+  startMobileServer();
   createWindow();
+
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -142,6 +482,9 @@ app.on('before-quit', () => {
   sseClients.forEach(c => c.end());
   if (localServer) {
     localServer.close();
+  }
+  if (mobileServer) {
+    mobileServer.close();
   }
 });
 
@@ -166,6 +509,9 @@ function saveSession(data) {
 }
 
 ipcMain.handle('get-session', () => loadSession());
+ipcMain.handle('get-local-ip', () => getLocalIP());
+ipcMain.handle('get-hostname', () => require('os').hostname());
+
 ipcMain.handle('save-session', (event, data) => saveSession(data));
 ipcMain.handle('select-folder', async () => {
   const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
@@ -419,6 +765,57 @@ ipcMain.handle('open-patreon', (event, profile) => {
   console.log('[Post-Away] Launching:', browserPath);
   const child = spawn(browserPath, [url], { detached: true, stdio: 'ignore' });
   child.unref();
+});
+
+ipcMain.handle('fill-twitter', (event, data) => {
+  currentTwitterPayload = data;
+  return { success: true };
+});
+
+ipcMain.handle('open-twitter', (event, profile) => {
+  const url = 'https://x.com/compose/post';
+  const { spawn } = require('child_process');
+  console.log('[Post-Away] open-twitter called with profile:', profile);
+  
+  let browserPath;
+  if (profile === 'nova') {
+    browserPath = path.join(require('os').homedir(), 'AppData', 'Local', 'Programs', 'Opera GX', 'opera.exe');
+  } else {
+    browserPath = 'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe';
+  }
+  
+  console.log('[Post-Away] Launching for Twitter:', browserPath);
+  const child = spawn(browserPath, [url], { detached: true, stdio: 'ignore' });
+  child.unref();
+  return { success: true };
+});
+
+ipcMain.handle('get-watermark-images', async (event, folderPath) => {
+  try {
+    if (!folderPath || !fs.existsSync(folderPath)) return [];
+    const validExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+    let targetDir = folderPath;
+    
+    const items = fs.readdirSync(folderPath, { withFileTypes: true });
+    const wmFolder = items.find(item => 
+      item.isDirectory() && 
+      (item.name.toLowerCase().includes('marca') || item.name.toLowerCase().includes('watermark'))
+    );
+    
+    if (wmFolder) {
+      targetDir = path.join(folderPath, wmFolder.name);
+    }
+    
+    const files = fs.readdirSync(targetDir)
+      .filter(f => validExts.includes(path.extname(f).toLowerCase()))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+      .map(f => path.join(targetDir, f));
+      
+    return files.slice(0, 4);
+  } catch (err) {
+    console.error("Error getting watermark images:", err);
+    return [];
+  }
 });
 
 ipcMain.handle('copy-clipboard', (event, text) => {
@@ -857,10 +1254,19 @@ ipcMain.handle('rename-folder', async (event, folderPath, newName) => {
 
 ipcMain.handle('open-in-explorer', async (event, folderPath) => {
     try {
-        if (fs.existsSync(folderPath)) {
-            await shell.openPath(folderPath);
+        if (!folderPath) {
+            return { success: false, error: 'Ruta no especificada' };
         }
-        return { success: true };
+        const normalized = path.normalize(folderPath);
+        if (fs.existsSync(normalized)) {
+            const err = await shell.openPath(normalized);
+            if (err) {
+                return { success: false, error: err };
+            }
+            return { success: true };
+        } else {
+            return { success: false, error: 'La carpeta no existe: ' + folderPath };
+        }
     } catch (err) {
         return { success: false, error: err.message };
     }

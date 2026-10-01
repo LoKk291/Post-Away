@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Unsecured Content-Security-Policy to allow local file:// images -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' file: data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' file: data: https://api.qrserver.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com;">
     <title>Post-Away Automator</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -97,9 +97,11 @@
                         <label for="patreon-url">Link de Patreon</label>
                         <div style="display: flex; gap: 0.5rem; align-items: center;">
                             <input type="url" id="patreon-url" class="glass-input" placeholder="https://www.patreon.com/miusuario" style="flex: 1;">
+                            <button id="btn-show-qr" class="btn secondary-btn" title="Acceso Móvil (Control de Calidad)">📱</button>
                             <button id="btn-open-rutas" class="btn" class="btn secondary-btn" title="Configurar Rutas del Gestor">⚙️</button>
                         </div>
                     </div>
+                    
                 </div>
                 <!-- Statistics UI -->
                 <div class="stats-panel" id="stats-panel" style="margin-top: 1.5rem; display: flex; gap: 2rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem;">
@@ -352,6 +354,30 @@
         <button id="ctx-enviar-rulex" class="btn context-btn" style="background: transparent; color: #a855f7; text-align: left; padding: 0.5rem; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s;">📤 Enviar a Rule y X</button>
         <button id="ctx-enviar-yasubido" class="btn context-btn" style="background: transparent; color: #3b82f6; text-align: left; padding: 0.5rem; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s;">📤 Enviar a Ya subido</button>
         <button id="ctx-eliminar" class="btn context-btn" style="background: transparent; color: var(--text-muted); text-align: left; padding: 0.5rem; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s;">🗑️ Eliminar</button>
+    </div>
+
+    <!-- Context Menu para Personajes / Carpetas de Output en Gestor -->
+    <div id="character-context-menu" class="context-menu hidden" style="position: fixed; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.5rem; box-shadow: 0 8px 24px rgba(0,0,0,0.6); z-index: 1000; display: none; flex-direction: column; gap: 0.2rem; min-width: 200px; backdrop-filter: blur(12px);">
+        <div id="char-ctx-title" style="padding: 0.3rem 0.6rem; font-size: 0.78rem; color: #94a3b8; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 0.3rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px;"></div>
+        <button id="char-ctx-abrir" class="btn context-btn" style="background: transparent; color: #e2e8f0; text-align: left; padding: 0.5rem; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem;">📂 Abrir en explorador</button>
+        <button id="char-ctx-abrir-nova" class="btn context-btn" style="background: transparent; color: #38bdf8; text-align: left; padding: 0.5rem; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s; font-size: 0.85rem; display: none; align-items: center; gap: 0.5rem;">🌸 Abrir carpeta Nova</button>
+        <button id="char-ctx-ver-fotos" class="btn context-btn" style="background: transparent; color: #c4b5fd; text-align: left; padding: 0.5rem; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem;">🖼️ Ver Imágenes</button>
+        <button id="char-ctx-renombrar" class="btn context-btn" style="background: transparent; color: #e2e8f0; text-align: left; padding: 0.5rem; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem;">✏️ Renombrar</button>
+    </div>
+
+    <!-- Mobile QR Modal -->
+    <div id="qr-modal" class="modal" style="display: none; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; backdrop-filter: blur(5px);">
+        <div class="modal-content glass-panel" style="padding: 2rem; border-radius: 12px; text-align: center; max-width: 400px; width: 90%; position: relative; border: 1px solid rgba(255,255,255,0.1); background: rgba(30, 41, 59, 0.9);">
+            <button id="btn-close-qr-modal" class="btn" style="position: absolute; top: 10px; right: 10px; background: transparent; color: white; border: none; font-size: 1.2rem; cursor: pointer; padding: 5px;">❌</button>
+            <h2 style="margin-top: 0;">📱 Acceso Móvil QC</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Escanea el código o ingresa a la IP en tu celular.</p>
+            <div style="background: white; padding: 15px; border-radius: 8px; display: inline-block; margin-bottom: 1rem;">
+                <img id="qr-image" src="" alt="QR Code" style="width: 200px; height: 200px; display: block;">
+            </div>
+            <input type="text" id="mobile-ip-input" class="glass-input" style="width: 100%; text-align: center; font-family: monospace; font-size: 1.1rem; color: var(--primary-color); margin-bottom: 0.5rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;" readonly value="Cargando IP...">
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0; margin-bottom: 1rem;">¿No conecta? Prueba <strong id="hostname-url" style="color: #fff; user-select: all;">Cargando...</strong></p>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0; margin-bottom: 0;">PIN de Acceso: <strong>19693101</strong></p>
+        </div>
     </div>
 
     <script src="renderer.js"></script>

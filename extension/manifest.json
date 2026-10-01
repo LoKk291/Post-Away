@@ -1,10 +1,10 @@
 {
     "manifest_version": 3,
     "name": "Post-Away Extension",
-    "version": "1.0",
+    "version": "1.2",
     "description": "Se conecta a Post-Away para rellenar campos de Patreon automáticamente.",
     "permissions": ["activeTab", "scripting", "debugger"],
-    "host_permissions": ["*://*.patreon.com/*", "http://127.0.0.1:3030/*"],
+    "host_permissions": ["*://*.patreon.com/*", "*://*.twitter.com/*", "*://*.x.com/*", "http://127.0.0.1:3030/*"],
     "background": {
         "service_worker": "background.js"
     },
@@ -12,6 +12,11 @@
         {
             "matches": ["*://*.patreon.com/*"],
             "js": ["content.js"],
+            "run_at": "document_idle"
+        },
+        {
+            "matches": ["*://*.twitter.com/*", "*://*.x.com/*"],
+            "js": ["twitter.js"],
             "run_at": "document_idle"
         }
     ]

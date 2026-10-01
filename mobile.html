@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Post-Away QC</title>
+    <link rel="stylesheet" href="mobile.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen active">
+        <div class="login-box">
+            <h2>🔒 Acceso Restringido</h2>
+            <p>Ingresa el PIN de Post-Away</p>
+            <input type="password" id="pin-input" placeholder="****" inputmode="numeric">
+            <button id="btn-login" class="btn primary-btn">Ingresar</button>
+            <div id="pin-error" class="error-msg" style="display: none;">PIN incorrecto</div>
+        </div>
+    </div>
+
+    <!-- Dashboard Screen -->
+    <div id="dashboard-screen" class="screen">
+        <header>
+            <h1>Gestor QC</h1>
+            <button id="btn-refresh-dashboard" class="icon-btn">🔄</button>
+        </header>
+        
+        <div class="tabs-container" style="display: flex; border-bottom: 1px solid var(--border-color); background: var(--panel-bg);">
+            <button id="tab-output" class="tab-btn active" style="flex:1; padding: 1rem; background:transparent; color:white; border:none; border-bottom: 2px solid var(--primary-color); font-weight:600;">Output</button>
+            <button id="tab-months" class="tab-btn" style="flex:1; padding: 1rem; background:transparent; color:var(--text-muted); border:none; font-weight:600;">Organizados</button>
+        </div>
+
+        <div class="content" style="padding-top: 1rem;">
+            <!-- Output Section -->
+            <div id="dashboard-output">
+                <div id="output-list" class="list-container">
+                    <!-- Characters from outputPath will be injected here -->
+                </div>
+            </div>
+
+            <!-- Months Section -->
+            <div id="dashboard-months" style="display: none;">
+                <div id="months-list" class="list-container">
+                    <!-- Months from baseOrgPath will be injected here -->
+                </div>
+            </div>
+            
+            <div id="no-dashboard-msg" class="empty-msg" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Gestor Dates Screen -->
+    <div id="dates-screen" class="screen">
+        <header>
+            <button class="icon-btn btn-back-dashboard">⬅️</button>
+            <h1 id="dates-title">Fechas</h1>
+        </header>
+        <div class="content">
+            <div id="dates-list" class="list-container">
+                <!-- Dates will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Folders List Screen -->
+    <div id="folders-screen" class="screen">
+        <header>
+            <button class="icon-btn btn-back-dates">⬅️</button>
+            <h1 id="folders-title">Carpetas</h1>
+        </header>
+        <div class="content">
+            <div id="folders-list" class="list-container">
+                <!-- Folders will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Gallery QC Screen -->
+    <div id="gallery-screen" class="screen">
+        <header>
+            <button class="icon-btn btn-back-gallery">⬅️</button>
+            <div style="flex: 1; text-align: center;">
+                <h1 id="gallery-title" style="font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; margin: auto;">Galería</h1>
+                <div id="image-counter" style="font-size: 0.8rem; color: var(--text-muted);">0/0</div>
+            </div>
+            <button id="btn-toggle-nova" class="btn secondary-btn" style="width: auto; padding: 4px 8px; font-size: 0.8rem;">Nova 🔀</button>
+        </header>
+        <div class="content gallery-content">
+            <div id="image-container" class="image-container">
+                <img id="current-image" src="" alt="QC Image">
+            </div>
+            <div class="gallery-controls">
+                <button id="btn-destacar-img" class="btn" style="background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.4);">⭐ Destacar</button>
+                <button id="btn-delete-img" class="btn danger-btn">🗑️ Eliminar</button>
+                <button id="btn-conservar-img" class="btn primary-btn">✅ Conservar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="mobile.js"></script>
+</body>
+</html>

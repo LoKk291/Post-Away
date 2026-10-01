@@ -240,6 +240,35 @@ function pollServer() {
             await searchAndSelectCollection(data.anime);
         }
 
+        // 3.4 Select "Paid access"
+        try {
+            const paidAccessLabels = Array.from(document.querySelectorAll('form label, div label, span, p, h3, h4')).filter(el => {
+                const text = el.textContent?.trim().toLowerCase() || "";
+                return text === "paid access" || text === "acceso de pago" || text === "acceso pago";
+            });
+            
+            if (paidAccessLabels.length > 0) {
+                const label = paidAccessLabels[0];
+                const container = label.closest('label') || label.parentElement;
+                
+                let rb = container.querySelector('input[type="radio"]');
+                if (!rb) rb = container.parentElement.querySelector('input[type="radio"]');
+                let pseudoRb = container.querySelector('[role="radio"]');
+                if (!pseudoRb) pseudoRb = container.parentElement.querySelector('[role="radio"]');
+
+                if (rb && !rb.checked) {
+                    rb.click();
+                } else if (pseudoRb && pseudoRb.getAttribute('aria-checked') === 'false') {
+                    pseudoRb.click();
+                } else if (!rb && !pseudoRb) {
+                    label.click(); // Fallback si no hallamos radio físico
+                }
+                await new Promise(r => setTimeout(r, 600));
+            }
+        } catch(err) {
+            console.error("Post-Away: Error setting Paid access", err);
+        }
+
         // 3.5 Sell this post
         try {
             const sellLabels = Array.from(document.querySelectorAll('form label, div label, span, p, h3, h4')).filter(el => {

@@ -251,6 +251,59 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!currentSession.qcDone) currentSession.qcDone = {};
     if (!currentSession.specialRequests) currentSession.specialRequests = {};
     if (!currentSession.viewMode) currentSession.viewMode = 'grid';
+
+    // Mobile Server IP and QR
+    try {
+        const btnShowQr = document.getElementById('btn-show-qr');
+        const qrModal = document.getElementById('qr-modal');
+        const qrImage = document.getElementById('qr-image');
+        const mobileIpInput = document.getElementById('mobile-ip-input');
+        const btnCloseQrModal = document.getElementById('btn-close-qr-modal');
+        
+        // Carga inicial
+        window.electronAPI.getLocalIp().then(localIp => {
+            if (mobileIpInput) {
+                mobileIpInput.value = `http://${localIp}:3031`;
+            }
+        });
+
+        if (btnShowQr && qrModal && qrImage) {
+            btnShowQr.addEventListener('click', async () => {
+                btnShowQr.disabled = true;
+                qrModal.style.display = 'flex'; // Show modal
+                qrImage.src = ''; // Clear old image while loading
+                
+                try {
+                    const localIp = await window.electronAPI.getLocalIp();
+                    const hostname = await window.electronAPI.getHostname();
+                    
+                    const mobileUrl = `http://${localIp}:3031`;
+                    if (mobileIpInput) mobileIpInput.value = mobileUrl;
+                    
+                    const hostnameUrlEl = document.getElementById('hostname-url');
+                    if (hostnameUrlEl) hostnameUrlEl.textContent = `http://${hostname}:3031`;
+                    
+                    qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(mobileUrl)}`;
+                } catch(e) {
+                    console.error(e);
+                }
+                btnShowQr.disabled = false;
+            });
+            
+            btnCloseQrModal.addEventListener('click', () => {
+                qrModal.style.display = 'none';
+            });
+            
+            // Cerrar modal al hacer click fuera del contenido
+            qrModal.addEventListener('click', (e) => {
+                if (e.target === qrModal) {
+                    qrModal.style.display = 'none';
+                }
+            });
+        }
+    } catch(e) {
+        console.error("Error setting up mobile IP", e);
+    }
     
     // Configurar texto del botón de vista si existe
     const btnToggleView = document.getElementById('btn-toggle-view');
@@ -385,6 +438,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     globalSettings.style.display = '';
                 }
             }
+
+            if (target === 'twitter') {
+                autoFetchPatreonLinks(true);
+            }
         });
     });
 
@@ -461,41 +518,84 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    let isFetchingPatreon = false;
+    let patreonFetchPromise = null;
+
+    async function autoFetchPatreonLinks(silent = false) {
+        if (isFetchingPatreon && patreonFetchPromise) {
+            return patreonFetchPromise;
+        }
+        if (!currentPosts || currentPosts.length === 0) return;
+
+        const currentUrl = currentSession.patreonUrls?.[currentSession.activeProfile];
+        if (!currentUrl) {
+            if (!silent) alert("Por favor ingresa tu Link de Patreon en Configuraciones Generales para este perfil.");
+            return;
+        }
+
+        // Si ya todos los posts tienen link en su textarea, no buscar nuevamente
+        const allHaveLinks = currentPosts.every(post => {
+            const inputEl = document.getElementById(`patreon-link-${post.id}`);
+            return inputEl && inputEl.value.trim().length > 0;
+        });
+        if (allHaveLinks) return;
+
+        isFetchingPatreon = true;
+        const btnFetch = document.getElementById('btn-fetch-patreon');
+        if (btnFetch) {
+            btnFetch.textContent = "🔗 Obteniendo links automáticamente...";
+            btnFetch.disabled = true;
+        }
+
+        patreonFetchPromise = (async () => {
+            try {
+                const result = await window.electronAPI.fetchPatreonLinks(currentUrl, currentPosts);
+                if (result && result.success && result.links) {
+                    let foundCount = 0;
+                    for (const post of currentPosts) {
+                        if (result.links[post.folderName]) {
+                            foundCount++;
+                            const inputId = `patreon-link-${post.id}`;
+                            const inputEl = document.getElementById(inputId);
+                            if (inputEl) {
+                                inputEl.value = result.links[post.folderName];
+                                inputEl.dispatchEvent(new Event('input'));
+                            }
+                        }
+                    }
+                    if (btnFetch) {
+                        btnFetch.textContent = foundCount > 0 ? "✅ Links Obtenidos" : "⚠️ Sin nuevos links";
+                        setTimeout(() => {
+                            btnFetch.textContent = "🔗 Obtener Links de Patreon";
+                            btnFetch.disabled = false;
+                        }, 3000);
+                    }
+                } else {
+                    if (!silent && result?.error) alert("Error obteniendo links de Patreon: " + result.error);
+                    if (btnFetch) {
+                        btnFetch.textContent = "🔗 Obtener Links de Patreon";
+                        btnFetch.disabled = false;
+                    }
+                }
+            } catch (err) {
+                console.error("Error al obtener links de Patreon:", err);
+                if (btnFetch) {
+                    btnFetch.textContent = "🔗 Obtener Links de Patreon";
+                    btnFetch.disabled = false;
+                }
+            } finally {
+                isFetchingPatreon = false;
+                patreonFetchPromise = null;
+            }
+        })();
+
+        return patreonFetchPromise;
+    }
+
     const btnFetchPatreon = document.getElementById('btn-fetch-patreon');
     if (btnFetchPatreon) {
         btnFetchPatreon.addEventListener('click', async () => {
-            const currentUrl = currentSession.patreonUrls[currentSession.activeProfile];
-            if (!currentUrl) {
-                alert("Por favor ingresa tu Link de Patreon en Configuraciones Generales para este perfil.");
-                return;
-            }
-            
-            btnFetchPatreon.textContent = "🔗 Buscando...";
-            btnFetchPatreon.disabled = true;
-
-            const result = await window.electronAPI.fetchPatreonLinks(currentUrl, currentPosts);
-            
-            if (result.success) {
-                for (const post of currentPosts) {
-                    if (result.links[post.folderName]) {
-                        const inputId = `patreon-link-${post.id}`;
-                        const inputEl = document.getElementById(inputId);
-                        if (inputEl) {
-                            inputEl.value = result.links[post.folderName];
-                            inputEl.dispatchEvent(new Event('input'));
-                        }
-                    }
-                }
-                btnFetchPatreon.textContent = "✅ Links Obtenidos";
-                setTimeout(() => {
-                    btnFetchPatreon.textContent = "🔗 Obtener Links de Patreon";
-                    btnFetchPatreon.disabled = false;
-                }, 3000);
-            } else {
-                alert("Error obteniendo links de Patreon: " + result.error);
-                btnFetchPatreon.textContent = "🔗 Obtener Links de Patreon";
-                btnFetchPatreon.disabled = false;
-            }
+            await autoFetchPatreonLinks(false);
         });
     }
 
@@ -578,6 +678,7 @@ async function clearCurrentSession(skipConfirm = false) {
 
     currentSession.lastFolder = null;
     currentSession.donePosts = {};
+    currentSession.twitterSchedule = {};
     await saveSession();
 
     currentPosts = [];
@@ -1003,6 +1104,12 @@ function renderTwitterGrid(posts) {
     const twitterGrid = document.getElementById('twitter-grid');
     twitterGrid.innerHTML = '';
 
+    // Si la pestaña de X está activa, disparar obtención automática de links en segundo plano
+    const dashTwitter = document.getElementById('dashboard-twitter');
+    if (dashTwitter && !dashTwitter.classList.contains('hidden')) {
+        autoFetchPatreonLinks(true);
+    }
+
     // Create a shuffled pool of unique texts
     let textPool = [...twitterTexts].sort(() => Math.random() - 0.5);
 
@@ -1016,6 +1123,10 @@ function renderTwitterGrid(posts) {
         }
         const randomText = textPool.pop();
         const hashtags = generateHashtags(post);
+
+        const savedSched = currentSession.twitterSchedule?.[post.id];
+        const defaultDate = savedSched?.date || document.getElementById('global-date')?.value || new Date().toISOString().split('T')[0];
+        const defaultTime = savedSched?.time || document.getElementById('global-time')?.value || "12:00";
 
         let thumbnailHtml = `<div class="thumbnail-container">
             <span class="no-thumbnail">No hay imágenes</span>
@@ -1077,8 +1188,29 @@ function renderTwitterGrid(posts) {
                 </div>
             </div>
 
-            <div class="card-actions" style="margin-top: 1rem;">
-                <button class="btn primary-btn btn-copy-all" style="width: 100%; background: linear-gradient(135deg, #1DA1F2, #0d8bd9);">📋 Copiar Todo (EN + ES + Link + Tags)</button>
+            <div class="info-group schedule-group" style="background: rgba(255, 255, 255, 0.03); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); margin-top: 0.75rem;">
+                <div class="info-label" style="display: flex; justify-content: space-between; align-items: center; color: #38bdf8; font-weight: 600;">
+                    <span>📅 Fecha y Hora de Programación (Individual)</span>
+                    <button type="button" class="btn-sync-date" title="Copiar fecha y hora general" style="background: none; border: none; color: #94a3b8; font-size: 0.75rem; cursor: pointer; text-decoration: underline;">↻ Usar General</button>
+                </div>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.4rem;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.75rem; color: #94a3b8; display: block; margin-bottom: 2px;">Fecha</label>
+                        <input type="date" class="glass-input twitter-post-date" value="${defaultDate}" style="width: 100%; padding: 0.4rem 0.6rem; font-size: 0.85rem; border-radius: 6px;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 0.75rem; color: #94a3b8; display: block; margin-bottom: 2px;">Hora (24hs)</label>
+                        <input type="time" class="glass-input twitter-post-time" value="${defaultTime}" style="width: 100%; padding: 0.4rem 0.6rem; font-size: 0.85rem; border-radius: 6px;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-actions" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                <button class="btn secondary-btn btn-copy-all" style="width: 100%; font-size: 0.85rem; padding: 0.5rem; border: 1px solid rgba(255,255,255,0.15);">📋 Copiar Todo (EN + ES + Link + Tags)</button>
+                <button class="btn primary-btn btn-schedule-x" style="width: 100%; background: linear-gradient(135deg, #1DA1F2, #0d8bd9); font-weight: 600; font-size: 0.95rem; padding: 0.65rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    <span class="btn-schedule-x-text">Preparar y Programar en X</span>
+                </button>
             </div>
         `;
 
@@ -1118,6 +1250,98 @@ function renderTwitterGrid(posts) {
                 btnCopyAll.textContent = originalText;
                 btnCopyAll.style.background = originalBg;
             }, 1500);
+        });
+
+        // Manejo individual de fecha y hora
+        const dateInput = card.querySelector('.twitter-post-date');
+        const timeInput = card.querySelector('.twitter-post-time');
+        const updateSavedSchedule = () => {
+            if (!currentSession.twitterSchedule) currentSession.twitterSchedule = {};
+            currentSession.twitterSchedule[post.id] = {
+                date: dateInput.value,
+                time: timeInput.value
+            };
+            saveSession();
+        };
+        dateInput.addEventListener('change', updateSavedSchedule);
+        timeInput.addEventListener('change', updateSavedSchedule);
+
+        const btnSyncDate = card.querySelector('.btn-sync-date');
+        btnSyncDate.addEventListener('click', () => {
+            const gDate = document.getElementById('global-date')?.value;
+            const gTime = document.getElementById('global-time')?.value;
+            if (gDate) dateInput.value = gDate;
+            if (gTime) timeInput.value = gTime;
+            updateSavedSchedule();
+        });
+
+        // Botón principal de preparación y programación en X
+        const btnScheduleX = card.querySelector('.btn-schedule-x');
+        const btnScheduleText = card.querySelector('.btn-schedule-x-text');
+
+        btnScheduleX.addEventListener('click', async () => {
+            btnScheduleX.disabled = true;
+            const originalBg = btnScheduleX.style.background;
+            const originalText = btnScheduleText.textContent;
+
+            try {
+                // 1. Obtener links del Patreon si aún no están cargados
+                let patreonLink = card.querySelector('.edit-patreon-link').value.trim();
+                if (!patreonLink) {
+                    if (isFetchingPatreon && patreonFetchPromise) {
+                        btnScheduleText.textContent = "🔗 Esperando links de Patreon...";
+                        await patreonFetchPromise;
+                    } else {
+                        btnScheduleText.textContent = "🔗 Obteniendo links de Patreon...";
+                        await autoFetchPatreonLinks(true);
+                    }
+                    patreonLink = card.querySelector('.edit-patreon-link').value.trim();
+                }
+
+                // 2. Cargar texto correspondiente (mismo que Copiar Todo)
+                const enText = card.querySelector('.edit-en').value;
+                const esText = card.querySelector('.edit-es').value;
+                const tagsText = card.querySelector('.edit-tags').value;
+                const linkPart = patreonLink ? `${patreonLink}\n\n` : '';
+                const combinedText = `${enText}\n${esText}\n\n${linkPart}${tagsText}`;
+
+                // Copiar al portapapeles para conveniencia
+                await window.electronAPI.copyClipboard(combinedText);
+
+                // 3. Cargar las primeras 4 imágenes de la carpeta con marca de agua
+                btnScheduleText.textContent = "🖼️ Buscando imágenes con marca de agua...";
+                const watermarkImages = await window.electronAPI.getWatermarkImages(post.path);
+
+                // 4. Obtener fecha y hora elegidas en el card
+                const schedDate = dateInput.value;
+                const schedTime = timeInput.value;
+
+                // 5. Enviar payload a Electron y abrir X
+                btnScheduleText.textContent = "🚀 Abriendo X (Twitter)...";
+                await window.electronAPI.fillTwitter({
+                    text: combinedText,
+                    imagePaths: watermarkImages,
+                    scheduleDate: schedDate,
+                    scheduleTime: schedTime
+                });
+
+                await window.electronAPI.openTwitter(currentSession.activeProfile);
+
+                btnScheduleText.textContent = "✅ Enviado a X";
+                btnScheduleX.style.background = "var(--success-color)";
+                setTimeout(() => {
+                    btnScheduleX.disabled = false;
+                    btnScheduleText.textContent = originalText;
+                    btnScheduleX.style.background = originalBg;
+                }, 3500);
+
+            } catch (err) {
+                console.error("Error al programar en X:", err);
+                alert("Error al preparar el post para X: " + err.message);
+                btnScheduleX.disabled = false;
+                btnScheduleText.textContent = originalText;
+                btnScheduleX.style.background = originalBg;
+            }
         });
 
         // Auto-sizing textareas
@@ -1289,8 +1513,86 @@ function renderGestorDates(monthName) {
 }
 
 let contextMenuTarget = null;
+let charContextMenuTarget = null;
+
+function hideCharContextMenu() {
+    const menu = document.getElementById('character-context-menu');
+    if (menu) {
+        menu.style.display = 'none';
+        menu.classList.add('hidden');
+    }
+    charContextMenuTarget = null;
+}
+
+function showCharacterContextMenu(x, y, post, card = null) {
+    const dateMenu = document.getElementById('date-context-menu');
+    if (dateMenu) {
+        dateMenu.style.display = 'none';
+        dateMenu.classList.add('hidden');
+    }
+
+    charContextMenuTarget = {
+        path: post.path,
+        folderName: post.folderName || 'Carpeta',
+        isRootOutput: !!post.isRootOutput,
+        card: card,
+        novaPath: null
+    };
+
+    const menu = document.getElementById('character-context-menu');
+    if (!menu) return;
+
+    const titleEl = document.getElementById('char-ctx-title');
+    if (titleEl) {
+        titleEl.textContent = `📁 ${getCleanCharacterName(post.folderName || 'Carpeta')}`;
+    }
+
+    const btnNova = document.getElementById('char-ctx-abrir-nova');
+    const btnVerFotos = document.getElementById('char-ctx-ver-fotos');
+    const btnRenombrar = document.getElementById('char-ctx-renombrar');
+    const btnAbrir = document.getElementById('char-ctx-abrir');
+
+    if (btnNova) btnNova.style.display = 'none';
+
+    if (post.isRootOutput) {
+        if (btnAbrir) btnAbrir.textContent = '📂 Abrir carpeta Output';
+        if (btnVerFotos) btnVerFotos.style.display = 'none';
+        if (btnRenombrar) btnRenombrar.style.display = 'none';
+    } else {
+        if (btnAbrir) btnAbrir.textContent = '📂 Abrir en explorador';
+        if (btnVerFotos) btnVerFotos.style.display = 'flex';
+        if (btnRenombrar) btnRenombrar.style.display = 'flex';
+
+        if (btnNova && window.electronAPI.getNovaFolderPath && post.path) {
+            window.electronAPI.getNovaFolderPath(post.path, currentSession.baseOrgPath, currentSession.novaOrgPath)
+                .then(novaPath => {
+                    if (novaPath && charContextMenuTarget && charContextMenuTarget.path === post.path) {
+                        charContextMenuTarget.novaPath = novaPath;
+                        btnNova.style.display = 'flex';
+                    }
+                })
+                .catch(err => console.error("Error comprobando carpeta Nova:", err));
+        }
+    }
+
+    menu.style.display = 'flex';
+    menu.classList.remove('hidden');
+
+    const menuWidth = 220;
+    const menuHeight = post.isRootOutput ? 90 : 180;
+    let posX = x;
+    let posY = y;
+    if (posX + menuWidth > window.innerWidth) posX = window.innerWidth - menuWidth - 10;
+    if (posY + menuHeight > window.innerHeight) posY = window.innerHeight - menuHeight - 10;
+    if (posX < 10) posX = 10;
+    if (posY < 10) posY = 10;
+
+    menu.style.left = `${posX}px`;
+    menu.style.top = `${posY}px`;
+}
 
 function showDateContextMenu(x, y, monthName, dateName) {
+    hideCharContextMenu();
     contextMenuTarget = { month: monthName, date: dateName };
     const menu = document.getElementById('date-context-menu');
     menu.style.left = `${x}px`;
@@ -1305,7 +1607,31 @@ document.addEventListener('click', (e) => {
         menu.style.display = 'none';
         menu.classList.add('hidden');
     }
+    const charMenu = document.getElementById('character-context-menu');
+    if (charMenu && !charMenu.contains(e.target)) {
+        hideCharContextMenu();
+    }
 });
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const menu = document.getElementById('date-context-menu');
+        if (menu) {
+            menu.style.display = 'none';
+            menu.classList.add('hidden');
+        }
+        hideCharContextMenu();
+    }
+});
+
+window.addEventListener('scroll', () => {
+    const menu = document.getElementById('date-context-menu');
+    if (menu) {
+        menu.style.display = 'none';
+        menu.classList.add('hidden');
+    }
+    hideCharContextMenu();
+}, true);
 
 let moveCharState = {
     charName: null,
@@ -1351,6 +1677,12 @@ async function loadDateCharacters() {
         const card = document.createElement('div');
         card.className = 'post-card' + (currentSession.specialRequests && currentSession.specialRequests[post.folderName] ? ' special-request' : '');
         card.tabIndex = 0;
+        card.title = "Clic derecho: abrir en explorador / opciones";
+        card.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showCharacterContextMenu(e.clientX, e.clientY, post, card);
+        });
         if (currentSession.viewMode === 'list') {
             card.style.cssText = "padding: 1rem; display: flex; flex-direction: row; align-items: center; gap: 1rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 0;";
             card.innerHTML = `
@@ -1532,6 +1864,12 @@ function renderGestorCharactersList() {
         const card = document.createElement('div');
         card.className = 'post-card' + (currentSession.specialRequests && currentSession.specialRequests[post.folderName] ? ' special-request' : '');
         card.tabIndex = 0;
+        card.title = "Clic derecho: abrir en explorador / opciones";
+        card.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showCharacterContextMenu(e.clientX, e.clientY, post, card);
+        });
         card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
         
         card.addEventListener('keydown', async (e) => {
@@ -1929,6 +2267,68 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('date-context-menu').style.display = 'none';
     });
 
+    // Character / Output Context Menu Actions
+    const btnCharAbrir = document.getElementById('char-ctx-abrir');
+    if (btnCharAbrir) {
+        btnCharAbrir.addEventListener('click', async () => {
+            if (!charContextMenuTarget || !charContextMenuTarget.path) return;
+            const res = await window.electronAPI.openInExplorer(charContextMenuTarget.path);
+            if (res && res.success === false && res.error) {
+                alert("No se pudo abrir la carpeta en el explorador: " + res.error);
+            }
+            hideCharContextMenu();
+        });
+    }
+
+    const btnCharAbrirNova = document.getElementById('char-ctx-abrir-nova');
+    if (btnCharAbrirNova) {
+        btnCharAbrirNova.addEventListener('click', async () => {
+            if (!charContextMenuTarget || !charContextMenuTarget.novaPath) return;
+            const res = await window.electronAPI.openInExplorer(charContextMenuTarget.novaPath);
+            if (res && res.success === false && res.error) {
+                alert("No se pudo abrir la carpeta Nova: " + res.error);
+            }
+            hideCharContextMenu();
+        });
+    }
+
+    const btnCharVerFotos = document.getElementById('char-ctx-ver-fotos');
+    if (btnCharVerFotos) {
+        btnCharVerFotos.addEventListener('click', () => {
+            if (!charContextMenuTarget || !charContextMenuTarget.path) return;
+            openImageViewer(charContextMenuTarget.path, charContextMenuTarget.folderName);
+            hideCharContextMenu();
+        });
+    }
+
+    const btnCharRenombrar = document.getElementById('char-ctx-renombrar');
+    if (btnCharRenombrar) {
+        btnCharRenombrar.addEventListener('click', async () => {
+            if (!charContextMenuTarget || !charContextMenuTarget.path) return;
+            const target = charContextMenuTarget;
+            hideCharContextMenu();
+            const nameContainer = target.card ? target.card.querySelector('.char-name-container') : null;
+            if (nameContainer) {
+                handleRenameCharacter(nameContainer, target.path, target.folderName, false);
+            } else {
+                const currentClean = getCleanCharacterName(target.folderName);
+                const newName = prompt(`Renombrar personaje ${currentClean} a:`, currentClean);
+                if (newName && newName !== currentClean) {
+                    const oldName = target.folderName;
+                    const regex = new RegExp(currentClean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+                    const finalNewName = oldName.replace(regex, newName);
+                    const res = await window.electronAPI.renameFolder(target.path, finalNewName);
+                    if (res && res.success) {
+                        if (gestorState.outputCharacters) await loadGestorCharacters();
+                        if (gestorState.selectedMonth && gestorState.selectedDate) await loadDateCharacters();
+                    } else {
+                        alert("Error al renombrar: " + (res?.error || "Desconocido"));
+                    }
+                }
+            }
+        });
+    }
+
     // Gestor UI Actions
     document.getElementById('btn-refresh-gestor').addEventListener('click', async () => {
         await loadGestorData();
@@ -2083,6 +2483,37 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const outputContainer = document.getElementById('gestor-characters-list');
+    if (outputContainer) {
+        outputContainer.addEventListener('contextmenu', (e) => {
+            if (e.target.closest('.post-card')) return;
+            if (currentSession.outputPath) {
+                e.preventDefault();
+                showCharacterContextMenu(e.clientX, e.clientY, {
+                    path: currentSession.outputPath,
+                    folderName: 'Carpeta Output',
+                    isRootOutput: true
+                }, null);
+            }
+        });
+    }
+
+    const dateContentsContainer = document.getElementById('gestor-date-contents-list');
+    if (dateContentsContainer) {
+        dateContentsContainer.addEventListener('contextmenu', (e) => {
+            if (e.target.closest('.post-card')) return;
+            if (currentSession.baseOrgPath && gestorState.selectedMonth && gestorState.selectedDate) {
+                e.preventDefault();
+                const targetPath = `${currentSession.baseOrgPath}\\${gestorState.selectedMonth}\\${gestorState.selectedDate}`;
+                showCharacterContextMenu(e.clientX, e.clientY, {
+                    path: targetPath,
+                    folderName: `${gestorState.selectedMonth}/${gestorState.selectedDate}`,
+                    isRootOutput: true
+                }, null);
+            }
+        });
+    }
+
     const outputSortSelect = document.getElementById('gestor-output-sort');
     if (outputSortSelect) {
         outputSortSelect.addEventListener('change', () => {
@@ -2125,8 +2556,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 response.results.forEach(res => {
                     const item = document.createElement('div');
                     item.style.cssText = "padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center;";
+                    item.title = "Clic derecho: abrir en explorador / opciones";
                     item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.05)';
                     item.onmouseout = () => item.style.background = 'transparent';
+                    item.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        showCharacterContextMenu(e.clientX, e.clientY, res, null);
+                    });
                     
                     const badgeColor = res.type === 'output' ? '#f59e0b' : '#3b82f6';
                     const badgeText = res.type === 'output' ? 'Output' : res.locationText;

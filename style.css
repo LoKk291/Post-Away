@@ -592,3 +592,46 @@ h1 {
     z-index: 9999;
     pointer-events: none;
 }
+
+/* X (Twitter) Individual Schedule Styling */
+.schedule-group {
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.schedule-group:focus-within {
+    border-color: rgba(56, 189, 248, 0.4) !important;
+    background: rgba(56, 189, 248, 0.05) !important;
+}
+
+.btn-schedule-x {
+    transition: transform 0.15s ease, filter 0.2s ease, background 0.2s ease !important;
+    box-shadow: 0 4px 14px rgba(29, 161, 242, 0.3);
+}
+
+.btn-schedule-x:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+    box-shadow: 0 6px 18px rgba(29, 161, 242, 0.4);
+}
+
+.btn-schedule-x:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.btn-schedule-x:disabled {
+    opacity: 0.75;
+    cursor: wait;
+}
+
+.btn-sync-date:hover {
+    color: #38bdf8 !important;
+}
+
+.context-menu {
+    user-select: none;
+}
+
+.context-btn:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+}
+
