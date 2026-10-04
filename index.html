@@ -320,7 +320,7 @@
 
     <!-- Visor de Imágenes QC Modal -->
     <div id="image-viewer-modal" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; display: none; flex-direction: column; backdrop-filter: blur(5px);">
-        <div style="padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.9);">
+        <div style="padding: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.9); position: relative; z-index: 50;">
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <h2 id="image-viewer-title" style="margin: 0; font-size: 1.25rem; color: #fff; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Visor de Imágenes</h2>
                 <button id="btn-viewer-nova" class="btn hidden" style="background: rgba(236, 72, 153, 0.2); color: #f472b6; border: 1px solid rgba(236, 72, 153, 0.4); padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem; cursor: pointer; display: none;">Modo Nova</button>
@@ -329,8 +329,24 @@
                     <span id="page-indicator" style="color: #cbd5e1; font-size: 0.85rem; min-width: 120px; text-align: center;">0 de 0</span>
                     <button id="btn-next-page" class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: transparent; color: #fff; border: none; cursor: pointer;">&rarr;</button>
                 </div>
-                <div id="destacadas-indicator" style="display: flex; gap: 0.5rem; align-items: center; background: rgba(234, 179, 8, 0.1); padding: 0.2rem 0.6rem; border-radius: 6px; border: 1px solid rgba(234, 179, 8, 0.3); color: #fde047; font-size: 0.85rem;" title="Imágenes destacadas">
+                <div id="destacadas-indicator" class="destacadas-indicator">
                     ⭐ <span id="destacadas-count">0</span>
+                    <div id="destacadas-popover" class="destacadas-popover">
+                        <div class="destacadas-popover-header">
+                            <div style="display: flex; align-items: center; gap: 0.4rem; font-weight: 600; color: #fde047; font-size: 0.85rem;">
+                                <span>⭐</span>
+                                <span>Imágenes Destacadas</span>
+                            </div>
+                            <span id="destacadas-popover-badge">0</span>
+                        </div>
+                        <div id="destacadas-popover-grid" class="destacadas-popover-grid">
+                            <!-- Miniaturas inyectadas dinámicamente -->
+                        </div>
+                        <div id="destacadas-popover-footer" class="destacadas-popover-footer">
+                            <span>💡 Clic para ver en el visor</span>
+                            <span id="destacadas-popover-footer-count">0 imágenes</span>
+                        </div>
+                    </div>
                 </div>
                 <div style="display: flex; gap: 0.5rem; background: rgba(0,0,0,0.3); padding: 0.2rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
                     <button class="btn btn-grid-size" data-size="3" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; background: transparent; color: #94a3b8; border: none;">3 Cols</button>

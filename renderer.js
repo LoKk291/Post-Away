@@ -2851,6 +2851,80 @@ async function openImageViewer(folderPath, folderName, originalNickyPath = null)
     document.getElementById('image-viewer-modal').style.display = 'flex';
 }
 
+function renderDestacadasPopover(images) {
+    const popoverGrid = document.getElementById('destacadas-popover-grid');
+    const popoverBadge = document.getElementById('destacadas-popover-badge');
+    const popoverFooter = document.getElementById('destacadas-popover-footer');
+    const footerCount = document.getElementById('destacadas-popover-footer-count');
+    if (!popoverGrid) return;
+    
+    const destacadas = (images || []).filter(img => {
+        const dotIndex = img.name.lastIndexOf('.');
+        const nameWithoutExt = dotIndex !== -1 ? img.name.substring(0, dotIndex) : img.name;
+        return /^[a-z]{1,2}$/i.test(nameWithoutExt);
+    }).sort((a, b) => {
+        const dotA = a.name.lastIndexOf('.');
+        const dotB = b.name.lastIndexOf('.');
+        const nameA = (dotA !== -1 ? a.name.substring(0, dotA) : a.name).toLowerCase();
+        const nameB = (dotB !== -1 ? b.name.substring(0, dotB) : b.name).toLowerCase();
+        if (nameA.length !== nameB.length) return nameA.length - nameB.length;
+        return nameA.localeCompare(nameB);
+    });
+    
+    if (popoverBadge) {
+        popoverBadge.textContent = destacadas.length;
+    }
+    
+    popoverGrid.innerHTML = '';
+    
+    if (destacadas.length === 0) {
+        popoverGrid.innerHTML = `
+            <div class="destacadas-empty-state">
+                <span style="font-size: 1.5rem; opacity: 0.6;">⭐</span>
+                <span style="color: #cbd5e1; font-size: 0.85rem; font-weight: 500;">Sin imágenes destacadas</span>
+                <span style="color: #64748b; font-size: 0.75rem; text-align: center;">Haz clic en "⭐ Destacar" en cualquier imagen para fijarla aquí.</span>
+            </div>
+        `;
+        if (popoverFooter) popoverFooter.style.display = 'none';
+        return;
+    }
+    
+    if (popoverFooter) {
+        popoverFooter.style.display = 'flex';
+        if (footerCount) {
+            footerCount.textContent = `${destacadas.length} ${destacadas.length === 1 ? 'imagen' : 'imágenes'}`;
+        }
+    }
+    
+    destacadas.forEach(img => {
+        const card = document.createElement('div');
+        card.className = 'destacada-thumb-card';
+        card.title = `${img.name} (Clic para ir a esta imagen en el visor)`;
+        
+        card.innerHTML = `
+            <div class="destacada-thumb-img-wrapper">
+                <img src="file://${img.path.replace(/\\/g, '/')}" alt="${img.name}" loading="lazy">
+            </div>
+            <div class="destacada-thumb-label">${img.name}</div>
+        `;
+        
+        card.onclick = async (e) => {
+            e.stopPropagation();
+            const targetIndex = viewerState.images.findIndex(i => i.path === img.path || i.name.toLowerCase() === img.name.toLowerCase());
+            if (targetIndex !== -1) {
+                const targetPage = Math.floor(targetIndex / viewerState.pageSize);
+                viewerState.currentPage = targetPage;
+                viewerState.selectedImagePath = img.path;
+                await loadViewerImages();
+                const sel = document.querySelector('.viewer-image-card.selected');
+                if (sel) sel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        };
+        
+        popoverGrid.appendChild(card);
+    });
+}
+
 async function loadViewerImages() {
     const grid = document.getElementById('image-viewer-grid');
     grid.innerHTML = '<div style="color: white; grid-column: 1/-1; text-align: center;">Cargando imágenes...</div>';
@@ -2869,6 +2943,8 @@ async function loadViewerImages() {
     if (destacadasEl) {
         destacadasEl.textContent = destacadasCount;
     }
+    
+    renderDestacadasPopover(images);
     
     grid.innerHTML = '';
     

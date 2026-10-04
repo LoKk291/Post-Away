@@ -635,3 +635,209 @@ h1 {
     background: rgba(255, 255, 255, 0.12) !important;
 }
 
+/* Indicador de destacadas con soporte para hover popover */
+.destacadas-indicator {
+    position: relative;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    background: rgba(234, 179, 8, 0.1);
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid rgba(234, 179, 8, 0.3);
+    color: #fde047;
+    font-size: 0.85rem;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.destacadas-indicator:hover {
+    background: rgba(234, 179, 8, 0.2);
+    border-color: rgba(234, 179, 8, 0.6);
+    box-shadow: 0 0 10px rgba(234, 179, 8, 0.2);
+}
+
+/* Ventana flotante de imágenes destacadas */
+.destacadas-popover {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 320px;
+    max-width: 90vw;
+    background: rgba(15, 23, 42, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(234, 179, 8, 0.4);
+    border-radius: 12px;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 20px rgba(234, 179, 8, 0.15);
+    z-index: 2500;
+    display: none;
+    flex-direction: column;
+    padding: 0.75rem;
+    gap: 0.6rem;
+    cursor: default;
+    user-select: none;
+}
+
+/* Flechita decorativa hacia el indicador */
+.destacadas-popover::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 10px;
+    height: 10px;
+    background: rgba(15, 23, 42, 0.96);
+    border-left: 1px solid rgba(234, 179, 8, 0.4);
+    border-top: 1px solid rgba(234, 179, 8, 0.4);
+    z-index: 1;
+}
+
+/* Puente invisible entre el badge y el popover para evitar que se cierre por separación */
+.destacadas-popover::after {
+    content: '';
+    position: absolute;
+    top: -12px;
+    left: 0;
+    right: 0;
+    height: 12px;
+}
+
+/* Abrir sólo manteniendo el mouse sobre el indicador o la ventana flotante */
+.destacadas-indicator:hover .destacadas-popover {
+    display: flex;
+    animation: destacadasFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes destacadasFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-6px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+}
+
+.destacadas-popover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 0.4rem;
+}
+
+#destacadas-popover-badge {
+    background: rgba(234, 179, 8, 0.2);
+    color: #fde047;
+    border: 1px solid rgba(234, 179, 8, 0.4);
+    font-size: 0.75rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 9999px;
+    font-weight: bold;
+}
+
+.destacadas-popover-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 2px;
+}
+
+.destacadas-popover-grid::-webkit-scrollbar {
+    width: 5px;
+}
+.destacadas-popover-grid::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+.destacadas-popover-grid::-webkit-scrollbar-thumb {
+    background: rgba(234, 179, 8, 0.3);
+    border-radius: 4px;
+}
+.destacadas-popover-grid::-webkit-scrollbar-thumb:hover {
+    background: rgba(234, 179, 8, 0.6);
+}
+
+.destacada-thumb-card {
+    position: relative;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #090d16;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    display: flex;
+    flex-direction: column;
+    cursor: pointer;
+    transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.destacada-thumb-card:hover {
+    transform: translateY(-2px);
+    border-color: #fde047;
+    box-shadow: 0 4px 12px rgba(234, 179, 8, 0.3);
+}
+
+.destacada-thumb-img-wrapper {
+    width: 100%;
+    height: 95px;
+    background: #020617;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.destacada-thumb-img-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transition: transform 0.2s ease;
+}
+
+.destacada-thumb-card:hover .destacada-thumb-img-wrapper img {
+    transform: scale(1.06);
+}
+
+.destacada-thumb-label {
+    padding: 3px 4px;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #fde047;
+    background: rgba(15, 23, 42, 0.9);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.destacadas-popover-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 0.4rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+    color: #64748b;
+}
+
+.destacadas-empty-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 0.5rem;
+    gap: 0.35rem;
+    color: #94a3b8;
+    text-align: center;
+}
+
