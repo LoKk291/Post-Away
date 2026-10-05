@@ -2523,7 +2523,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.textContent = "Generando...";
         btn.disabled = true;
 
-        for (let day = 1; day <= daysInMonth; day += 2) {
+        for (let day = 1; day <= daysInMonth; day++) {
             const newDd = String(day).padStart(2, '0');
             const newMm = String(month).padStart(2, '0');
             const newYy = String(year).slice(-2);
@@ -2535,7 +2535,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        btn.textContent = "Generar Mes Completo (+2 días)";
+        btn.textContent = "Generar Mes Completo";
         btn.disabled = false;
         document.getElementById('auto-month-picker').value = '';
         await loadGestorData();
