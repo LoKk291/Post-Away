@@ -469,30 +469,48 @@ let isFloatExecuting = false;
 let editSyncTimeout = null;
 let openMode = localStorage.getItem('postaway_open_mode') || 'tab'; // 'tab' o 'window'
 
+let isAutoBatchActive = false;
+let isAutoBatchStarted = false;
+let autoBatchNextTimeout = null;
+
 // Consultar inmediatamente a background si esta pestaña fue creada con un índice asignado
 chrome.runtime.sendMessage({ type: 'get-tab-post-index' }, (res) => {
-    if (!chrome.runtime.lastError && res && res.assignedIndex !== null && res.assignedIndex !== undefined) {
-        sessionStorage.setItem('postaway_tab_index', res.assignedIndex.toString());
-        if (floatIndex === -1) {
-            floatIndex = res.assignedIndex;
-            if (floatFeed.length > 0) renderCurrentPost();
+    if (!chrome.runtime.lastError && res) {
+        if (res.assignedIndex !== null && res.assignedIndex !== undefined) {
+            sessionStorage.setItem('postaway_tab_index', res.assignedIndex.toString());
+            if (floatIndex === -1) {
+                floatIndex = res.assignedIndex;
+            }
         }
+        if (res.autoRun) {
+            isAutoBatchActive = true;
+            sessionStorage.setItem('postaway_auto_batch', 'true');
+        }
+        if (floatFeed.length > 0) renderCurrentPost();
     }
 });
 
 function getTabPostIndex() {
-    // 1. Prioridad: Hash en la URL (#postaway_idx=X)
+    // 1. Prioridad: Hash en la URL (#postaway_idx=X&postaway_autorun=1)
     const hash = window.location.hash || '';
     const match = hash.match(/postaway_idx=(\d+)/);
     if (match) {
         const parsed = parseInt(match[1], 10);
         if (!isNaN(parsed) && parsed >= 0) {
             sessionStorage.setItem('postaway_tab_index', parsed.toString());
+            if (hash.includes('postaway_autorun=1')) {
+                isAutoBatchActive = true;
+                sessionStorage.setItem('postaway_auto_batch', 'true');
+            }
             try {
                 history.replaceState(null, document.title, window.location.pathname + window.location.search);
             } catch (e) {}
             return parsed;
         }
+    }
+
+    if (sessionStorage.getItem('postaway_auto_batch') === 'true') {
+        isAutoBatchActive = true;
     }
 
     // 2. Prioridad: sessionStorage propio y aislado de esta pestaña
@@ -520,7 +538,7 @@ function markPostUploaded(idx) {
     sessionStorage.setItem('postaway_uploaded_' + postId, 'true');
 }
 
-function openNextPostInNewTab(targetIdx) {
+function openNextPostInNewTab(targetIdx, autoRun = false) {
     const nextIdx = (targetIdx !== undefined) ? targetIdx : (floatIndex + 1);
     if (!floatFeed || nextIdx >= floatFeed.length) {
         showStatusToast("🎉 ¡No hay más posts! Has completado la lista.");
@@ -534,10 +552,11 @@ function openNextPostInNewTab(targetIdx) {
     chrome.runtime.sendMessage({
         type: 'open-next-x-tab',
         postIndex: nextIdx,
-        asWindow: asWindow
+        asWindow: asWindow,
+        autoRun: autoRun
     }, (res) => {
         if (chrome.runtime.lastError || !res || !res.success) {
-            const targetUrl = `https://x.com/compose/post#postaway_idx=${nextIdx}`;
+            const targetUrl = `https://x.com/compose/post#postaway_idx=${nextIdx}${autoRun ? '&postaway_autorun=1' : ''}`;
             if (asWindow) {
                 window.open(targetUrl, '_blank', 'width=1280,height=800');
             } else {
@@ -830,6 +849,42 @@ function injectFloatingStyles() {
             opacity: 0.6;
             cursor: not-allowed;
         }
+        .postaway-btn-autobatch {
+            width: 100%;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);
+            transition: all 0.2s ease;
+            margin-top: 4px;
+        }
+        .postaway-btn-autobatch:hover:not(:disabled) {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(139, 92, 246, 0.55);
+        }
+        .postaway-btn-autobatch:active:not(:disabled) {
+            transform: translateY(0);
+        }
+        .postaway-btn-autobatch.running {
+            background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.45) !important;
+            animation: pulse-border 1.5s infinite;
+        }
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
         #postaway-twitter-min-pill {
             position: fixed;
             top: 75px;
@@ -1109,19 +1164,36 @@ function renderCurrentPost() {
     } else {
         uploadBtn.innerHTML = `<span>🚀 Subir / Programar en X</span>`;
         uploadBtn.style.background = 'linear-gradient(135deg, #1d9bf0, #0284c7)';
-        uploadBtn.onclick = executeCurrentPostUpload;
+        uploadBtn.onclick = () => executeCurrentPostUpload(false);
+    }
+
+    const autoBatchBtn = document.getElementById('postaway-btn-autobatch');
+    if (autoBatchBtn) {
+        if (isAutoBatchActive) {
+            autoBatchBtn.classList.add('running');
+            autoBatchBtn.innerHTML = `<span>⏹️ Detener Cadena (${floatIndex + 1}/${floatFeed.length})</span>`;
+            autoBatchBtn.title = 'Detener la subida automática en cadena';
+        } else {
+            autoBatchBtn.classList.remove('running');
+            autoBatchBtn.disabled = false;
+            autoBatchBtn.innerHTML = `<span>⚡ Subida Automática en Cadena</span>`;
+            autoBatchBtn.title = 'Subir este post y automáticamente abrir y preparar los siguientes en nuevas pestañas hasta terminar';
+        }
     }
 
     loadThumbnailForPost(post);
+    checkAndStartAutoBatch();
 }
 
-async function executeCurrentPostUpload() {
+async function executeCurrentPostUpload(isFromAutoBatch = false) {
     if (isFloatExecuting || isAutofilling || !floatFeed || !floatFeed[floatIndex]) return;
 
     saveCurrentPostEdits();
     const post = floatFeed[floatIndex];
 
     const uploadBtn = document.getElementById('postaway-btn-upload');
+    const autoBatchBtn = document.getElementById('postaway-btn-autobatch');
+
     uploadBtn.disabled = true;
     uploadBtn.innerHTML = `<span>⏳ Preparando post en X...</span>`;
     uploadBtn.style.background = 'rgba(29, 155, 240, 0.6)';
@@ -1154,21 +1226,58 @@ async function executeCurrentPostUpload() {
             setTimeout(() => {
                 uploadBtn.innerHTML = `<span>🚀 Subir / Programar de nuevo</span>`;
                 uploadBtn.style.background = 'linear-gradient(135deg, #1d9bf0, #0284c7)';
-                uploadBtn.onclick = executeCurrentPostUpload;
+                uploadBtn.onclick = () => executeCurrentPostUpload(false);
             }, 3000);
         }
 
         renderCurrentPost();
-        showStatusToast("Post preparado en X. Haz clic en 'Siguiente' para abrir el próximo post.");
+
+        if (isFromAutoBatch && isAutoBatchActive) {
+            if (floatIndex < floatFeed.length - 1) {
+                const nextNum = floatIndex + 2;
+                showStatusToast(`✅ Post ${floatIndex + 1} preparado. Abriendo Post ${nextNum} en nueva pestaña en 2.5s...`);
+                autoBatchNextTimeout = setTimeout(() => {
+                    if (isAutoBatchActive) {
+                        openNextPostInNewTab(floatIndex + 1, true);
+                    }
+                }, 2500);
+            } else {
+                isAutoBatchActive = false;
+                sessionStorage.removeItem('postaway_auto_batch');
+                chrome.runtime.sendMessage({ type: 'cancel-twitter-autobatch' });
+                showStatusToast("🎉 ¡Subida automática en cadena completada! Se prepararon todos los posts en pestañas separadas.");
+                if (autoBatchBtn) {
+                    autoBatchBtn.classList.remove('running');
+                    autoBatchBtn.innerHTML = `<span>🎉 ¡Todos los posts listos!</span>`;
+                    setTimeout(() => {
+                        autoBatchBtn.innerHTML = `<span>⚡ Subida Automática en Cadena</span>`;
+                    }, 5000);
+                }
+            }
+        } else {
+            showStatusToast("Post preparado en X. Haz clic en 'Siguiente' para abrir el próximo post.");
+        }
     } catch (err) {
         console.error("Error executing post upload:", err);
         uploadBtn.disabled = false;
         uploadBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
         uploadBtn.innerHTML = `<span>⚠️ Error al preparar post</span>`;
+
+        if (isAutoBatchActive) {
+            isAutoBatchActive = false;
+            sessionStorage.removeItem('postaway_auto_batch');
+            chrome.runtime.sendMessage({ type: 'cancel-twitter-autobatch' });
+            if (autoBatchBtn) {
+                autoBatchBtn.classList.remove('running');
+                autoBatchBtn.innerHTML = `<span>⚡ Subida Automática en Cadena</span>`;
+            }
+            showStatusToast(`⚠️ Error en Post ${floatIndex + 1}: ${err.message}. Cadena automática detenida para revisión.`, true);
+        }
+
         setTimeout(() => {
             uploadBtn.innerHTML = `<span>🚀 Reintentar</span>`;
             uploadBtn.style.background = 'linear-gradient(135deg, #1d9bf0, #0284c7)';
-            uploadBtn.onclick = executeCurrentPostUpload;
+            uploadBtn.onclick = () => executeCurrentPostUpload(false);
         }, 3000);
     } finally {
         isFloatExecuting = false;
@@ -1214,6 +1323,60 @@ function fetchTwitterFeed(showFeedback = false) {
             }
         }
     });
+}
+
+function toggleAutoBatch() {
+    if (isAutoBatchActive) {
+        isAutoBatchActive = false;
+        sessionStorage.removeItem('postaway_auto_batch');
+        if (autoBatchNextTimeout) {
+            clearTimeout(autoBatchNextTimeout);
+            autoBatchNextTimeout = null;
+        }
+        chrome.runtime.sendMessage({ type: 'cancel-twitter-autobatch' });
+        showStatusToast("⏹️ Subida automática en cadena detenida.");
+        const btnAuto = document.getElementById('postaway-btn-autobatch');
+        if (btnAuto) {
+            btnAuto.classList.remove('running');
+            btnAuto.innerHTML = `<span>⚡ Subida Automática en Cadena</span>`;
+        }
+    } else {
+        if (isFloatExecuting || isAutofilling) {
+            showStatusToast("Post en proceso, espera a que termine.");
+            return;
+        }
+        if (!floatFeed || floatFeed.length === 0 || floatIndex < 0) {
+            showStatusToast("No hay posts disponibles para subir.", true);
+            return;
+        }
+        isAutoBatchActive = true;
+        sessionStorage.setItem('postaway_auto_batch', 'true');
+        chrome.runtime.sendMessage({ type: 'set-twitter-autobatch', active: true });
+        const btnAuto = document.getElementById('postaway-btn-autobatch');
+        if (btnAuto) {
+            btnAuto.classList.add('running');
+            btnAuto.innerHTML = `<span>⏹️ Detener Cadena (${floatIndex + 1}/${floatFeed.length})</span>`;
+        }
+        showStatusToast(`⚡ Iniciando subida automática en cadena desde Post ${floatIndex + 1}...`);
+        executeCurrentPostUpload(true);
+    }
+}
+
+function checkAndStartAutoBatch() {
+    if (isAutoBatchActive && !isAutoBatchStarted && floatFeed && floatFeed.length > 0 && floatIndex >= 0) {
+        isAutoBatchStarted = true;
+        const btnAuto = document.getElementById('postaway-btn-autobatch');
+        if (btnAuto) {
+            btnAuto.classList.add('running');
+            btnAuto.innerHTML = `<span>⏹️ Detener Cadena (${floatIndex + 1}/${floatFeed.length})</span>`;
+        }
+        showStatusToast(`⚡ [Auto-Cadena] Post ${floatIndex + 1} de ${floatFeed.length}: Iniciando en 2s...`);
+        setTimeout(() => {
+            if (isAutoBatchActive) {
+                executeCurrentPostUpload(true);
+            }
+        }, 2000);
+    }
 }
 
 function createFloatingPanel() {
@@ -1293,6 +1456,9 @@ function createFloatingPanel() {
                 <button class="postaway-btn-upload" id="postaway-btn-upload">
                     <span>🚀 Subir / Programar en X</span>
                 </button>
+                <button class="postaway-btn-autobatch" id="postaway-btn-autobatch" title="Subir este post y automáticamente abrir y preparar los siguientes en nuevas pestañas hasta terminar">
+                    <span>⚡ Subida Automática en Cadena</span>
+                </button>
             </div>
         </div>
     `;
@@ -1343,7 +1509,8 @@ function createFloatingPanel() {
         triggerPostEditSync();
     });
 
-    document.getElementById('postaway-btn-upload').onclick = executeCurrentPostUpload;
+    document.getElementById('postaway-btn-upload').onclick = () => executeCurrentPostUpload(false);
+    document.getElementById('postaway-btn-autobatch').onclick = toggleAutoBatch;
 
     window.addEventListener('keydown', (e) => {
         if (e.altKey && e.key === 'ArrowLeft') {

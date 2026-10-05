@@ -856,8 +856,8 @@ ipcMain.handle('set-twitter-feed', (event, feedData) => {
   return { success: true };
 });
 
-ipcMain.handle('open-twitter', (event, profile) => {
-  const url = 'https://x.com/compose/post';
+ipcMain.handle('open-twitter', (event, profile, targetUrl) => {
+  const url = targetUrl || 'https://x.com/compose/post';
   const { spawn } = require('child_process');
   console.log('[Post-Away] open-twitter called with profile:', profile);
   

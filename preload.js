@@ -39,7 +39,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   sendToYaSubido: (basePath, yaSubidoPath, monthName, dateName) => ipcRenderer.invoke('send-to-yasubido', basePath, yaSubidoPath, monthName, dateName),
   onUploadComplete: (callback) => ipcRenderer.on('upload-complete', callback),
   fillTwitter: (data) => ipcRenderer.invoke('fill-twitter', data),
-  openTwitter: (profile) => ipcRenderer.invoke('open-twitter', profile),
+  openTwitter: (profile, targetUrl) => ipcRenderer.invoke('open-twitter', profile, targetUrl),
   getWatermarkImages: (folderPath) => ipcRenderer.invoke('get-watermark-images', folderPath),
   setTwitterFeed: (feedData) => ipcRenderer.invoke('set-twitter-feed', feedData),
   onTwitterPostUpdated: (callback) => ipcRenderer.on('twitter-post-updated', callback)

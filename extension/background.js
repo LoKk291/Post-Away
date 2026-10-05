@@ -60,20 +60,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'open-next-x-tab') {
         const postIndex = Number(message.postIndex) || 0;
         const asWindow = !!message.asWindow;
-        const targetUrl = `https://x.com/compose/post#postaway_idx=${postIndex}`;
+        const autoRun = !!message.autoRun;
+        const targetUrl = `https://x.com/compose/post#postaway_idx=${postIndex}${autoRun ? '&postaway_autorun=1' : ''}`;
 
         if (asWindow) {
             chrome.windows.create({ url: targetUrl, focused: true }, (win) => {
                 const newTab = win && win.tabs ? win.tabs[0] : null;
                 if (newTab && newTab.id) {
-                    tabPostIndexMap.set(newTab.id, postIndex);
+                    tabPostIndexMap.set(newTab.id, { postIndex, autoRun });
                 }
                 sendResponse({ success: true, tabId: newTab ? newTab.id : null });
             });
         } else {
             chrome.tabs.create({ url: targetUrl, active: true }, (newTab) => {
                 if (newTab && newTab.id) {
-                    tabPostIndexMap.set(newTab.id, postIndex);
+                    tabPostIndexMap.set(newTab.id, { postIndex, autoRun });
                 }
                 sendResponse({ success: true, tabId: newTab ? newTab.id : null });
             });
@@ -83,8 +84,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.type === 'get-tab-post-index') {
         const tabId = sender.tab ? sender.tab.id : null;
-        const assigned = (tabId && tabPostIndexMap.has(tabId)) ? tabPostIndexMap.get(tabId) : null;
-        sendResponse({ success: true, assignedIndex: assigned });
+        let assigned = null;
+        let autoRun = false;
+        if (tabId && tabPostIndexMap.has(tabId)) {
+            const data = tabPostIndexMap.get(tabId);
+            if (typeof data === 'object' && data !== null) {
+                assigned = data.postIndex;
+                autoRun = !!data.autoRun;
+            } else {
+                assigned = data;
+            }
+        }
+        sendResponse({ success: true, assignedIndex: assigned, autoRun: autoRun });
+        return true;
+    }
+
+    if (message.type === 'cancel-twitter-autobatch') {
+        for (const [tId, data] of tabPostIndexMap.entries()) {
+            if (typeof data === 'object' && data !== null) {
+                data.autoRun = false;
+            }
+        }
+        sendResponse({ success: true });
+        return true;
+    }
+
+    if (message.type === 'set-twitter-autobatch') {
+        const tabId = sender.tab ? sender.tab.id : null;
+        if (tabId && tabPostIndexMap.has(tabId)) {
+            const data = tabPostIndexMap.get(tabId);
+            if (typeof data === 'object' && data !== null) {
+                data.autoRun = !!message.active;
+            }
+        }
+        sendResponse({ success: true });
         return true;
     }
 

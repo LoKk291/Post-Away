@@ -599,6 +599,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    const btnAutoBatchX = document.getElementById('btn-auto-batch-x');
+    if (btnAutoBatchX) {
+        btnAutoBatchX.addEventListener('click', async () => {
+            const cards = document.querySelectorAll('#twitter-grid .post-card');
+            if (cards.length === 0 || !currentPosts || currentPosts.length === 0) {
+                alert("No hay posts cargados en el feed de X. Por favor selecciona o arrastra una carpeta primero.");
+                return;
+            }
+
+            // Sincronizar inmediatamente el feed con Electron
+            await syncTwitterFeedToMain(true);
+
+            const confirmBatch = confirm(`¿Iniciar la subida automática en cadena de ${currentPosts.length} posts a X?\n\nSe abrirá el navegador y cada post se preparará automáticamente en una pestaña separada de X (subiendo texto, imágenes y configurando fecha/hora), dejándolas listas para tu verificación final.`);
+            if (!confirmBatch) return;
+
+            btnAutoBatchX.disabled = true;
+            btnAutoBatchX.textContent = "⚡ Iniciando Cadena en X...";
+
+            try {
+                const targetUrl = 'https://x.com/compose/post#postaway_idx=0&postaway_autorun=1';
+                await window.electronAPI.openTwitter(currentSession.activeProfile, targetUrl);
+            } catch (err) {
+                console.error("Error al iniciar subida automática a X:", err);
+                alert("Error al abrir X: " + err.message);
+            } finally {
+                setTimeout(() => {
+                    btnAutoBatchX.disabled = false;
+                    btnAutoBatchX.textContent = "⚡ Subida Automática a X (En Cadena)";
+                }, 4000);
+            }
+        });
+    }
+
     document.getElementById('btn-clear').addEventListener('click', async () => {
         await clearCurrentSession(false);
     });
@@ -1363,9 +1396,9 @@ function renderTwitterGrid(posts) {
 }
 
 let syncTwitterTimeout = null;
-async function syncTwitterFeedToMain() {
+async function syncTwitterFeedToMain(immediate = false) {
     if (syncTwitterTimeout) clearTimeout(syncTwitterTimeout);
-    syncTwitterTimeout = setTimeout(async () => {
+    const doSync = async () => {
         const cards = document.querySelectorAll('#twitter-grid .post-card');
         if (cards.length === 0 || !currentPosts || currentPosts.length === 0) {
             if (window.electronAPI && window.electronAPI.setTwitterFeed) {
@@ -1424,7 +1457,13 @@ async function syncTwitterFeedToMain() {
                 currentIndex: 0
             });
         }
-    }, 250);
+    };
+
+    if (immediate) {
+        await doSync();
+    } else {
+        syncTwitterTimeout = setTimeout(doSync, 250);
+    }
 }
 
 if (window.electronAPI && window.electronAPI.onTwitterPostUpdated) {
