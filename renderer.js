@@ -6,6 +6,7 @@ let currentCompressionRun = null;
 let currentPosts = [];
 let currentCardsElements = [];
 let isCompressingBackground = false;
+let updateProfileUI = () => {};
 
 const twitterTexts = [
     { en: "I hope it fills me up 🥛🥛", es: "¡Espero que esto me llene...! 🥛🥛" },
@@ -192,7 +193,8 @@ const twitterTexts = [
 ];
 
 function getRandomTwitterText() {
-    return twitterTexts[Math.floor(Math.random() * twitterTexts.length)];
+    const item = twitterTexts[Math.floor(Math.random() * twitterTexts.length)];
+    return item ? (item.en || item) : '';
 }
 
 
@@ -362,7 +364,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (currentSession.globalDate) globalDate.value = currentSession.globalDate;
     if (currentSession.globalTime) globalTime.value = currentSession.globalTime;
 
-    const updateProfileUI = () => {
+    updateProfileUI = () => {
         const isNova = currentSession.activeProfile === 'nova';
         profileNova.checked = isNova;
         profileNicky.checked = !isNova;
@@ -439,6 +441,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
+            const batchContainer = document.getElementById('batch-upload-container');
+            const btnCompressAll = document.getElementById('btn-compress-all');
+            const rarStatus = document.getElementById('rar-status');
+            if (target === 'twitter' || target === 'gestor') {
+                if (batchContainer) batchContainer.style.display = 'none';
+                if (btnCompressAll) btnCompressAll.style.display = 'none';
+                if (rarStatus) rarStatus.style.display = 'none';
+            } else if (target === 'patreon') {
+                if (currentPosts && currentPosts.length > 0) {
+                    if (batchContainer) batchContainer.style.display = 'flex';
+                    if (btnCompressAll) btnCompressAll.style.display = 'block';
+                }
+                if (rarStatus) rarStatus.style.display = '';
+            }
+
             if (target === 'twitter') {
                 autoFetchPatreonLinks(true);
             }
@@ -473,7 +490,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         startBackgroundCompression(currentCardsElements, thisRun);
     });
 
-
+    // Checkbox Modo Super Automático (Patreon)
+    const chkSuperAuto = document.getElementById('chk-super-auto');
+    if (chkSuperAuto) {
+        if (currentSession.superAutoMode !== undefined) {
+            chkSuperAuto.checked = !!currentSession.superAutoMode;
+        }
+        chkSuperAuto.addEventListener('change', async () => {
+            currentSession.superAutoMode = chkSuperAuto.checked;
+            await saveSession();
+        });
+    }
 
     if (currentSession.lastFolder) {
         await loadFolderData(currentSession.lastFolder);
@@ -750,9 +777,9 @@ async function clearCurrentSession(skipConfirm = false) {
     return true;
 }
 
-async function navigateToFolder(newPath) {
+async function navigateToFolder(newPath, keepCurrentRars = false) {
     if (!newPath) return;
-    if (currentPosts && currentPosts.length > 0) {
+    if (!keepCurrentRars && currentPosts && currentPosts.length > 0) {
         const folderPaths = currentPosts.map(p => p.path);
         await window.electronAPI.deleteRars(folderPaths);
     }
@@ -894,15 +921,21 @@ async function loadFolderData(folderPath) {
 
     const btnCompressAll = document.getElementById('btn-compress-all');
     const batchContainer = document.getElementById('batch-upload-container');
-    if (btnCompressAll) {
-        btnCompressAll.style.display = 'block';
-        btnCompressAll.disabled = false;
-        btnCompressAll.textContent = "📦 Iniciar Compresión de Todos los .rar";
-        btnCompressAll.style.cursor = "pointer";
-        btnCompressAll.style.opacity = "1";
-    }
-    if (batchContainer) {
-        batchContainer.style.display = 'flex';
+    const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab || 'patreon';
+    if (activeTab === 'patreon') {
+        if (btnCompressAll) {
+            btnCompressAll.style.display = 'block';
+            btnCompressAll.disabled = false;
+            btnCompressAll.textContent = "📦 Iniciar Compresión de Todos los .rar";
+            btnCompressAll.style.cursor = "pointer";
+            btnCompressAll.style.opacity = "1";
+        }
+        if (batchContainer) {
+            batchContainer.style.display = 'flex';
+        }
+    } else {
+        if (btnCompressAll) btnCompressAll.style.display = 'none';
+        if (batchContainer) batchContainer.style.display = 'none';
     }
 
     posts.forEach(post => {
@@ -3262,10 +3295,176 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// BATCH AUTO UPLOAD LOGIC
+// BATCH AUTO UPLOAD & MODO SUPER AUTOMÁTICO
 // ==========================================
 let autoUploadQueue = [];
 let isAutoUploading = false;
+let isSuperAutoMode = false;
+let superAutoStage = 0; // 0=inactivo, 1=subiendo perfil 1, 2=cargando/comprimiendo perfil 2, 3=subiendo perfil 2, 4=finalizando/restaurando
+let superAutoOriginalFolder = null;
+let superAutoOriginalProfile = null;
+let superAutoCounterpartFolder = null;
+let superAutoCounterpartProfile = null;
+
+async function cancelAutoUpload() {
+    isAutoUploading = false;
+    currentCompressionRun = null;
+    isCompressingBackground = false;
+    autoUploadQueue = [];
+
+    const btnAutoBatch = document.getElementById('btn-auto-batch');
+
+    if (isSuperAutoMode && superAutoStage >= 2) {
+        if (btnAutoBatch) {
+            btnAutoBatch.innerHTML = '🧹 Cancelando y restaurando original...';
+            btnAutoBatch.disabled = true;
+        }
+
+        // Si estamos en la contraparte, borrar sus .rar
+        if (currentPosts && currentPosts.length > 0) {
+            const folderPaths = currentPosts.map(p => p.path);
+            await window.electronAPI.deleteRars(folderPaths);
+        }
+
+        // Restaurar perfil original
+        currentSession.activeProfile = superAutoOriginalProfile;
+        updateProfileUI();
+        await saveSession();
+
+        // Volver a cargar la carpeta original manteniendo sus .rar intactos
+        if (superAutoOriginalFolder) {
+            await navigateToFolder(superAutoOriginalFolder, true);
+        }
+    }
+
+    isSuperAutoMode = false;
+    superAutoStage = 0;
+    superAutoOriginalFolder = null;
+    superAutoOriginalProfile = null;
+    superAutoCounterpartFolder = null;
+    superAutoCounterpartProfile = null;
+
+    if (btnAutoBatch) {
+        btnAutoBatch.disabled = false;
+        btnAutoBatch.innerHTML = '🚀 Iniciar Subida Automática (Batch)';
+    }
+}
+
+async function startSuperAutoStageTwo() {
+    superAutoStage = 2;
+    const btnAutoBatch = document.getElementById('btn-auto-batch');
+    const counterpartName = superAutoCounterpartProfile === 'nova' ? 'Nova (Opera)' : 'Nicky (Brave)';
+    
+    if (btnAutoBatch) {
+        btnAutoBatch.innerHTML = `⏳ Preparando contraparte (${counterpartName})...`;
+        btnAutoBatch.disabled = true;
+    }
+
+    // 1. Cambiar al perfil contraparte
+    currentSession.activeProfile = superAutoCounterpartProfile;
+    updateProfileUI();
+    await saveSession();
+
+    // 2. Cargar carpeta contraparte manteniendo los .rar de la carpeta previa (original)
+    await navigateToFolder(superAutoCounterpartFolder, true);
+
+    if (!isAutoUploading) return; // Si fue cancelado durante navegación
+
+    if (!currentPosts || currentPosts.length === 0) {
+        alert(`Modo Super Automático: No se encontraron posts en la carpeta contraparte: ${superAutoCounterpartFolder}`);
+        await finishSuperAuto(false);
+        return;
+    }
+
+    // 3. Comprimir automáticamente todos los .rar de la contraparte
+    if (btnAutoBatch) {
+        btnAutoBatch.innerHTML = `📦 Comprimiendo .rar (${superAutoCounterpartProfile === 'nova' ? 'Nova' : 'Nicky'})...`;
+    }
+
+    const rarStatus = document.getElementById('rar-status');
+    if (rarStatus) {
+        rarStatus.innerHTML = `🌟 Modo Super Automático: Comprimiendo posts de ${counterpartName}...`;
+    }
+
+    isCompressingBackground = true;
+    const thisRun = Symbol();
+    currentCompressionRun = thisRun;
+    updateGlobalRarStatus(currentCardsElements);
+
+    await startBackgroundCompression(currentCardsElements, thisRun);
+
+    if (!isAutoUploading || currentCompressionRun !== thisRun) return; // Si fue cancelado durante compresión
+
+    isCompressingBackground = false;
+    updateGlobalRarStatus(currentCardsElements);
+
+    // 4. Filtrar posts listos de la contraparte
+    const counterpartPostsReady = currentPosts.filter(p => p.hasRar);
+    if (counterpartPostsReady.length === 0) {
+        alert(`Modo Super Automático: No se pudieron generar los archivos .rar para la contraparte.`);
+        await finishSuperAuto(false);
+        return;
+    }
+
+    // 5. Iniciar subida de la contraparte (Stage 3)
+    superAutoStage = 3;
+    autoUploadQueue = [...counterpartPostsReady];
+    if (btnAutoBatch) {
+        btnAutoBatch.disabled = false;
+        btnAutoBatch.innerHTML = `⏹️ Cancelar Subida Batch (Super Auto: ${superAutoCounterpartProfile === 'nova' ? 'Nova' : 'Nicky'})`;
+    }
+
+    await processNextAutoUpload();
+}
+
+async function finishSuperAuto(success = true) {
+    superAutoStage = 4;
+    const btnAutoBatch = document.getElementById('btn-auto-batch');
+    if (btnAutoBatch) {
+        btnAutoBatch.innerHTML = '🧹 Restaurando carpeta original...';
+        btnAutoBatch.disabled = true;
+    }
+
+    // 1. Borrar los .rar de la contraparte
+    if (currentPosts && currentPosts.length > 0) {
+        const folderPaths = currentPosts.map(p => p.path);
+        await window.electronAPI.deleteRars(folderPaths);
+    }
+
+    // 2. Restaurar perfil original
+    currentSession.activeProfile = superAutoOriginalProfile;
+    updateProfileUI();
+    await saveSession();
+
+    // 3. Volver a mostrar la carpeta original manteniendo sus .rar intactos
+    if (superAutoOriginalFolder) {
+        await navigateToFolder(superAutoOriginalFolder, true);
+    }
+
+    // 4. Limpiar estado
+    isAutoUploading = false;
+    isSuperAutoMode = false;
+    superAutoStage = 0;
+    autoUploadQueue = [];
+    superAutoOriginalFolder = null;
+    superAutoOriginalProfile = null;
+    superAutoCounterpartFolder = null;
+    superAutoCounterpartProfile = null;
+
+    if (btnAutoBatch) {
+        btnAutoBatch.disabled = false;
+        btnAutoBatch.innerHTML = '🚀 Iniciar Subida Automática (Batch)';
+    }
+
+    if (success) {
+        alert(
+            `🌟 ¡Modo Super Automático Finalizado con Éxito! 🌟\n\n` +
+            `• Se completó la subida de ambos perfiles a Patreon.\n` +
+            `• Los archivos .rar temporales de la contraparte fueron eliminados.\n` +
+            `• Tu carpeta original ha sido recargada con sus .rar intactos.`
+        );
+    }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     const btnAutoBatch = document.getElementById('btn-auto-batch');
@@ -3274,12 +3473,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isAutoUploading) {
                 const cancel = confirm('Ya hay una subida en progreso. ¿Deseas cancelarla?');
                 if (cancel) {
-                    isAutoUploading = false;
-                    autoUploadQueue = [];
-                    btnAutoBatch.innerHTML = '🚀 Subida Automática (Batch)';
+                    await cancelAutoUpload();
                 }
                 return;
             }
+
+            const chkSuperAuto = document.getElementById('chk-super-auto');
+            const superAutoActive = chkSuperAuto && chkSuperAuto.checked;
 
             // Filtrar posts válidos (que tengan rar generado)
             const postsReady = currentPosts.filter(p => p.hasRar);
@@ -3287,14 +3487,53 @@ document.addEventListener('DOMContentLoaded', () => {
                 return alert('No hay posts listos para subir. Asegúrate de que las carpetas tengan su archivo .rar generado.');
             }
 
-            const confirmBatch = confirm(`¿Iniciar subida automática de ${postsReady.length} posts a Patreon? Las pestañas permanecerán abiertas para revisión final.`);
-            if (!confirmBatch) return;
+            if (superAutoActive) {
+                const originalFolder = currentSession.lastFolder;
+                const originalProfile = currentSession.activeProfile || 'nicky';
 
-            autoUploadQueue = [...postsReady];
-            isAutoUploading = true;
-            btnAutoBatch.innerHTML = '⏹️ Cancelar Subida Batch';
+                const counterpartRes = await window.electronAPI.getCounterpartFolder(originalFolder, originalProfile);
+                if (!counterpartRes || !counterpartRes.success) {
+                    return alert(`Modo Super Automático: No se pudo resolver la carpeta contraparte.\n\nDetalle: ${counterpartRes ? counterpartRes.error : 'Error desconocido'}\n\nAsegúrate de tener configuradas las carpetas de Nicky y Nova en el Gestor.`);
+                }
 
-            await processNextAutoUpload();
+                const origProfileName = originalProfile === 'nova' ? 'Nova (Opera)' : 'Nicky (Brave)';
+                const targetProfileName = counterpartRes.targetProfile === 'nova' ? 'Nova (Opera)' : 'Nicky (Brave)';
+
+                const confirmSuper = confirm(
+                    `🌟 MODO SUPER AUTOMÁTICO 🌟\n\n` +
+                    `1. Se subirán ${postsReady.length} posts del perfil actual: ${origProfileName}.\n` +
+                    `2. Luego se cargará automáticamente la contraparte: ${targetProfileName}.\n` +
+                    `3. Se generarán automáticamente los .rar de la contraparte y se subirán a Patreon.\n` +
+                    `4. Al finalizar, se eliminarán los .rar de la contraparte y volverá a mostrarse la carpeta original intacta.\n\n` +
+                    `¿Deseas iniciar el proceso?`
+                );
+                if (!confirmSuper) return;
+
+                isSuperAutoMode = true;
+                superAutoStage = 1;
+                superAutoOriginalFolder = originalFolder;
+                superAutoOriginalProfile = originalProfile;
+                superAutoCounterpartFolder = counterpartRes.counterpartPath;
+                superAutoCounterpartProfile = counterpartRes.targetProfile;
+
+                autoUploadQueue = [...postsReady];
+                isAutoUploading = true;
+                btnAutoBatch.innerHTML = `⏹️ Cancelar Subida Batch (Super Auto: ${originalProfile === 'nova' ? 'Nova' : 'Nicky'})`;
+
+                await processNextAutoUpload();
+            } else {
+                isSuperAutoMode = false;
+                superAutoStage = 0;
+
+                const confirmBatch = confirm(`¿Iniciar subida automática de ${postsReady.length} posts a Patreon? Las pestañas permanecerán abiertas para revisión final.`);
+                if (!confirmBatch) return;
+
+                autoUploadQueue = [...postsReady];
+                isAutoUploading = true;
+                btnAutoBatch.innerHTML = '⏹️ Cancelar Subida Batch';
+
+                await processNextAutoUpload();
+            }
         });
     }
 });
@@ -3303,16 +3542,26 @@ async function processNextAutoUpload() {
     if (!isAutoUploading) return;
 
     if (autoUploadQueue.length === 0) {
+        if (isSuperAutoMode && superAutoStage === 1) {
+            await startSuperAutoStageTwo();
+            return;
+        }
+
+        if (isSuperAutoMode && superAutoStage === 3) {
+            await finishSuperAuto(true);
+            return;
+        }
+
         isAutoUploading = false;
         const btnAutoBatch = document.getElementById('btn-auto-batch');
-        if (btnAutoBatch) btnAutoBatch.innerHTML = '🚀 Subida Automática (Batch)';
+        if (btnAutoBatch) btnAutoBatch.innerHTML = '🚀 Iniciar Subida Automática (Batch)';
         alert("¡Subida Automática terminada! Revisa las pestañas abiertas y presiona Publicar o Programar en cada una.");
         return;
     }
 
     const post = autoUploadQueue.shift();
     
-    // Abrir nueva pestaña
+    // Abrir nueva pestaña en el navegador correspondiente al perfil activo
     await window.electronAPI.openPatreon(currentSession.activeProfile);
     
     // Esperar a que la página cargue y la extensión esté lista
@@ -3328,30 +3577,32 @@ async function processNextAutoUpload() {
     
     if (!isAutoUploading) return; // user cancelled
 
-    // Construir payload igual que el botón individual
-    const globalDate = document.getElementById('global-date').value;
-    const globalTime = document.getElementById('global-time').value;
+    // Construir payload con fallback seguro a los datos del objeto post
+    const globalDate = document.getElementById('global-date')?.value || '';
+    const globalTime = document.getElementById('global-time')?.value || '';
     
+    let editedTitle = post.title;
+    let editedBaseTags = post.tags;
+    let categoryOverride = post.categoryOverride || null;
+
     const cardCheckbox = document.querySelector(`.done-checkbox[data-id="${post.id}"]`);
-    if (!cardCheckbox) {
-        // En caso de error, avanzar al siguiente
-        await processNextAutoUpload();
-        return;
+    let card = null;
+    if (cardCheckbox) {
+        card = cardCheckbox.closest('.post-card') || cardCheckbox.parentElement?.parentElement?.parentElement;
     }
     
-    let card = cardCheckbox.closest('.post-card');
-    if (!card) card = cardCheckbox.parentElement.parentElement.parentElement;
-    
-    const editedTitle = card.querySelector('.title-value').value;
-    const editedBaseTags = card.querySelector('.tags-value').value;
+    if (card) {
+        const titleInput = card.querySelector('.title-value');
+        if (titleInput && titleInput.value) editedTitle = titleInput.value;
+
+        const tagsInput = card.querySelector('.tags-value');
+        if (tagsInput && tagsInput.value) editedBaseTags = tagsInput.value;
+
+        const categoryCbs = card.querySelectorAll('.category-cb');
+        categoryCbs.forEach(cb => { if (cb.checked) categoryOverride = cb.dataset.category; });
+    }
     
     const rarPath = post.path + '.rar';
-    
-    // Determine override
-    let categoryOverride = null;
-    const categoryCbs = card.querySelectorAll('.category-cb');
-    categoryCbs.forEach(cb => { if (cb.checked) categoryOverride = cb.dataset.category; });
-
     const collection = categoryOverride || post.anime;
     const finalTags = categoryOverride ? editedBaseTags + ', ' + categoryOverride : editedBaseTags;
 
@@ -3370,14 +3621,24 @@ async function processNextAutoUpload() {
         rarPath: rarPath,
         imagePaths: post.imagePaths || [],
         isBatch: true,
-        isLastBatchItem: autoUploadQueue.length === 0,
+        isLastBatchItem: (autoUploadQueue.length === 0 && (!isSuperAutoMode || superAutoStage === 3)),
         twitterText: `${getRandomTwitterText()}\n\n${linkPart}${finalTags.split(',').map(t => '#' + t.trim().replace(/\\s+/g, '')).join(' ')}`
     };
+
+    console.log(`[Post-Away Auto Upload] Enviando (${currentSession.activeProfile}): "${editedTitle}" con ${post.imagePaths?.length || 0} imágenes y archivo rar: "${rarPath}"`);
 
     // Enviar a Patreon (Extensión)
     const res = await window.electronAPI.fillPatreon(payload);
     if (!res.success && res.receivers === 0) {
         console.warn("Nadie recibió el payload, la extensión no está lista.");
+    }
+
+    // Marcar como procesado visualmente en la tarjeta
+    if (cardCheckbox) {
+        cardCheckbox.checked = true;
+        if (card) card.classList.add('done');
+        currentSession.donePosts[post.id] = true;
+        await saveSession();
     }
 }
 

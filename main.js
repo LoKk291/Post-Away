@@ -767,6 +767,92 @@ ipcMain.handle('get-nova-folder-path', async (event, nickyPath, baseOrgPath, nov
   }
 });
 
+ipcMain.handle('get-counterpart-folder', async (event, folderPath, currentProfile) => {
+  try {
+    if (!folderPath || !fs.existsSync(folderPath)) {
+      return { success: false, error: 'Carpeta no especificada o no existe.' };
+    }
+
+    const session = loadSession();
+    const baseOrgPath = session.baseOrgPath;
+    const novaOrgPath = session.novaOrgPath;
+    const profile = (currentProfile || session.activeProfile || 'nicky').toLowerCase();
+    const isNicky = profile === 'nicky';
+    const targetProfile = isNicky ? 'nova' : 'nicky';
+
+    let counterpartPath = null;
+
+    // 1. Si la carpeta está dentro de baseOrgPath (Nicky) o novaOrgPath (Nova)
+    const normFolder = path.normalize(folderPath);
+    const normBase = baseOrgPath ? path.normalize(baseOrgPath) : null;
+    const normNova = novaOrgPath ? path.normalize(novaOrgPath) : null;
+
+    if (normBase && normFolder.toLowerCase().startsWith(normBase.toLowerCase())) {
+      const rel = path.relative(normBase, normFolder);
+      if (normNova) {
+        const candidate = path.join(normNova, rel);
+        if (fs.existsSync(candidate)) {
+          counterpartPath = candidate;
+        }
+      }
+    } else if (normNova && normFolder.toLowerCase().startsWith(normNova.toLowerCase())) {
+      const rel = path.relative(normNova, normFolder);
+      if (normBase) {
+        const candidate = path.join(normBase, rel);
+        if (fs.existsSync(candidate)) {
+          counterpartPath = candidate;
+        }
+      }
+    }
+
+    // 2. Si no se encontró por rutas raíz, buscar en el directorio padre por etiquetas [nova] / [nicky]
+    if (!counterpartPath) {
+      const parentDir = path.dirname(folderPath);
+      const baseName = path.basename(folderPath).toLowerCase();
+      if (fs.existsSync(parentDir)) {
+        const items = fs.readdirSync(parentDir, { withFileTypes: true });
+        for (const item of items) {
+          if (item.isDirectory() && item.name.toLowerCase() !== baseName) {
+            const checkName = item.name.toLowerCase();
+            if (isNicky && (checkName.includes('[nova]') || checkName === 'nova')) {
+              counterpartPath = path.join(parentDir, item.name);
+              break;
+            } else if (!isNicky && (checkName.includes('[nicky]') || checkName === 'nicky')) {
+              counterpartPath = path.join(parentDir, item.name);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Si termina en Mes/Fecha (ej: Octubre/01-10-26), buscar en la raíz del otro perfil
+    if (!counterpartPath) {
+      const parts = path.normalize(folderPath).split(path.sep);
+      if (parts.length >= 2) {
+        const datePart = parts[parts.length - 1];
+        const monthPart = parts[parts.length - 2];
+        const targetOrg = isNicky ? novaOrgPath : baseOrgPath;
+        if (targetOrg && fs.existsSync(targetOrg)) {
+          const candidate = path.join(targetOrg, monthPart, datePart);
+          if (fs.existsSync(candidate)) {
+            counterpartPath = candidate;
+          }
+        }
+      }
+    }
+
+    if (counterpartPath && fs.existsSync(counterpartPath)) {
+      return { success: true, counterpartPath, targetProfile };
+    }
+
+    return { success: false, error: `No se encontró carpeta equivalente para el perfil ${targetProfile}.` };
+  } catch (err) {
+    console.error("Error in get-counterpart-folder:", err);
+    return { success: false, error: err.message };
+  }
+});
+
 ipcMain.handle('get-folder-images', async (event, folderPath) => {
   try {
     if (!fs.existsSync(folderPath)) return [];

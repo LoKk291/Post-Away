@@ -117,14 +117,18 @@
                 <div id="rar-status" style="margin-top: 1.5rem; padding: 0.75rem; border-radius: 8px; font-weight: 500; font-size: 0.95rem; text-align: center; background: var(--panel-bg); color: var(--text-color); border: 1px solid var(--border-color); transition: all 0.3s ease;">
                     ⏳ Esperando carpetas...
                 </div>
-                <button id="btn-compress-all" class="btn primary-btn" class="btn primary-btn" style="width: 100%; margin-top: 1rem; display: none;">📦 Iniciar Compresión de Todos los .rar</button>
+                <button id="btn-compress-all" class="btn primary-btn" style="width: 100%; margin-top: 1rem; display: none;">📦 Iniciar Compresión de Todos los .rar</button>
                 <div id="batch-upload-container" style="display: none; flex-direction: column; gap: 0.5rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
                     <label style="display: flex; align-items: center; justify-content: center; gap: 5px; color: #fff; font-size: 0.85rem; cursor: pointer; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);" title="Si tu internet o PC es lenta, aumenta el tiempo de espera (en segundos) antes de que se envíen los datos a la pestaña nueva.">
                         <input type="checkbox" id="chk-slow-conn" style="accent-color: var(--primary-color);">
                         Conexión lenta:
                         <input type="number" id="num-slow-conn" value="10" min="3" max="60" style="width: 50px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 4px; padding: 2px 4px; text-align: center;"> s
                     </label>
-                    <button id="btn-auto-batch" class="btn primary-btn" class="btn primary-btn" style="width: 100%; font-size: 1.1rem;">🚀 Iniciar Subida Automática (Batch)</button>
+                    <label style="display: flex; align-items: center; justify-content: center; gap: 8px; color: #fff; font-size: 0.85rem; cursor: pointer; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);" title="Modo de publicación conjunta: primero sube la carpeta actual, luego carga automáticamente la contraparte (Nova/Nicky), crea sus .rar y la sube, volviendo al final a la original.">
+                        <input type="checkbox" id="chk-super-auto" style="accent-color: var(--primary-color);">
+                        🌟 Modo Super Automático
+                    </label>
+                    <button id="btn-auto-batch" class="btn primary-btn" style="width: 100%; font-size: 1.1rem;">🚀 Iniciar Subida Automática (Batch)</button>
                 </div>
             </section>
 
