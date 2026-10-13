@@ -618,6 +618,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         return patreonFetchPromise;
     }
+    // renderTwitterGrid (fuera de este scope) la usa al cargar carpeta con la pestaña X activa
+    window.autoFetchPatreonLinks = autoFetchPatreonLinks;
 
     const btnFetchPatreon = document.getElementById('btn-fetch-patreon');
     if (btnFetchPatreon) {
@@ -1516,6 +1518,21 @@ if (window.electronAPI && window.electronAPI.onTwitterPostUpdated) {
                 }
             }
         });
+    });
+}
+
+// Botón "Postaway" de Uploader: perfil Nicky, cargar la carpeta de fecha, poner fecha/hora por personaje y abrir la pestaña X
+if (window.electronAPI && window.electronAPI.onUploaderSync) {
+    window.electronAPI.onUploaderSync(async ({ folderPath, schedule }) => {
+        if (!currentSession.twitterSchedule) currentSession.twitterSchedule = {};
+        Object.assign(currentSession.twitterSchedule, schedule);
+        currentSession.activeProfile = 'nicky';
+        updateProfileUI();
+        await saveSession();
+        // Si ya estaba cargada esta carpeta, no borrar sus .rar
+        await navigateToFolder(folderPath, folderPath === currentSession.lastFolder);
+        document.querySelector('.tab-btn[data-tab="twitter"]')?.click();
+        syncTwitterFeedToMain(true);
     });
 }
 

@@ -44,5 +44,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getWatermarkImages: (folderPath) => ipcRenderer.invoke('get-watermark-images', folderPath),
   setTwitterFeed: (feedData) => ipcRenderer.invoke('set-twitter-feed', feedData),
   onTwitterPostUpdated: (callback) => ipcRenderer.on('twitter-post-updated', callback),
-  getCounterpartFolder: (folderPath, currentProfile) => ipcRenderer.invoke('get-counterpart-folder', folderPath, currentProfile)
+  getCounterpartFolder: (folderPath, currentProfile) => ipcRenderer.invoke('get-counterpart-folder', folderPath, currentProfile),
+  onUploaderSync: (callback) => ipcRenderer.on('uploader-sync', (event, data) => callback(data))
 });

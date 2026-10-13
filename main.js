@@ -160,6 +160,34 @@ function startLocalServer() {
       return;
     }
 
+    // Uploader -> Post-Away: cargar la carpeta de fecha y poner en X la fecha/hora de cada personaje
+    // body: { folderPath, schedule: { "<nombre carpeta personaje>": { date: "YYYY-MM-DD", time: "HH:MM" } } }
+    if (req.method === 'POST' && req.url === '/uploader-sync') {
+      let body = '';
+      req.on('data', chunk => body += chunk.toString());
+      req.on('end', () => {
+        try {
+          const { folderPath, schedule } = JSON.parse(body);
+          if (!folderPath || !fs.existsSync(folderPath)) throw new Error('Carpeta no encontrada: ' + folderPath);
+          // Mismo id que usa read-folder para cada post
+          const byId = {};
+          for (const [name, sched] of Object.entries(schedule || {})) {
+            byId[Buffer.from(path.join(folderPath, name)).toString('base64')] = sched;
+          }
+          if (!mainWindow || mainWindow.isDestroyed()) throw new Error('Ventana de Post-Away cerrada');
+          mainWindow.webContents.send('uploader-sync', { folderPath, schedule: byId });
+          if (mainWindow.isMinimized()) mainWindow.restore();
+          mainWindow.focus();
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true }));
+        } catch (e) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: e.message }));
+        }
+      });
+      return;
+    }
+
     if (req.url === '/events' && req.method === 'GET') {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
