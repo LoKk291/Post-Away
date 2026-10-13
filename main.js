@@ -624,6 +624,15 @@ async function translateToJapanese(text) {
   });
 }
 
+// Attom guarda las comisiones en ComfyUI/user/attom_comisiones.json (output = ComfyUI/output)
+ipcMain.handle('get-comisiones', async (event, outputPath) => {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(outputPath, '..', 'user', 'attom_comisiones.json'), 'utf-8'));
+  } catch {
+    return [];
+  }
+});
+
 ipcMain.handle('read-folder', async (event, folderPath) => {
   try {
     const items = fs.readdirSync(folderPath, { withFileTypes: true });

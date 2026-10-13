@@ -1973,6 +1973,12 @@ async function loadGestorCharacters() {
     const allPosts = await window.electronAPI.readFolder(currentSession.outputPath);
     // Filtrar los de nova
     gestorState.outputCharacters = allPosts.filter(post => !post.folderName.toLowerCase().includes('nova'));
+    // Comisiones marcadas en Attom: destacar (estrella + halo) la primera vez que aparecen; si se quita la estrella, se respeta
+    const comisiones = await window.electronAPI.getComisiones(currentSession.outputPath);
+    if (!currentSession.specialRequests) currentSession.specialRequests = {};
+    const nuevasComisiones = gestorState.outputCharacters.filter(c => comisiones.includes(getCleanCharacterName(c.folderName)) && !(c.folderName in currentSession.specialRequests));
+    nuevasComisiones.forEach(c => currentSession.specialRequests[c.folderName] = true);
+    if (nuevasComisiones.length) await saveSession();
     
     renderGestorCharactersList();
 }

@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onUploadComplete: (callback) => ipcRenderer.on('upload-complete', callback),
   fillTwitter: (data) => ipcRenderer.invoke('fill-twitter', data),
   openTwitter: (profile, targetUrl) => ipcRenderer.invoke('open-twitter', profile, targetUrl),
+  getComisiones: (outputPath) => ipcRenderer.invoke('get-comisiones', outputPath),
   getWatermarkImages: (folderPath) => ipcRenderer.invoke('get-watermark-images', folderPath),
   setTwitterFeed: (feedData) => ipcRenderer.invoke('set-twitter-feed', feedData),
   onTwitterPostUpdated: (callback) => ipcRenderer.on('twitter-post-updated', callback),
