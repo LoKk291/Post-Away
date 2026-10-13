@@ -2005,7 +2005,7 @@ function renderGestorCharactersList() {
         gestorState.outputCharacters.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
     }
 
-    const featured = currentSession.featuredCharacters || {};
+    const featured = currentSession.specialRequests || {};
     gestorState.visibleCharacters = sortType === 'featured'
         ? gestorState.outputCharacters.filter(c => featured[c.folderName])
         : gestorState.outputCharacters;
@@ -2041,19 +2041,7 @@ function renderGestorCharactersList() {
         card.addEventListener('keydown', async (e) => {
             if (e.ctrlKey && e.key.toLowerCase() === 'd') {
                 e.preventDefault();
-                if (!currentSession.specialRequests) currentSession.specialRequests = {};
-                currentSession.specialRequests[post.folderName] = !currentSession.specialRequests[post.folderName];
-                if (currentSession.specialRequests[post.folderName]) {
-                    card.classList.add('special-request');
-                } else {
-                    card.classList.remove('special-request');
-                }
-                await window.electronAPI.saveSession(currentSession);
-                
-                // Actualizar también en la otra lista si es visible
-                if (gestorState.selectedMonth && gestorState.selectedDate) {
-                    renderGestorDateContentsList();
-                }
+                card.querySelector('.btn-feature').click();
             }
         });
         
@@ -2099,11 +2087,16 @@ function renderGestorCharactersList() {
         btnViewImages.onclick = () => openImageViewer(post.path, post.folderName);
 
         card.querySelector('.btn-feature').onclick = async () => {
-            if (!currentSession.featuredCharacters) currentSession.featuredCharacters = {};
-            if (isFeatured) delete currentSession.featuredCharacters[post.folderName];
-            else currentSession.featuredCharacters[post.folderName] = true;
+            if (!currentSession.specialRequests) currentSession.specialRequests = {};
+            currentSession.specialRequests[post.folderName] = !isFeatured;
             await saveSession();
+            // Actualizar también en la otra lista si es visible
+            if (gestorState.selectedMonth && gestorState.selectedDate) {
+                renderGestorDateContentsList();
+            }
             renderGestorCharactersList();
+            const idx = gestorState.visibleCharacters.indexOf(post);
+            if (idx >= 0) container.children[idx].focus();
         };
 
         const nameContainer = card.querySelector('.char-name-container');
