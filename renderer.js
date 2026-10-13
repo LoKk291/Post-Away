@@ -3042,6 +3042,13 @@ async function loadViewerImages() {
         return;
     }
     
+    // Modo QC: tras destacar/eliminar, ubicarse en la imagen que seguía (los índices cambian al renombrar)
+    if (viewerState.qcNextPath) {
+        const idx = images.findIndex(i => i.path === viewerState.qcNextPath);
+        if (idx !== -1) viewerState.currentPage = idx;
+        viewerState.qcNextPath = null;
+    }
+
     // Paginación
     const totalPages = Math.ceil(images.length / viewerState.pageSize);
     if (viewerState.currentPage >= totalPages) {
@@ -3301,6 +3308,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
+        // Modo QC 1x1: ↑ destacar, ↓ eliminar; luego avanza a la siguiente imagen
+        if (viewerState.pageSize === 1 && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+            e.preventDefault();
+            const card = document.querySelector('#image-viewer-grid .viewer-image-card');
+            const current = viewerState.images[viewerState.currentPage];
+            if (!card || !current) return;
+            const next = viewerState.images[viewerState.currentPage + 1];
+            viewerState.qcNextPath = next ? next.path : null;
+            const isFeatured = /^[a-z]{1,2}$/i.test(current.name.replace(/\.[^.]+$/, ''));
+            if (e.key === 'ArrowUp' && isFeatured) {
+                viewerState.qcNextPath = null;
+                document.getElementById('btn-next-page').click();
+            } else {
+                card.querySelector(e.key === 'ArrowUp' ? '.btn-destacar' : '.btn-eliminar').click();
+            }
+            return;
+        }
+
         // Flechas para paginación
         if (e.key === 'ArrowLeft') {
             document.getElementById('btn-prev-page').click();
