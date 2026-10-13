@@ -632,9 +632,26 @@ ipcMain.handle('open-folder', async (event, folderPath) => {
 
 const https = require('https');
 
+// Caché de traducciones (memoria + disco): read-folder pedía 2 traducciones por carpeta en cada carga
+const translationCacheFile = path.join(app.getPath('userData'), 'translations.json');
+let translationCache = {};
+try { translationCache = JSON.parse(fs.readFileSync(translationCacheFile, 'utf-8')); } catch {}
+let translationSaveTimer = null;
+
 async function translateToJapanese(text) {
+  if (!text || text === "Desconocido") return "";
+  if (translationCache[text]) return translationCache[text];
+  const result = await fetchJapanese(text);
+  if (result) {
+    translationCache[text] = result;
+    clearTimeout(translationSaveTimer);
+    translationSaveTimer = setTimeout(() => fs.promises.writeFile(translationCacheFile, JSON.stringify(translationCache)).catch(() => {}), 1000);
+  }
+  return result;
+}
+
+function fetchJapanese(text) {
   return new Promise((resolve) => {
-    if (!text || text === "Desconocido") return resolve("");
     // Use Google's public translation endpoint
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ja&dt=t&q=${encodeURIComponent(text)}`;
     https.get(url, (res) => {
@@ -663,11 +680,10 @@ ipcMain.handle('get-comisiones', async (event, outputPath) => {
 
 ipcMain.handle('read-folder', async (event, folderPath) => {
   try {
-    const items = fs.readdirSync(folderPath, { withFileTypes: true });
-    const posts = [];
+    const items = await fs.promises.readdir(folderPath, { withFileTypes: true });
 
-    for (const item of items) {
-      if (item.isDirectory()) {
+    // Todas las carpetas en paralelo (antes era una por una esperando la traducción de cada una)
+    const posts = await Promise.all(items.filter(item => item.isDirectory()).map(async (item) => {
         const subPath = path.join(folderPath, item.name);
         const folderName = item.name;
         
@@ -715,7 +731,7 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
         let imagePaths = [];
         let createdAt = 0;
         try {
-          const files = fs.readdirSync(subPath);
+          const files = await fs.promises.readdir(subPath);
           const ext = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
           const imageFiles = files.filter(f => ext.includes(path.extname(f).toLowerCase()));
           imagesCount = imageFiles.length;
@@ -723,7 +739,7 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
             thumbnail = "file://" + path.join(subPath, imageFiles[0]).replace(/\\/g, '/');
             imagePaths = imageFiles.map(f => path.join(subPath, f));
           }
-          const stats = fs.statSync(subPath);
+          const stats = await fs.promises.stat(subPath);
           createdAt = stats.birthtimeMs || stats.ctimeMs || 0;
         } catch(e) {}
 
@@ -731,9 +747,9 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
         const tags = `${character}, ${anime}`;
         
         const rarPath = path.join(folderPath, `${folderName}.rar`);
-        const hasRar = fs.existsSync(rarPath);
+        const hasRar = await fs.promises.access(rarPath).then(() => true, () => false);
 
-        posts.push({
+        return {
           id: Buffer.from(subPath).toString('base64'),
           folderName, 
           path: subPath, 
@@ -748,9 +764,8 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
           imagePaths,
           createdAt,
           hasRar
-        });
-      }
-    }
+        };
+    }));
     return posts;
   } catch(e) {
     console.error(e);

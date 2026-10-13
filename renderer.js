@@ -2525,9 +2525,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Gestor UI Actions
     document.getElementById('btn-refresh-gestor').addEventListener('click', async () => {
-        await loadGestorData();
-        await loadGestorCharacters();
-        await loadDateCharacters();
+        await Promise.all([loadGestorData(), loadGestorCharacters(), loadDateCharacters()]);
     });
 
     const monthSelect = document.getElementById('gestor-month-select');
