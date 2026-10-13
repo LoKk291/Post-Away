@@ -1995,7 +1995,7 @@ function renderGestorCharactersList() {
     countEl.innerHTML = `${gestorState.outputCharacters.length} encontrados <span style="color: #4ade80;">(${verifiedCount} verificados)</span> <span style="color: #f87171;">(${unverifiedCount} faltan)</span> (Ocultando versiones Nova)`;
 
     const sortType = document.getElementById('gestor-output-sort') ? document.getElementById('gestor-output-sort').value : 'alpha';
-    if (sortType === 'alpha') {
+    if (sortType === 'alpha' || sortType === 'featured') {
         gestorState.outputCharacters.sort((a, b) => a.folderName.localeCompare(b.folderName));
     } else if (sortType === 'alpha-desc') {
         gestorState.outputCharacters.sort((a, b) => b.folderName.localeCompare(a.folderName));
@@ -2005,9 +2005,14 @@ function renderGestorCharactersList() {
         gestorState.outputCharacters.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
     }
 
+    const featured = currentSession.featuredCharacters || {};
+    gestorState.visibleCharacters = sortType === 'featured'
+        ? gestorState.outputCharacters.filter(c => featured[c.folderName])
+        : gestorState.outputCharacters;
+
     container.innerHTML = '';
-    if (gestorState.outputCharacters.length === 0) {
-        container.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">No hay personajes en Output.</div>';
+    if (gestorState.visibleCharacters.length === 0) {
+        container.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;">${sortType === 'featured' ? 'No hay personajes destacados.' : 'No hay personajes en Output.'}</div>`;
         return;
     }
 
@@ -2021,7 +2026,7 @@ function renderGestorCharactersList() {
         container.style.gap = '1rem';
     }
 
-    gestorState.outputCharacters.forEach(post => {
+    gestorState.visibleCharacters.forEach(post => {
         const card = document.createElement('div');
         card.className = 'post-card' + (currentSession.specialRequests && currentSession.specialRequests[post.folderName] ? ' special-request' : '');
         card.tabIndex = 0;
@@ -2055,11 +2060,14 @@ function renderGestorCharactersList() {
         
         const novaBadge = ''; // Ya no mostramos la placa Nova porque solo mostramos los Nicky
         const isQcDone = currentSession.qcDone && currentSession.qcDone[post.folderName];
+        const isFeatured = !!featured[post.folderName];
+        const starBtn = `<button class="btn btn-feature" style="background: ${isFeatured ? 'rgba(250, 204, 21, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isFeatured ? '#facc15' : '#94a3b8'}; border: 1px solid ${isFeatured ? '#facc15' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="${isFeatured ? 'Quitar de destacados' : 'Destacar personaje'}">${isFeatured ? '★' : '☆'}</button>`;
 
         if (currentSession.viewMode === 'list') {
             card.style.cssText = "padding: 1rem; display: flex; flex-direction: row; align-items: center; gap: 1rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 0;";
             card.innerHTML = `
                 <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: #fff; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)} ${novaBadge}</div>
+                ${starBtn}
                 <div style="font-size: 0.8rem; color: #94a3b8; width: 80px; text-align: center;">${post.imagesCount} Img</div>
                 <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;">🖼️ Ver Imágenes</button>
                 <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; width: 80px;" title="Marcar Control de Calidad">
@@ -2074,9 +2082,10 @@ function renderGestorCharactersList() {
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                     <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)} ${novaBadge}</div>
+                    <div style="display: flex; gap: 0.3rem;">${starBtn}
                     <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
                         ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
-                    </button>
+                    </button></div>
                 </div>
                 <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem;">${post.imagesCount} Imágenes</div>
                 <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-top: 0.2rem;">🖼️ Ver Imágenes</button>
@@ -2088,6 +2097,14 @@ function renderGestorCharactersList() {
 
         const btnViewImages = card.querySelector('.btn-view-images');
         btnViewImages.onclick = () => openImageViewer(post.path, post.folderName);
+
+        card.querySelector('.btn-feature').onclick = async () => {
+            if (!currentSession.featuredCharacters) currentSession.featuredCharacters = {};
+            if (isFeatured) delete currentSession.featuredCharacters[post.folderName];
+            else currentSession.featuredCharacters[post.folderName] = true;
+            await saveSession();
+            renderGestorCharactersList();
+        };
 
         const nameContainer = card.querySelector('.char-name-container');
         if (nameContainer) {
@@ -2162,7 +2179,7 @@ function updateCharacterMoveButtons() {
     const cards = container.querySelectorAll('.post-card');
     
     cards.forEach((card, index) => {
-        const post = gestorState.outputCharacters[index];
+        const post = (gestorState.visibleCharacters || gestorState.outputCharacters)[index];
         if (!post) return;
         
         const btnMove = card.querySelector('.btn-move');
