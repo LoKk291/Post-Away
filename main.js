@@ -188,6 +188,28 @@ function startLocalServer() {
       return;
     }
 
+    // Cortex (control remoto desde el celular): body { action, args }. Ver cortex-bridge.js.
+    // Exige la cabecera X-Cortex, que el CORS de arriba no permite: ninguna página web puede llamarlo, solo Cortex.
+    if (req.method === 'POST' && req.url === '/cortex' && req.headers['x-cortex'] === '1') {
+      let body = '';
+      req.on('data', chunk => body += chunk.toString());
+      req.on('end', async () => {
+        try {
+          if (!mainWindow || mainWindow.isDestroyed()) throw new Error('Ventana de Post-Away cerrada');
+          const { action, args } = JSON.parse(body || '{}');
+          const bridge = fs.readFileSync(path.join(__dirname, 'cortex-bridge.js'), 'utf8');
+          const result = await mainWindow.webContents.executeJavaScript(
+            `${bridge}\nwindow.__cortexAction(${JSON.stringify(String(action))}, ${JSON.stringify(args || {})})`, true);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result));
+        } catch (e) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+      return;
+    }
+
     if (req.url === '/events' && req.method === 'GET') {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
