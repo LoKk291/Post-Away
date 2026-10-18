@@ -223,17 +223,17 @@ function updateGlobalRarStatus(elements) {
     }
 
     if (completed >= elements.length && elements.length > 0) {
-        rarStatus.style.background = 'var(--panel-bg)';
-        rarStatus.style.color = 'var(--success-color)';
-        rarStatus.style.borderColor = 'var(--success-color)';
+        rarStatus.style.background = 'var(--glass-hi)';
+        rarStatus.style.color = 'var(--ok)';
+        rarStatus.style.borderColor = 'var(--ok)';
         rarStatus.innerHTML = `✅ ¡Todos los .rar están listos! (${completed}/${elements.length})`;
 
         const btnCompressAll = document.getElementById('btn-compress-all');
         if (btnCompressAll) btnCompressAll.style.display = 'none';
     } else if (elements.length > 0) {
-        rarStatus.style.background = 'var(--panel-bg)';
-        rarStatus.style.color = 'var(--text-muted)';
-        rarStatus.style.borderColor = 'var(--border-color)';
+        rarStatus.style.background = 'var(--glass-hi)';
+        rarStatus.style.color = 'var(--fg-dim)';
+        rarStatus.style.borderColor = 'var(--line)';
         if (isCompressingBackground) {
             rarStatus.innerHTML = `⏳ Generando archivos .rar en segundo plano... (<span id="rar-count">${completed}</span>/<span id="rar-total">${elements.length}</span>)`;
         } else {
@@ -368,12 +368,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isNova = currentSession.activeProfile === 'nova';
         profileNova.checked = isNova;
         profileNicky.checked = !isNova;
-        profileNovaLabel.style.background = isNova ? 'var(--primary-color)' : 'var(--bg-color)';
-        profileNovaLabel.style.borderColor = isNova ? 'var(--primary-color)' : 'var(--border-color)';
-        profileNovaLabel.style.color = isNova ? '#E2E8F0' : 'var(--text-color)';
-        profileNickyLabel.style.background = !isNova ? 'var(--primary-color)' : 'var(--bg-color)';
-        profileNickyLabel.style.borderColor = !isNova ? 'var(--primary-color)' : 'var(--border-color)';
-        profileNickyLabel.style.color = !isNova ? '#E2E8F0' : 'var(--text-color)';
+        profileNovaLabel.style.background = isNova ? 'var(--fg)' : 'var(--glass)';
+        profileNovaLabel.style.borderColor = isNova ? 'var(--fg)' : 'var(--line)';
+        profileNovaLabel.style.color = isNova ? 'var(--glass)' : 'var(--fg)';
+        profileNickyLabel.style.background = !isNova ? 'var(--fg)' : 'var(--glass)';
+        profileNickyLabel.style.borderColor = !isNova ? 'var(--fg)' : 'var(--line)';
+        profileNickyLabel.style.color = !isNova ? 'var(--glass)' : 'var(--fg)';
         
         const patreonUrl = document.getElementById('patreon-url');
         if (patreonUrl) {
@@ -839,13 +839,13 @@ async function loadFolderData(folderPath) {
         if (isAgregados) {
             agregadosBanner.className = '';
             agregadosBanner.style.display = 'flex';
-            agregadosBanner.style.background = 'var(--panel-bg)';
-            agregadosBanner.style.color = 'var(--primary-color)';
-            agregadosBanner.style.border = '1px solid var(--border-color)';
+            agregadosBanner.style.background = 'var(--glass-hi)';
+            agregadosBanner.style.color = 'var(--fg)';
+            agregadosBanner.style.border = '1px solid var(--line)';
             agregadosBannerIcon.innerHTML = '🟣';
             agregadosBannerText.textContent = 'Estás en MODO AGREGADOS. Gestiona los nuevos personajes y fusiónalos al terminar.';
             
-            headerElement.style.borderBottom = '1px solid var(--border-color)';
+            headerElement.style.borderBottom = '1px solid var(--line)';
 
             const btnBack = document.createElement('button');
             btnBack.className = 'btn secondary-btn';
@@ -882,9 +882,9 @@ async function loadFolderData(folderPath) {
             if (hasAgregados) {
                 agregadosBanner.className = '';
                 agregadosBanner.style.display = 'flex';
-                agregadosBanner.style.background = 'var(--panel-bg)';
-                agregadosBanner.style.color = 'var(--text-muted)';
-                agregadosBanner.style.border = '1px solid var(--border-color)';
+                agregadosBanner.style.background = 'var(--glass-hi)';
+                agregadosBanner.style.color = 'var(--fg-dim)';
+                agregadosBanner.style.border = '1px solid var(--line)';
                 agregadosBannerIcon.innerHTML = '⚠️';
                 agregadosBannerText.textContent = 'Tienes personajes agregados pendientes de fusionar en una carpeta separada.';
                 
@@ -997,12 +997,12 @@ async function loadFolderData(folderPath) {
             <div class="info-group">
                 <div class="info-label">Categoría (Collection Override)</div>
                 <div style="display:flex;gap:10px;margin-top:4px;">
-                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;color:#ccc;">
-                        <input type="checkbox" class="category-cb" data-category="Video Games" style="accent-color:#8b5cf6;width:16px;height:16px;cursor:pointer;">
+                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;color:var(--fg);">
+                        <input type="checkbox" class="category-cb" data-category="Video Games" style="accent-color:var(--fg);width:16px;height:16px;cursor:pointer;">
                         Video Games
                     </label>
-                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;color:#ccc;">
-                        <input type="checkbox" class="category-cb" data-category="Animated Series" style="accent-color:#8b5cf6;width:16px;height:16px;cursor:pointer;">
+                    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;color:var(--fg);">
+                        <input type="checkbox" class="category-cb" data-category="Animated Series" style="accent-color:var(--fg);width:16px;height:16px;cursor:pointer;">
                         Animated Series
                     </label>
                 </div>
@@ -1030,7 +1030,7 @@ async function loadFolderData(folderPath) {
         btnCopyTitle.addEventListener('click', () => {
             const currentTitle = card.querySelector('.title-value').value;
             navigator.clipboard.writeText(currentTitle);
-            btnCopyTitle.style.color = 'var(--success-color)';
+            btnCopyTitle.style.color = 'var(--ok)';
             setTimeout(() => btnCopyTitle.style.color = '', 1500);
         });
 
@@ -1038,7 +1038,7 @@ async function loadFolderData(folderPath) {
         btnCopyTags.addEventListener('click', () => {
             const currentTags = card.querySelector('.tags-value').value;
             navigator.clipboard.writeText(currentTags);
-            btnCopyTags.style.color = 'var(--success-color)';
+            btnCopyTags.style.color = 'var(--ok)';
             setTimeout(() => btnCopyTags.style.color = '', 1500);
         });
 
@@ -1088,10 +1088,10 @@ async function loadFolderData(folderPath) {
             if (res.receivers > 0) {
                 const browserName = currentSession.activeProfile === 'nova' ? 'Opera' : 'Brave';
                 btnAutofill.textContent = `¡Enviado a ${browserName}!`;
-                btnAutofill.style.background = "var(--success-color)";
+                btnAutofill.style.background = "var(--ok)";
             } else {
                 btnAutofill.textContent = "No hay extensión conectada";
-                btnAutofill.style.background = "#eab308";
+                btnAutofill.style.background = "var(--amber)";
             }
 
             setTimeout(() => {
@@ -1104,7 +1104,7 @@ async function loadFolderData(folderPath) {
         
         if (post.hasRar) {
             btnCompress.textContent = "¡Comprimido (Ya existía)!";
-            btnCompress.style.background = "var(--success-color)";
+            btnCompress.style.background = "var(--ok)";
             btnCompress.disabled = true;
             btnCompress.style.opacity = "0.7";
         }
@@ -1118,7 +1118,7 @@ async function loadFolderData(folderPath) {
             if (result.success) {
                 post.hasRar = true;
                 btnCompress.textContent = "¡Comprimido!";
-                btnCompress.style.background = "var(--success-color)";
+                btnCompress.style.background = "var(--ok)";
                 updateGlobalRarStatus(cardsElements);
             } else {
                 alert("Error al comprimir: " + result.error);
@@ -1209,7 +1209,7 @@ function renderTwitterGrid(posts) {
         card.innerHTML = `
             <div class="card-header">
                 <div class="folder-name">${post.folderName}</div>
-                <div style="color: #1DA1F2;">
+                <div style="color: var(--fg);">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
                 </div>
             </div>
@@ -1219,7 +1219,7 @@ function renderTwitterGrid(posts) {
             <div class="info-group">
                 <div class="info-label">Texto Sugerente (EN)</div>
                 <div class="info-value-container">
-                    <textarea class="info-value twitter-text edit-area edit-en" style="color: #60a5fa; border-left-color: #60a5fa;">${randomText.en}</textarea>
+                    <textarea class="info-value twitter-text edit-area edit-en" style="color: var(--fg); border-left-color: var(--fg);">${randomText.en}</textarea>
                     <button class="copy-btn btn-copy-en" title="Copiar Texto EN">
                         <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                     </button>
@@ -1249,33 +1249,33 @@ function renderTwitterGrid(posts) {
             <div class="info-group">
                 <div class="info-label">Link de Patreon</div>
                 <div class="info-value-container">
-                    <textarea class="info-value edit-area edit-patreon-link" id="patreon-link-${post.id}" placeholder="Link aparecerá aquí..." style="color: #f472b6; border-left-color: #f472b6;"></textarea>
+                    <textarea class="info-value edit-area edit-patreon-link" id="patreon-link-${post.id}" placeholder="Link aparecerá aquí..." style="color: var(--nova); border-left-color: var(--nova);"></textarea>
                     <button class="copy-btn btn-copy-link" title="Copiar Link">
                         <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                     </button>
                 </div>
             </div>
 
-            <div class="info-group schedule-group" style="background: rgba(255, 255, 255, 0.03); padding: 0.75rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); margin-top: 0.75rem;">
-                <div class="info-label" style="display: flex; justify-content: space-between; align-items: center; color: #38bdf8; font-weight: 600;">
+            <div class="info-group schedule-group" style="background: var(--line-ghost); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--line); margin-top: 0.75rem;">
+                <div class="info-label" style="display: flex; justify-content: space-between; align-items: center; color: var(--fg); font-weight: 600;">
                     <span>📅 Fecha y Hora de Programación (Individual)</span>
-                    <button type="button" class="btn-sync-date" title="Copiar fecha y hora general" style="background: none; border: none; color: #94a3b8; font-size: 0.75rem; cursor: pointer; text-decoration: underline;">↻ Usar General</button>
+                    <button type="button" class="btn-sync-date" title="Copiar fecha y hora general" style="background: none; border: none; color: var(--fg-dim); font-size: 0.75rem; cursor: pointer; text-decoration: underline;">↻ Usar General</button>
                 </div>
                 <div style="display: flex; gap: 0.5rem; margin-top: 0.4rem;">
                     <div style="flex: 1;">
-                        <label style="font-size: 0.75rem; color: #94a3b8; display: block; margin-bottom: 2px;">Fecha</label>
+                        <label style="font-size: 0.75rem; color: var(--fg-dim); display: block; margin-bottom: 2px;">Fecha</label>
                         <input type="date" class="glass-input twitter-post-date" value="${defaultDate}" style="width: 100%; padding: 0.4rem 0.6rem; font-size: 0.85rem; border-radius: 6px;">
                     </div>
                     <div style="flex: 1;">
-                        <label style="font-size: 0.75rem; color: #94a3b8; display: block; margin-bottom: 2px;">Hora (24hs)</label>
+                        <label style="font-size: 0.75rem; color: var(--fg-dim); display: block; margin-bottom: 2px;">Hora (24hs)</label>
                         <input type="time" class="glass-input twitter-post-time" value="${defaultTime}" style="width: 100%; padding: 0.4rem 0.6rem; font-size: 0.85rem; border-radius: 6px;">
                     </div>
                 </div>
             </div>
 
             <div class="card-actions" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
-                <button class="btn secondary-btn btn-copy-all" style="width: 100%; font-size: 0.85rem; padding: 0.5rem; border: 1px solid rgba(255,255,255,0.15);">📋 Copiar Todo (EN + ES + Link + Tags)</button>
-                <button class="btn primary-btn btn-schedule-x" style="width: 100%; background: linear-gradient(135deg, #1DA1F2, #0d8bd9); font-weight: 600; font-size: 0.95rem; padding: 0.65rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <button class="btn secondary-btn btn-copy-all" style="width: 100%; font-size: 0.85rem; padding: 0.5rem; border: 1px solid var(--line);">📋 Copiar Todo (EN + ES + Link + Tags)</button>
+                <button class="btn primary-btn btn-schedule-x" style="width: 100%; background: var(--fg); font-weight: 600; font-size: 0.95rem; padding: 0.65rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
                     <span class="btn-schedule-x-text">Preparar y Programar en X</span>
                 </button>
@@ -1288,7 +1288,7 @@ function renderTwitterGrid(posts) {
                 const text = card.querySelector(textareaSelector).value;
                 navigator.clipboard.writeText(text);
                 const originalColor = btn.style.color;
-                btn.style.color = 'var(--success-color)';
+                btn.style.color = 'var(--ok)';
                 setTimeout(() => btn.style.color = originalColor, 1000);
             });
         };
@@ -1313,7 +1313,7 @@ function renderTwitterGrid(posts) {
             const originalText = btnCopyAll.textContent;
             const originalBg = btnCopyAll.style.background;
             btnCopyAll.textContent = '¡Copiado Todo!';
-            btnCopyAll.style.background = 'var(--success-color)';
+            btnCopyAll.style.background = 'var(--ok)';
             setTimeout(() => {
                 btnCopyAll.textContent = originalText;
                 btnCopyAll.style.background = originalBg;
@@ -1397,7 +1397,7 @@ function renderTwitterGrid(posts) {
                 await window.electronAPI.openTwitter(currentSession.activeProfile);
 
                 btnScheduleText.textContent = "✅ Enviado a X";
-                btnScheduleX.style.background = "var(--success-color)";
+                btnScheduleX.style.background = "var(--ok)";
                 setTimeout(() => {
                     btnScheduleX.disabled = false;
                     btnScheduleText.textContent = originalText;
@@ -1555,7 +1555,7 @@ async function startBackgroundCompression(elements, runToken) {
             post.hasRar = true;
             btnCompress.textContent = "¡Comprimido en 2do plano!";
             btnCompress.disabled = true;
-            btnCompress.style.background = "var(--success-color)";
+            btnCompress.style.background = "var(--ok)";
             btnCompress.style.opacity = "0.7";
             updateGlobalRarStatus(elements);
         } else {
@@ -1611,33 +1611,33 @@ function renderGestorDates(monthName) {
     const container = document.getElementById('gestor-dates-list');
     
     if (!monthData) {
-        container.innerHTML = '<div style="color: #64748b; font-size: 0.9rem; text-align: center; padding: 1rem; width: 100%;">Selecciona un mes primero</div>';
+        container.innerHTML = '<div style="color: var(--fg-dim); font-size: 0.9rem; text-align: center; padding: 1rem; width: 100%;">Selecciona un mes primero</div>';
         return;
     }
 
     container.innerHTML = '';
     if (monthData.dates.length === 0) {
-        container.innerHTML = '<div style="color: #64748b; font-size: 0.9rem; padding: 0.5rem; width: 100%;">No hay fechas en este mes.</div>';
+        container.innerHTML = '<div style="color: var(--fg-dim); font-size: 0.9rem; padding: 0.5rem; width: 100%;">No hay fechas en este mes.</div>';
     } else {
         const sortedDates = monthData.dates.sort((a, b) => a.name.localeCompare(b.name));
         sortedDates.forEach(d => {
             const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'display: flex; align-items: stretch; gap: 0; border-radius: 6px; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); transition: all 0.2s;';
+            wrapper.style.cssText = 'display: flex; align-items: stretch; gap: 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); transition: all 0.2s;';
 
             if (!currentSession.doneDates) currentSession.doneDates = {};
             const dateId = `${monthName}_${d.name}`;
             const isDone = !!currentSession.doneDates[dateId];
 
             const cbWrapper = document.createElement('div');
-            cbWrapper.style.cssText = `display: flex; align-items: center; justify-content: center; padding: 0 0.5rem; background: ${isDone ? 'rgba(139, 92, 246, 0.2)' : 'rgba(0,0,0,0.2)'}; border-right: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s;`;
+            cbWrapper.style.cssText = `display: flex; align-items: center; justify-content: center; padding: 0 0.5rem; background: ${isDone ? 'color-mix(in srgb, var(--fg) 20%, transparent)' : 'var(--glass-lo)'}; border-right: 1px solid var(--line); cursor: pointer; transition: all 0.2s;`;
             const cb = document.createElement('input');
             cb.type = 'checkbox';
             cb.checked = isDone;
-            cb.style.cssText = 'cursor: pointer; width: 16px; height: 16px; accent-color: #8b5cf6; margin: 0;';
+            cb.style.cssText = 'cursor: pointer; width: 16px; height: 16px; accent-color: var(--fg); margin: 0;';
             
             cb.onchange = async (e) => {
                 currentSession.doneDates[dateId] = e.target.checked;
-                cbWrapper.style.background = e.target.checked ? 'rgba(139, 92, 246, 0.2)' : 'rgba(0,0,0,0.2)';
+                cbWrapper.style.background = e.target.checked ? 'color-mix(in srgb, var(--fg) 20%, transparent)' : 'var(--glass-lo)';
                 await saveSession();
             };
             cbWrapper.onclick = (e) => {
@@ -1650,7 +1650,7 @@ function renderGestorDates(monthName) {
 
             const btn = document.createElement('button');
             btn.className = 'btn';
-            btn.style.cssText = `border: none; background: ${gestorState.selectedDate === d.name ? 'rgba(59, 130, 246, 0.4)' : 'rgba(255,255,255,0.05)'}; color: #fff; padding: 0.5rem 1rem; border-radius: 0; cursor: pointer; transition: all 0.2s; flex: 1;`;
+            btn.style.cssText = `border: none; background: ${gestorState.selectedDate === d.name ? 'color-mix(in srgb, var(--fg) 40%, transparent)' : 'var(--line-ghost)'}; color: var(--fg-hi); padding: 0.5rem 1rem; border-radius: 0; cursor: pointer; transition: all 0.2s; flex: 1;`;
             btn.textContent = d.name;
             btn.onclick = () => {
                 gestorState.selectedDate = d.name;
@@ -1675,14 +1675,14 @@ function renderGestorDates(monthName) {
                     const allDone = characters.every(c => currentSession.qcDone && currentSession.qcDone[c.folderName]);
                     if (allDone) {
                         // levemente verdosas
-                        wrapper.style.borderColor = 'rgba(34, 197, 94, 0.5)';
-                        btn.style.background = gestorState.selectedDate === d.name ? 'rgba(34, 197, 94, 0.4)' : 'rgba(34, 197, 94, 0.1)';
-                        wrapper.style.boxShadow = '0 0 8px rgba(34, 197, 94, 0.3)';
+                        wrapper.style.borderColor = 'color-mix(in srgb, var(--ok) 50%, transparent)';
+                        btn.style.background = gestorState.selectedDate === d.name ? 'color-mix(in srgb, var(--ok) 40%, transparent)' : 'color-mix(in srgb, var(--ok) 10%, transparent)';
+                        wrapper.style.boxShadow = '0 0 8px color-mix(in srgb, var(--ok) 30%, transparent)';
                     } else {
                         // levemente rojas
-                        wrapper.style.borderColor = 'rgba(239, 68, 68, 0.5)';
-                        btn.style.background = gestorState.selectedDate === d.name ? 'rgba(239, 68, 68, 0.4)' : 'rgba(239, 68, 68, 0.1)';
-                        wrapper.style.boxShadow = '0 0 8px rgba(239, 68, 68, 0.3)';
+                        wrapper.style.borderColor = 'color-mix(in srgb, var(--alarm) 50%, transparent)';
+                        btn.style.background = gestorState.selectedDate === d.name ? 'color-mix(in srgb, var(--alarm) 40%, transparent)' : 'color-mix(in srgb, var(--alarm) 10%, transparent)';
+                        wrapper.style.boxShadow = '0 0 8px color-mix(in srgb, var(--alarm) 30%, transparent)';
                     }
                 }
             }).catch(err => console.error("Error reading folder for color coding:", err));
@@ -1862,12 +1862,12 @@ async function loadDateCharacters() {
             showCharacterContextMenu(e.clientX, e.clientY, post, card);
         });
         if (currentSession.viewMode === 'list') {
-            card.style.cssText = "padding: 1rem; display: flex; flex-direction: row; align-items: center; gap: 1rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 0;";
+            card.style.cssText = "padding: 1rem; display: flex; flex-direction: row; align-items: center; gap: 1rem; background: var(--line-ghost); border: 1px solid var(--line); border-radius: 0;";
             card.innerHTML = `
-                <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: #fff; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)}</div>
-                <div style="font-size: 0.8rem; color: #94a3b8; width: 80px; text-align: center;">${post.imagesCount} Img</div>
-                <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;">🖼️ Ver Imágenes</button>
-                <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; width: 80px;" title="Marcar Control de Calidad">
+                <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: var(--fg-hi); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)}</div>
+                <div style="font-size: 0.8rem; color: var(--fg-dim); width: 80px; text-align: center;">${post.imagesCount} Img</div>
+                <button class="btn btn-view-images" style="background: color-mix(in srgb, var(--fg) 20%, transparent); color: var(--fg-hi); border: 1px solid color-mix(in srgb, var(--fg) 40%, transparent); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;">🖼️ Ver Imágenes</button>
+                <button class="btn btn-qc" style="background: ${isQcDone ? 'color-mix(in srgb, var(--ok) 20%, transparent)' : 'var(--line)'}; color: ${isQcDone ? 'var(--ok)' : 'var(--fg-hi)'}; border: 1px solid ${isQcDone ? 'var(--ok)' : 'var(--line)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; width: 80px;" title="Marcar Control de Calidad">
                     ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
                 </button>
                 <button class="btn secondary-btn btn-move" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; white-space: nowrap;">
@@ -1875,16 +1875,16 @@ async function loadDateCharacters() {
                 </button>
             `;
         } else {
-            card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
+            card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: var(--line-ghost); border: 1px solid var(--line); border-radius: 8px;";
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)}</div>
-                    <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
+                    <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: var(--fg-hi); word-break: break-all; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)}</div>
+                    <button class="btn btn-qc" style="background: ${isQcDone ? 'color-mix(in srgb, var(--ok) 20%, transparent)' : 'var(--line)'}; color: ${isQcDone ? 'var(--ok)' : 'var(--fg-hi)'}; border: 1px solid ${isQcDone ? 'var(--ok)' : 'var(--line)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
                         ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
                     </button>
                 </div>
-                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem;">${post.imagesCount} Imágenes</div>
-                <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-top: 0.2rem;">🖼️ Ver Imágenes</button>
+                <div style="font-size: 0.8rem; color: var(--fg-dim); margin-top: 0.2rem;">${post.imagesCount} Imágenes</div>
+                <button class="btn btn-view-images" style="background: color-mix(in srgb, var(--fg) 20%, transparent); color: var(--fg-hi); border: 1px solid color-mix(in srgb, var(--fg) 40%, transparent); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-top: 0.2rem;">🖼️ Ver Imágenes</button>
                 <button class="btn secondary-btn btn-move" style="margin-top: auto; padding: 0.4rem; font-size: 0.85rem;">
                     Mover a otra fecha...
                 </button>
@@ -1908,16 +1908,16 @@ async function loadDateCharacters() {
             if (currentQc) {
                 currentSession.qcDone[post.folderName] = false;
                 btnQc.innerHTML = '❌ Sin QC';
-                btnQc.style.background = 'rgba(255,255,255,0.1)';
-                btnQc.style.color = '#fff';
-                btnQc.style.borderColor = 'rgba(255,255,255,0.2)';
+                btnQc.style.background = 'var(--line)';
+                btnQc.style.color = 'var(--fg-hi)';
+                btnQc.style.borderColor = 'var(--line)';
             } else {
                 if (!currentSession.qcDone) currentSession.qcDone = {};
                 currentSession.qcDone[post.folderName] = true;
                 btnQc.innerHTML = '✅ QC OK';
-                btnQc.style.background = 'rgba(34, 197, 94, 0.2)';
-                btnQc.style.color = '#4ade80';
-                btnQc.style.borderColor = '#4ade80';
+                btnQc.style.background = 'color-mix(in srgb, var(--ok) 20%, transparent)';
+                btnQc.style.color = 'var(--ok)';
+                btnQc.style.borderColor = 'var(--ok)';
             }
             await saveSession();
             renderGestorDates(gestorState.selectedMonth); // refresh button colors
@@ -2015,7 +2015,7 @@ function renderGestorCharactersList() {
             unverifiedCount++;
         }
     });
-    countEl.innerHTML = `${gestorState.outputCharacters.length} encontrados <span style="color: #4ade80;">(${verifiedCount} verificados)</span> <span style="color: #f87171;">(${unverifiedCount} faltan)</span> (Ocultando versiones Nova)`;
+    countEl.innerHTML = `${gestorState.outputCharacters.length} encontrados <span style="color: var(--ok);">(${verifiedCount} verificados)</span> <span style="color: var(--alarm);">(${unverifiedCount} faltan)</span> (Ocultando versiones Nova)`;
 
     const sortType = document.getElementById('gestor-output-sort') ? document.getElementById('gestor-output-sort').value : 'alpha';
     if (sortType === 'alpha' || sortType === 'featured') {
@@ -2059,7 +2059,7 @@ function renderGestorCharactersList() {
             e.stopPropagation();
             showCharacterContextMenu(e.clientX, e.clientY, post, card);
         });
-        card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
+        card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: var(--line-ghost); border: 1px solid var(--line); border-radius: 8px;";
         
         card.addEventListener('keydown', async (e) => {
             if (e.ctrlKey && e.key.toLowerCase() === 'd') {
@@ -2072,16 +2072,16 @@ function renderGestorCharactersList() {
         const novaBadge = ''; // Ya no mostramos la placa Nova porque solo mostramos los Nicky
         const isQcDone = currentSession.qcDone && currentSession.qcDone[post.folderName];
         const isFeatured = !!featured[post.folderName];
-        const starBtn = `<button class="btn btn-feature" style="background: ${isFeatured ? 'rgba(250, 204, 21, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isFeatured ? '#facc15' : '#94a3b8'}; border: 1px solid ${isFeatured ? '#facc15' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="${isFeatured ? 'Quitar de destacados' : 'Destacar personaje'}">${isFeatured ? '★' : '☆'}</button>`;
+        const starBtn = `<button class="btn btn-feature" style="background: ${isFeatured ? 'color-mix(in srgb, var(--amber) 20%, transparent)' : 'var(--line)'}; color: ${isFeatured ? 'var(--amber)' : 'var(--fg-dim)'}; border: 1px solid ${isFeatured ? 'var(--amber)' : 'var(--line)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="${isFeatured ? 'Quitar de destacados' : 'Destacar personaje'}">${isFeatured ? '★' : '☆'}</button>`;
 
         if (currentSession.viewMode === 'list') {
-            card.style.cssText = "padding: 1rem; display: flex; flex-direction: row; align-items: center; gap: 1rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 0;";
+            card.style.cssText = "padding: 1rem; display: flex; flex-direction: row; align-items: center; gap: 1rem; background: var(--line-ghost); border: 1px solid var(--line); border-radius: 0;";
             card.innerHTML = `
-                <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: #fff; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)} ${novaBadge}</div>
+                <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: var(--fg-hi); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)} ${novaBadge}</div>
                 ${starBtn}
-                <div style="font-size: 0.8rem; color: #94a3b8; width: 80px; text-align: center;">${post.imagesCount} Img</div>
-                <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;">🖼️ Ver Imágenes</button>
-                <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; width: 80px;" title="Marcar Control de Calidad">
+                <div style="font-size: 0.8rem; color: var(--fg-dim); width: 80px; text-align: center;">${post.imagesCount} Img</div>
+                <button class="btn btn-view-images" style="background: color-mix(in srgb, var(--fg) 20%, transparent); color: var(--fg-hi); border: 1px solid color-mix(in srgb, var(--fg) 40%, transparent); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;">🖼️ Ver Imágenes</button>
+                <button class="btn btn-qc" style="background: ${isQcDone ? 'color-mix(in srgb, var(--ok) 20%, transparent)' : 'var(--line)'}; color: ${isQcDone ? 'var(--ok)' : 'var(--fg-hi)'}; border: 1px solid ${isQcDone ? 'var(--ok)' : 'var(--line)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; width: 80px;" title="Marcar Control de Calidad">
                     ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
                 </button>
                 <button class="btn primary-btn btn-move" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; white-space: nowrap;" ${!gestorState.selectedDate ? 'disabled' : ''}>
@@ -2089,17 +2089,17 @@ function renderGestorCharactersList() {
                 </button>
             `;
         } else {
-            card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;";
+            card.style.cssText = "padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; background: var(--line-ghost); border: 1px solid var(--line); border-radius: 8px;";
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: #fff; word-break: break-all; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)} ${novaBadge}</div>
+                    <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: var(--fg-hi); word-break: break-all; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)} ${novaBadge}</div>
                     <div style="display: flex; gap: 0.3rem;">${starBtn}
-                    <button class="btn btn-qc" style="background: ${isQcDone ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)'}; color: ${isQcDone ? '#4ade80' : '#fff'}; border: 1px solid ${isQcDone ? '#4ade80' : 'rgba(255,255,255,0.2)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
+                    <button class="btn btn-qc" style="background: ${isQcDone ? 'color-mix(in srgb, var(--ok) 20%, transparent)' : 'var(--line)'}; color: ${isQcDone ? 'var(--ok)' : 'var(--fg-hi)'}; border: 1px solid ${isQcDone ? 'var(--ok)' : 'var(--line)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
                         ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
                     </button></div>
                 </div>
-                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.2rem;">${post.imagesCount} Imágenes</div>
-                <button class="btn btn-view-images" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-top: 0.2rem;">🖼️ Ver Imágenes</button>
+                <div style="font-size: 0.8rem; color: var(--fg-dim); margin-top: 0.2rem;">${post.imagesCount} Imágenes</div>
+                <button class="btn btn-view-images" style="background: color-mix(in srgb, var(--fg) 20%, transparent); color: var(--fg-hi); border: 1px solid color-mix(in srgb, var(--fg) 40%, transparent); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-top: 0.2rem;">🖼️ Ver Imágenes</button>
                 <button class="btn primary-btn btn-move" style="margin-top: auto; padding: 0.4rem; font-size: 0.85rem;" ${!gestorState.selectedDate ? 'disabled' : ''}>
                     Mover a ${gestorState.selectedDate || 'Fecha no seleccionada'}
                 </button>
@@ -2136,16 +2136,16 @@ function renderGestorCharactersList() {
             if (currentQc) {
                 currentSession.qcDone[post.folderName] = false;
                 btnQc.innerHTML = '❌ Sin QC';
-                btnQc.style.background = 'rgba(255,255,255,0.1)';
-                btnQc.style.color = '#fff';
-                btnQc.style.borderColor = 'rgba(255,255,255,0.2)';
+                btnQc.style.background = 'var(--line)';
+                btnQc.style.color = 'var(--fg-hi)';
+                btnQc.style.borderColor = 'var(--line)';
             } else {
                 if (!currentSession.qcDone) currentSession.qcDone = {};
                 currentSession.qcDone[post.folderName] = true;
                 btnQc.innerHTML = '✅ QC OK';
-                btnQc.style.background = 'rgba(34, 197, 94, 0.2)';
-                btnQc.style.color = '#4ade80';
-                btnQc.style.borderColor = '#4ade80';
+                btnQc.style.background = 'color-mix(in srgb, var(--ok) 20%, transparent)';
+                btnQc.style.color = 'var(--ok)';
+                btnQc.style.borderColor = 'var(--ok)';
             }
             await saveSession();
             if (gestorState.selectedMonth) {
@@ -2731,7 +2731,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             searchTimeout = setTimeout(async () => {
                 searchResults.style.display = 'block';
-                searchResults.innerHTML = '<div style="padding: 1rem; color: #94a3b8; text-align: center;">Buscando...</div>';
+                searchResults.innerHTML = '<div style="padding: 1rem; color: var(--fg-dim); text-align: center;">Buscando...</div>';
 
                 const response = await window.electronAPI.searchCharacters(
                     query,
@@ -2740,16 +2740,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
 
                 if (!response.success || response.results.length === 0) {
-                    searchResults.innerHTML = '<div style="padding: 1rem; color: #94a3b8; text-align: center;">No se encontraron resultados.</div>';
+                    searchResults.innerHTML = '<div style="padding: 1rem; color: var(--fg-dim); text-align: center;">No se encontraron resultados.</div>';
                     return;
                 }
 
                 searchResults.innerHTML = '';
                 response.results.forEach(res => {
                     const item = document.createElement('div');
-                    item.style.cssText = "padding: 0.75rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center;";
+                    item.style.cssText = "padding: 0.75rem 1rem; border-bottom: 1px solid var(--line-ghost); cursor: pointer; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center;";
                     item.title = "Clic derecho: abrir en explorador / opciones";
-                    item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.05)';
+                    item.onmouseover = () => item.style.background = 'var(--line-ghost)';
                     item.onmouseout = () => item.style.background = 'transparent';
                     item.addEventListener('contextmenu', (e) => {
                         e.preventDefault();
@@ -2757,11 +2757,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         showCharacterContextMenu(e.clientX, e.clientY, res, null);
                     });
                     
-                    const badgeColor = res.type === 'output' ? '#f59e0b' : '#3b82f6';
+                    const badgeColor = res.type === 'output' ? 'var(--amber)' : 'var(--fg)';
                     const badgeText = res.type === 'output' ? 'Output' : res.locationText;
                     
                     item.innerHTML = `
-                        <div style="font-weight: 500; color: #fff;">${res.folderName}</div>
+                        <div style="font-weight: 500; color: var(--fg-hi);">${res.folderName}</div>
                         <div style="font-size: 0.75rem; padding: 0.2rem 0.5rem; background: ${badgeColor}20; color: ${badgeColor}; border: 1px solid ${badgeColor}50; border-radius: 4px;">
                             ${badgeText}
                         </div>
@@ -2847,12 +2847,12 @@ async function openImageViewer(folderPath, folderName, originalNickyPath = null)
     document.querySelectorAll('.btn-grid-size').forEach(b => {
         if (b.dataset.size === savedSize) {
             b.classList.add('active');
-            b.style.background = 'rgba(59, 130, 246, 0.2)';
-            b.style.color = '#60a5fa';
+            b.style.background = 'color-mix(in srgb, var(--fg) 20%, transparent)';
+            b.style.color = 'var(--fg)';
         } else {
             b.classList.remove('active');
             b.style.background = 'transparent';
-            b.style.color = '#94a3b8';
+            b.style.color = 'var(--fg-dim)';
         }
     });
     
@@ -2886,14 +2886,14 @@ async function openImageViewer(folderPath, folderName, originalNickyPath = null)
         let isQcDone = currentSession.qcDone && currentSession.qcDone[folderName];
         if (isQcDone) {
             btnQcViewer.innerHTML = '✅ QC OK';
-            btnQcViewer.style.background = 'rgba(34, 197, 94, 0.2)';
-            btnQcViewer.style.color = '#4ade80';
-            btnQcViewer.style.borderColor = '#4ade80';
+            btnQcViewer.style.background = 'color-mix(in srgb, var(--ok) 20%, transparent)';
+            btnQcViewer.style.color = 'var(--ok)';
+            btnQcViewer.style.borderColor = 'var(--ok)';
         } else {
             btnQcViewer.innerHTML = '❌ Sin QC';
-            btnQcViewer.style.background = 'rgba(255,255,255,0.1)';
-            btnQcViewer.style.color = '#fff';
-            btnQcViewer.style.borderColor = 'rgba(255,255,255,0.2)';
+            btnQcViewer.style.background = 'var(--line)';
+            btnQcViewer.style.color = 'var(--fg-hi)';
+            btnQcViewer.style.borderColor = 'var(--line)';
         }
 
         btnQcViewer.onclick = async () => {
@@ -2903,15 +2903,15 @@ async function openImageViewer(folderPath, folderName, originalNickyPath = null)
             if (currentQc) {
                 currentSession.qcDone[folderName] = false;
                 btnQcViewer.innerHTML = '❌ Sin QC';
-                btnQcViewer.style.background = 'rgba(255,255,255,0.1)';
-                btnQcViewer.style.color = '#fff';
-                btnQcViewer.style.borderColor = 'rgba(255,255,255,0.2)';
+                btnQcViewer.style.background = 'var(--line)';
+                btnQcViewer.style.color = 'var(--fg-hi)';
+                btnQcViewer.style.borderColor = 'var(--line)';
             } else {
                 currentSession.qcDone[folderName] = true;
                 btnQcViewer.innerHTML = '✅ QC OK';
-                btnQcViewer.style.background = 'rgba(34, 197, 94, 0.2)';
-                btnQcViewer.style.color = '#4ade80';
-                btnQcViewer.style.borderColor = '#4ade80';
+                btnQcViewer.style.background = 'color-mix(in srgb, var(--ok) 20%, transparent)';
+                btnQcViewer.style.color = 'var(--ok)';
+                btnQcViewer.style.borderColor = 'var(--ok)';
             }
             await saveSession();
             
@@ -2929,14 +2929,14 @@ async function openImageViewer(folderPath, folderName, originalNickyPath = null)
                         const newQc = currentSession.qcDone[folderName];
                         if (!newQc) {
                             btnQc.innerHTML = '❌ Sin QC';
-                            btnQc.style.background = 'rgba(255,255,255,0.1)';
-                            btnQc.style.color = '#fff';
-                            btnQc.style.borderColor = 'rgba(255,255,255,0.2)';
+                            btnQc.style.background = 'var(--line)';
+                            btnQc.style.color = 'var(--fg-hi)';
+                            btnQc.style.borderColor = 'var(--line)';
                         } else {
                             btnQc.innerHTML = '✅ QC OK';
-                            btnQc.style.background = 'rgba(34, 197, 94, 0.2)';
-                            btnQc.style.color = '#4ade80';
-                            btnQc.style.borderColor = '#4ade80';
+                            btnQc.style.background = 'color-mix(in srgb, var(--ok) 20%, transparent)';
+                            btnQc.style.color = 'var(--ok)';
+                            btnQc.style.borderColor = 'var(--ok)';
                         }
                     }
                 }
@@ -2984,8 +2984,8 @@ function renderDestacadasPopover(images) {
         popoverGrid.innerHTML = `
             <div class="destacadas-empty-state">
                 <span style="font-size: 1.5rem; opacity: 0.6;">⭐</span>
-                <span style="color: #cbd5e1; font-size: 0.85rem; font-weight: 500;">Sin imágenes destacadas</span>
-                <span style="color: #64748b; font-size: 0.75rem; text-align: center;">Haz clic en "⭐ Destacar" en cualquier imagen para fijarla aquí.</span>
+                <span style="color: var(--fg); font-size: 0.85rem; font-weight: 500;">Sin imágenes destacadas</span>
+                <span style="color: var(--fg-dim); font-size: 0.75rem; text-align: center;">Haz clic en "⭐ Destacar" en cualquier imagen para fijarla aquí.</span>
             </div>
         `;
         if (popoverFooter) popoverFooter.style.display = 'none';
@@ -3030,7 +3030,7 @@ function renderDestacadasPopover(images) {
 
 async function loadViewerImages() {
     const grid = document.getElementById('image-viewer-grid');
-    grid.innerHTML = '<div style="color: white; grid-column: 1/-1; text-align: center;">Cargando imágenes...</div>';
+    grid.innerHTML = '<div style="color: var(--fg-hi); grid-column: 1/-1; text-align: center;">Cargando imágenes...</div>';
     
     const images = await window.electronAPI.getFolderImages(viewerState.folderPath);
     viewerState.images = images;
@@ -3052,7 +3052,7 @@ async function loadViewerImages() {
     grid.innerHTML = '';
     
     if (images.length === 0) {
-        grid.innerHTML = '<div style="color: #94a3b8; grid-column: 1/-1; text-align: center;">No se encontraron imágenes.</div>';
+        grid.innerHTML = '<div style="color: var(--fg-dim); grid-column: 1/-1; text-align: center;">No se encontraron imágenes.</div>';
         document.getElementById('page-indicator').textContent = '0 de 0';
         return;
     }
@@ -3086,8 +3086,8 @@ async function loadViewerImages() {
         card.innerHTML = `
             <img src="file://${img.path.replace(/\\/g, '/')}" alt="${img.name}" title="${img.name}">
             <div class="viewer-image-name" title="Doble clic para renombrar">${img.name}</div>
-            <button class="btn btn-destacar" style="margin-top: 5px; width: 100%; background: rgba(234, 179, 8, 0.2); color: #fde047; border: 1px solid rgba(234, 179, 8, 0.4); padding: 0.2rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">⭐ Destacar</button>
-            <button class="btn btn-eliminar" style="margin-top: 5px; width: 100%; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); padding: 0.2rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">🗑️ Eliminar</button>
+            <button class="btn btn-destacar" style="margin-top: 5px; width: 100%; background: color-mix(in srgb, var(--amber) 20%, transparent); color: var(--amber); border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent); padding: 0.2rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">⭐ Destacar</button>
+            <button class="btn btn-eliminar" style="margin-top: 5px; width: 100%; background: color-mix(in srgb, var(--alarm) 20%, transparent); color: var(--alarm); border: 1px solid color-mix(in srgb, var(--alarm) 40%, transparent); padding: 0.2rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">🗑️ Eliminar</button>
         `;
         
         const imgEl = card.querySelector('img');
@@ -3151,8 +3151,8 @@ async function loadViewerImages() {
         };
         
         const btnDestacar = card.querySelector('.btn-destacar');
-        btnDestacar.onmouseover = () => btnDestacar.style.background = 'rgba(234, 179, 8, 0.3)';
-        btnDestacar.onmouseout = () => btnDestacar.style.background = 'rgba(234, 179, 8, 0.2)';
+        btnDestacar.onmouseover = () => btnDestacar.style.background = 'color-mix(in srgb, var(--amber) 30%, transparent)';
+        btnDestacar.onmouseout = () => btnDestacar.style.background = 'color-mix(in srgb, var(--amber) 20%, transparent)';
         
         btnDestacar.onclick = async (e) => {
             e.stopPropagation();
@@ -3200,8 +3200,8 @@ async function loadViewerImages() {
         };
 
         const btnEliminar = card.querySelector('.btn-eliminar');
-        btnEliminar.onmouseover = () => btnEliminar.style.background = 'rgba(239, 68, 68, 0.3)';
-        btnEliminar.onmouseout = () => btnEliminar.style.background = 'rgba(239, 68, 68, 0.2)';
+        btnEliminar.onmouseover = () => btnEliminar.style.background = 'color-mix(in srgb, var(--alarm) 30%, transparent)';
+        btnEliminar.onmouseout = () => btnEliminar.style.background = 'color-mix(in srgb, var(--alarm) 20%, transparent)';
         
         btnEliminar.onclick = async (e) => {
             e.stopPropagation();
@@ -3267,11 +3267,11 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.btn-grid-size').forEach(b => {
                 b.classList.remove('active');
                 b.style.background = 'transparent';
-                b.style.color = '#94a3b8';
+                b.style.color = 'var(--fg-dim)';
             });
             btn.classList.add('active');
-            btn.style.background = 'rgba(59, 130, 246, 0.2)';
-            btn.style.color = '#60a5fa';
+            btn.style.background = 'color-mix(in srgb, var(--fg) 20%, transparent)';
+            btn.style.color = 'var(--fg)';
             
             const size = btn.dataset.size;
             viewerState.pageSize = parseInt(size, 10);
@@ -3725,9 +3725,9 @@ async function handleRenameCharacter(element, folderPath, folderName, isViewer =
     input.value = displayCleanName;
     input.className = 'glass-input';
     if (isViewer) {
-        input.style.cssText = 'width: 100%; padding: 0.2rem; font-size: 1.25rem; font-weight: 500; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 4px;';
+        input.style.cssText = 'width: 100%; padding: 0.2rem; font-size: 1.25rem; font-weight: 500; background: rgba(0,0,0,0.5); border: 1px solid var(--line); color: var(--fg-hi); border-radius: 4px;';
     } else {
-        input.style.cssText = 'width: 100%; padding: 0.2rem; font-size: 0.95rem; font-weight: 600; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 4px; flex: 1;';
+        input.style.cssText = 'width: 100%; padding: 0.2rem; font-size: 0.95rem; font-weight: 600; background: rgba(0,0,0,0.5); border: 1px solid var(--line); color: var(--fg-hi); border-radius: 4px; flex: 1;';
     }
 
     const originalContent = element.innerHTML;
