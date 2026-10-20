@@ -691,10 +691,10 @@ function fetchJapanese(text) {
   });
 }
 
-// Attom guarda las comisiones en ComfyUI/user/attom_comisiones.json (output = ComfyUI/output)
-ipcMain.handle('get-comisiones', async (event, outputPath) => {
+// Attom guarda comisiones/tendencias en ComfyUI/user/attom_<lista>.json (output = ComfyUI/output)
+ipcMain.handle('get-attom-list', async (event, outputPath, lista) => {
   try {
-    return JSON.parse(fs.readFileSync(path.join(outputPath, '..', 'user', 'attom_comisiones.json'), 'utf-8'));
+    return JSON.parse(fs.readFileSync(path.join(outputPath, '..', 'user', `attom_${lista}.json`), 'utf-8'));
   } catch {
     return [];
   }

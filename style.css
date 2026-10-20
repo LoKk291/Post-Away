@@ -267,6 +267,13 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--fg); cursor: p
     box-shadow: 0 0 8px color-mix(in srgb, var(--amber) 45%, transparent) !important;
 }
 
+/* Tendencias (marcadas en Attom): verde. Si además es comisión, borde ámbar + halo verde */
+.post-card.trending {
+    border-color: var(--ok) !important;
+    box-shadow: 0 0 8px color-mix(in srgb, var(--ok) 45%, transparent) !important;
+}
+.post-card.special-request.trending { border-color: var(--amber) !important; }
+
 .post-card.done { background: var(--glass); }
 .post-card.done .card-header,
 .post-card.done .thumbnail-container,

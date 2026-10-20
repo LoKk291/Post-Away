@@ -1853,7 +1853,8 @@ async function loadDateCharacters() {
 
     characters.forEach(post => {
         const card = document.createElement('div');
-        card.className = 'post-card' + (currentSession.specialRequests && currentSession.specialRequests[post.folderName] ? ' special-request' : '');
+        card.className = 'post-card' + (currentSession.specialRequests && currentSession.specialRequests[post.folderName] ? ' special-request' : '')
+            + ((gestorState.tendencias || []).includes(getCleanCharacterName(post.folderName)) ? ' trending' : '');
         card.tabIndex = 0;
         card.title = "Clic derecho: abrir en explorador / opciones";
         card.addEventListener('contextmenu', (e) => {
@@ -1991,7 +1992,9 @@ async function loadGestorCharacters() {
     // Filtrar los de nova
     gestorState.outputCharacters = allPosts.filter(post => !post.folderName.toLowerCase().includes('nova'));
     // Comisiones marcadas en Attom: destacar (estrella + halo) la primera vez que aparecen; si se quita la estrella, se respeta
-    const comisiones = await window.electronAPI.getComisiones(currentSession.outputPath);
+    const comisiones = await window.electronAPI.getAttomList(currentSession.outputPath, 'comisiones');
+    // Tendencias marcadas en Attom: halo verde, siempre según lo que diga Attom
+    gestorState.tendencias = await window.electronAPI.getAttomList(currentSession.outputPath, 'tendencias');
     if (!currentSession.specialRequests) currentSession.specialRequests = {};
     const nuevasComisiones = gestorState.outputCharacters.filter(c => comisiones.includes(getCleanCharacterName(c.folderName)) && !(c.folderName in currentSession.specialRequests));
     nuevasComisiones.forEach(c => currentSession.specialRequests[c.folderName] = true);
@@ -2051,7 +2054,8 @@ function renderGestorCharactersList() {
 
     gestorState.visibleCharacters.forEach(post => {
         const card = document.createElement('div');
-        card.className = 'post-card' + (currentSession.specialRequests && currentSession.specialRequests[post.folderName] ? ' special-request' : '');
+        card.className = 'post-card' + (currentSession.specialRequests && currentSession.specialRequests[post.folderName] ? ' special-request' : '')
+            + ((gestorState.tendencias || []).includes(getCleanCharacterName(post.folderName)) ? ' trending' : '');
         card.tabIndex = 0;
         card.title = "Clic derecho: abrir en explorador / opciones";
         card.addEventListener('contextmenu', (e) => {
