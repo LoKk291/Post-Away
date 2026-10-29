@@ -263,9 +263,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const btnCloseQrModal = document.getElementById('btn-close-qr-modal');
         
         // Carga inicial
-        window.electronAPI.getLocalIp().then(localIp => {
+        Promise.all([window.electronAPI.getLocalIp(), window.electronAPI.getMobileToken()]).then(([localIp, token]) => {
             if (mobileIpInput) {
-                mobileIpInput.value = `http://${localIp}:3031`;
+                mobileIpInput.value = `http://${localIp}:3031/?t=${token}`;
             }
         });
 
@@ -278,12 +278,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 try {
                     const localIp = await window.electronAPI.getLocalIp();
                     const hostname = await window.electronAPI.getHostname();
-                    
-                    const mobileUrl = `http://${localIp}:3031`;
+                    const token = await window.electronAPI.getMobileToken();
+
+                    const mobileUrl = `http://${localIp}:3031/?t=${token}`;
                     if (mobileIpInput) mobileIpInput.value = mobileUrl;
-                    
+
                     const hostnameUrlEl = document.getElementById('hostname-url');
-                    if (hostnameUrlEl) hostnameUrlEl.textContent = `http://${hostname}:3031`;
+                    if (hostnameUrlEl) hostnameUrlEl.textContent = `http://${hostname}:3031/?t=${token}`;
                     
                     qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(mobileUrl)}`;
                 } catch(e) {

@@ -3,22 +3,88 @@ const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
 const http = require('http');
+const crypto = require('crypto');
 
 let mainWindow;
 const sessionFile = path.join(app.getPath('userData'), 'session.json');
 
+const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+const isImage = f => IMAGE_EXTS.includes(path.extname(f).toLowerCase());
+
+function listImages(dir) {
+  return fs.readdirSync(dir)
+    .filter(isImage)
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+    .map(f => ({ name: f, path: path.join(dir, f) }));
+}
+
+// Mes -> fechas de una carpeta organizada (Nicky o Nova)
+function orgFolders(basePath) {
+  return fs.readdirSync(basePath, { withFileTypes: true })
+    .filter(m => m.isDirectory())
+    .map(m => {
+      const monthPath = path.join(basePath, m.name);
+      const dates = fs.readdirSync(monthPath, { withFileTypes: true })
+        .filter(d => d.isDirectory())
+        .map(d => ({ name: d.name, path: path.join(monthPath, d.name) }));
+      return { name: m.name, path: monthPath, dates };
+    });
+}
+
+// Mueve una carpeta; entre discos distintos (EXDEV) copia y borra. Nunca se mezcla con un destino existente.
+function moveDir(src, dst) {
+  if (fs.existsSync(dst)) throw new Error('Ya existe: ' + dst);
+  try {
+    fs.renameSync(src, dst);
+  } catch (err) {
+    if (err.code !== 'EXDEV') throw err;
+    fs.cpSync(src, dst, { recursive: true });
+    fs.rmSync(src, { recursive: true, force: true });
+  }
+}
+
+// Carpeta [Nova] de un personaje dentro de dir: "X - [Anime]- [Nicky]" <-> "X - [Anime]- [Nova]".
+// Primero el nombre exacto; si no, uno que empiece igual y solo si hay un único candidato
+// (antes bastaba con "contener" el nombre: "Ai" podía emparejarse con "Mai" y mover la carpeta equivocada).
+function findNovaFolder(dir, nickyName) {
+  const clean = n => n.toLowerCase().replace(/\[(nova|nicky)\]/g, '').replace(/[\[\]]/g, '').trim();
+  const target = clean(nickyName);
+  const novas = fs.readdirSync(dir, { withFileTypes: true })
+    .filter(d => d.isDirectory() && d.name.toLowerCase().includes('[nova]') && clean(d.name))
+    .map(d => d.name);
+  const exact = novas.find(n => clean(n) === target);
+  if (exact) return exact;
+  const loose = novas.filter(n => clean(n).startsWith(target) || target.startsWith(clean(n)));
+  return loose.length === 1 ? loose[0] : null;
+}
+
 // HTTP SSE Server to securely communicate with the Chrome Extension
 let localServer = null;
 let sseClients = [];
-let lastPollTime = 0;
 let currentPayload = null;
 let currentTwitterPayload = null;
 let currentTwitterFeed = [];
 let currentTwitterFeedIndex = 0;
 
+// Solo la extensión, las páginas donde corre (Patreon/X) y las apps locales (Uploader) pueden hablar con el 3030.
+// Antes era "*": cualquier página web podía leer archivos del disco por /thumbnail y /download.
+const allowedOrigin = o =>
+  /^chrome-extension:\/\//.test(o) ||
+  /^https:\/\/([\w-]+\.)*(patreon\.com|x\.com|twitter\.com)$/.test(o) ||
+  /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o);
+
 function startLocalServer() {
   localServer = http.createServer((req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin;
+    // /cortex tiene su propia protección (cabecera X-Cortex); Cortex llama desde Node, sin Origin
+    if (origin && !allowedOrigin(origin) && req.url !== '/cortex') {
+      res.writeHead(403);
+      return res.end();
+    }
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+    }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Request-Private-Network');
     res.setHeader('Access-Control-Allow-Private-Network', 'true');
@@ -29,34 +95,21 @@ function startLocalServer() {
     }
 
     if (req.method === 'GET' && req.url === '/poll') {
-      res.writeHead(200, {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Private-Network': 'true'
-      });
-      lastPollTime = Date.now();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ payload: currentPayload }));
       currentPayload = null; // clear after consumed
       return;
     }
 
     if (req.method === 'GET' && req.url === '/poll-twitter') {
-      res.writeHead(200, {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Private-Network': 'true'
-      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ payload: currentTwitterPayload }));
       currentTwitterPayload = null; // clear after consumed
       return;
     }
 
     if (req.method === 'GET' && req.url === '/twitter-feed') {
-      res.writeHead(200, {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Private-Network': 'true'
-      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         posts: currentTwitterFeed || [],
         currentIndex: currentTwitterFeedIndex || 0,
@@ -91,11 +144,7 @@ function startLocalServer() {
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('twitter-post-updated', updated);
           }
-          res.writeHead(200, {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Private-Network': 'true'
-          });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: true }));
         } catch (e) {
           res.writeHead(500);
@@ -108,9 +157,8 @@ function startLocalServer() {
     if (req.method === 'GET' && req.url.startsWith('/thumbnail')) {
       const parsedUrl = new URL(req.url, 'http://127.0.0.1');
       const filePath = parsedUrl.searchParams.get('file');
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Private-Network', 'true');
-      if (!filePath || !fs.existsSync(filePath)) {
+      // Solo imágenes: nunca otros archivos del disco
+      if (!filePath || !isImage(filePath) || !fs.existsSync(filePath)) {
         res.writeHead(404);
         return res.end("Not Found");
       }
@@ -127,37 +175,11 @@ function startLocalServer() {
       return;
     }
     if (req.method === 'POST' && req.url === '/upload-complete') {
-      res.writeHead(200, {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Private-Network': 'true'
-      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
       if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('upload-complete');
       }
       return res.end(JSON.stringify({ success: true }));
-    }
-
-    if (req.method === 'GET' && req.url.startsWith('/download')) {
-      const parsedUrl = new URL(req.url, 'http://127.0.0.1');
-      const filePath = parsedUrl.searchParams.get('file');
-      
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Private-Network', 'true');
-
-      if (!filePath || !require('fs').existsSync(filePath)) {
-        res.writeHead(404);
-        return res.end("Not Found");
-      }
-
-      const path = require('path');
-      res.writeHead(200, {
-        'Content-Type': 'application/x-rar-compressed',
-        'Content-Disposition': `attachment; filename="${path.basename(filePath)}"`
-      });
-      const readStream = require('fs').createReadStream(filePath);
-      readStream.pipe(res);
-      return;
     }
 
     // Uploader -> Post-Away: cargar la carpeta de fecha y poner en X la fecha/hora de cada personaje
@@ -214,9 +236,7 @@ function startLocalServer() {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Private-Network': 'true'
+        'Connection': 'keep-alive'
       });
       res.write('retry: 3000\n\n'); 
       sseClients.push(res);
@@ -277,18 +297,26 @@ function getLocalIP() {
   return fallbackIp;
 }
 
+// Clave del servidor móvil (3031, abierto a la red local). Va en el enlace/QR (?t=...) y queda en una cookie.
+// Cortex no pasa por aquí: lee las carpetas y session.json por su cuenta.
+const mobileTokenFile = path.join(app.getPath('userData'), 'mobile-token.txt');
+let mobileToken = '';
+try { mobileToken = fs.readFileSync(mobileTokenFile, 'utf8').trim(); } catch {}
+if (!mobileToken) {
+  mobileToken = crypto.randomBytes(16).toString('hex');
+  fs.writeFileSync(mobileTokenFile, mobileToken);
+}
+
 function startMobileServer() {
   mobileServer = http.createServer(async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-    if (req.method === 'OPTIONS') {
-      res.writeHead(200);
-      return res.end();
-    }
-
     const parsedUrl = new URL(req.url, 'http://localhost');
+
+    if (parsedUrl.searchParams.get('t') === mobileToken) {
+      res.setHeader('Set-Cookie', `pa=${mobileToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000`);
+    } else if (!(req.headers.cookie || '').split(/;\s*/).includes('pa=' + mobileToken)) {
+      res.writeHead(401, { 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('Abre el enlace o el QR que muestra Post-Away (incluye la clave).');
+    }
 
     if (req.method === 'GET' && parsedUrl.pathname === '/') {
       try {
@@ -329,6 +357,7 @@ function startMobileServer() {
           try {
               const { oldPath, newName } = JSON.parse(body);
               const newPath = path.join(path.dirname(oldPath), newName);
+              if (fs.existsSync(newPath)) throw new Error('Ya existe: ' + newName);
               fs.renameSync(oldPath, newPath);
               res.writeHead(200, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({ success: true, newPath }));
@@ -461,20 +490,8 @@ function startMobileServer() {
         return res.end(JSON.stringify({ error: 'Gestor base path not set or not found' }));
       }
       try {
-        const items = fs.readdirSync(basePath, { withFileTypes: true });
-        const folders = [];
-        for (const item of items) {
-          if (item.isDirectory()) {
-            const monthPath = path.join(basePath, item.name);
-            const dateItems = fs.readdirSync(monthPath, { withFileTypes: true });
-            const dates = dateItems
-                .filter(d => d.isDirectory())
-                .map(d => ({ name: d.name, path: path.join(monthPath, d.name) }));
-            folders.push({ name: item.name, path: monthPath, dates });
-          }
-        }
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify(folders));
+        return res.end(JSON.stringify(orgFolders(basePath)));
       } catch (e) {
         res.writeHead(500);
         return res.end(JSON.stringify({ error: e.message }));
@@ -514,17 +531,8 @@ function startMobileServer() {
         return res.end(JSON.stringify({ error: 'Not found' }));
       }
       try {
-        const files = fs.readdirSync(folderPath);
-        const ext = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-        const imageFiles = files.filter(f => ext.includes(path.extname(f).toLowerCase()));
-        imageFiles.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
-        
-        const result = imageFiles.map(f => ({
-          name: f,
-          path: path.join(folderPath, f)
-        }));
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify(result));
+        return res.end(JSON.stringify(listImages(folderPath)));
       } catch (e) {
         res.writeHead(500);
         return res.end(JSON.stringify({ error: e.message }));
@@ -533,7 +541,7 @@ function startMobileServer() {
 
     if (req.method === 'GET' && parsedUrl.pathname === '/api/image') {
       const filePath = parsedUrl.searchParams.get('path');
-      if (!filePath || !fs.existsSync(filePath)) {
+      if (!filePath || !isImage(filePath) || !fs.existsSync(filePath)) {
         res.writeHead(404);
         return res.end("Not Found");
       }
@@ -616,31 +624,78 @@ app.on('before-quit', () => {
   }
 });
 
+let lastGoodSession = null; // texto de la última lectura válida
+
 function loadSession() {
   try {
     if (fs.existsSync(sessionFile)) {
-      const data = fs.readFileSync(sessionFile, 'utf8');
-      return JSON.parse(data);
+      const text = fs.readFileSync(sessionFile, 'utf8');
+      const session = JSON.parse(text);
+      lastGoodSession = text;
+      return session;
     }
   } catch (e) {
+    // Leída a medio escribir (p. ej. por Cortex) o dañada: usar la última buena en vez de una vacía,
+    // que al guardarse borraría todo el progreso. Se deja copia del archivo dañado.
     console.error("Error loading session:", e);
+    try { fs.copyFileSync(sessionFile, sessionFile + '.bad'); } catch {}
+    if (lastGoodSession) return JSON.parse(lastGoodSession);
   }
   return { lastFolder: null, donePosts: {} };
 }
 
+// Escribe a un temporal y lo renombra: un corte a mitad nunca deja session.json a medias
 function saveSession(data) {
   try {
-    fs.writeFileSync(sessionFile, JSON.stringify(data));
+    const tmp = sessionFile + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(data));
+    try {
+      fs.renameSync(tmp, sessionFile);
+    } catch {
+      fs.writeFileSync(sessionFile, JSON.stringify(data));
+    }
   } catch (e) {
     console.error("Error saving session:", e);
   }
 }
 
-ipcMain.handle('get-session', () => loadSession());
+// El renderer guarda su copia completa de la sesión, pero el servidor móvil, X y Cortex también escriben
+// session.json. Lo que ellos cambiaron y el renderer no tocó desde que lo leyó se conserva (antes se pisaba).
+let rendererBase = null;
+const sameJSON = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const isPlainObj = v => v && typeof v === 'object' && !Array.isArray(v);
+
+function mergeExternal(disk, base, mine) {
+  const out = { ...mine };
+  const keepDisk = (target, d, b, m, k) => {
+    if (sameJSON(m[k], b[k]) && !sameJSON(d[k], b[k])) {
+      if (d[k] === undefined) delete target[k]; else target[k] = d[k];
+    }
+  };
+  for (const k of new Set([...Object.keys(disk), ...Object.keys(base)])) {
+    if (isPlainObj(disk[k]) && isPlainObj(base[k]) && isPlainObj(mine[k])) {
+      out[k] = { ...mine[k] };
+      for (const s of new Set([...Object.keys(disk[k]), ...Object.keys(base[k])])) keepDisk(out[k], disk[k], base[k], mine[k], s);
+    } else {
+      keepDisk(out, disk, base, mine, k);
+    }
+  }
+  return out;
+}
+
+ipcMain.handle('get-session', () => {
+  const s = loadSession();
+  rendererBase = JSON.parse(JSON.stringify(s));
+  return s;
+});
 ipcMain.handle('get-local-ip', () => getLocalIP());
+ipcMain.handle('get-mobile-token', () => mobileToken);
 ipcMain.handle('get-hostname', () => require('os').hostname());
 
-ipcMain.handle('save-session', (event, data) => saveSession(data));
+ipcMain.handle('save-session', (event, data) => {
+  saveSession(rendererBase ? mergeExternal(loadSession(), rendererBase, data) : data);
+  rendererBase = data; // la vista del renderer, no lo fusionado: así sus valores viejos no cuentan como cambios suyos
+});
 ipcMain.handle('select-folder', async () => {
   const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
   if (result.canceled) return null;
@@ -754,8 +809,7 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
         let createdAt = 0;
         try {
           const files = await fs.promises.readdir(subPath);
-          const ext = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-          const imageFiles = files.filter(f => ext.includes(path.extname(f).toLowerCase()));
+          const imageFiles = files.filter(isImage);
           imagesCount = imageFiles.length;
           if (imageFiles.length > 0) {
             thumbnail = "file://" + path.join(subPath, imageFiles[0]).replace(/\\/g, '/');
@@ -798,7 +852,6 @@ ipcMain.handle('read-folder', async (event, folderPath) => {
 ipcMain.handle('get-nova-folder-path', async (event, nickyPath, baseOrgPath, novaOrgPath) => {
   try {
     let searchDir = '';
-    let nickyBaseName = path.basename(nickyPath).toLowerCase().trim();
 
     // Check if it's in org path
     if (baseOrgPath && nickyPath.startsWith(baseOrgPath)) {
@@ -816,25 +869,8 @@ ipcMain.handle('get-nova-folder-path', async (event, nickyPath, baseOrgPath, nov
 
     if (!searchDir || !fs.existsSync(searchDir)) return null;
 
-    const allFiles = fs.readdirSync(searchDir, { withFileTypes: true });
-    
-    const novaFolder = allFiles.find(dirent => {
-        if (!dirent.isDirectory()) return false;
-        const name = dirent.name.toLowerCase();
-        
-        if (!name.includes('[nova]')) return false;
-        if (name.includes(nickyBaseName)) return true;
-        
-        const cleanNova = name.replace(/\[nova\]/g, '').replace(/[\[\]]/g, '').trim();
-        const cleanNicky = nickyBaseName.replace(/\[nicky\]/g, '').replace(/[\[\]]/g, '').trim();
-        
-        return cleanNova === cleanNicky || cleanNova.includes(cleanNicky) || cleanNicky.includes(cleanNova);
-    });
-
-    if (novaFolder) {
-        return path.join(searchDir, novaFolder.name);
-    }
-    return null;
+    const novaFolder = findNovaFolder(searchDir, path.basename(nickyPath));
+    return novaFolder ? path.join(searchDir, novaFolder) : null;
   } catch(e) {
     console.error("Error getting nova folder:", e);
     return null;
@@ -930,17 +966,7 @@ ipcMain.handle('get-counterpart-folder', async (event, folderPath, currentProfil
 ipcMain.handle('get-folder-images', async (event, folderPath) => {
   try {
     if (!fs.existsSync(folderPath)) return [];
-    const files = fs.readdirSync(folderPath);
-    const ext = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-    const imageFiles = files.filter(f => ext.includes(path.extname(f).toLowerCase()));
-    
-    // Sort logically to maintain consistent order
-    imageFiles.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
-    
-    return imageFiles.map(f => ({
-      name: f,
-      path: path.join(folderPath, f)
-    }));
+    return listImages(folderPath);
   } catch(e) {
     console.error("Error getting folder images:", e);
     return [];
@@ -973,36 +999,33 @@ ipcMain.handle('delete-file-trash', async (event, filePath) => {
   }
 });
 
-ipcMain.handle('restore-file-trash', async (event, trashPath, originalPath) => {
-  // Ya no se usa porque usamos la papelera del sistema, 
-  // pero lo dejamos vacío para no romper el IPC.
-  return { success: false, error: 'La restauración desde la papelera de Windows debe hacerse manualmente.' };
-});
-
 // Broadcast payload to SSE Clients or prepare for polling
 ipcMain.handle('fill-patreon', (event, data) => {
-  const isPollingActive = (Date.now() - lastPollTime < 4000);
   currentPayload = data; // Siempre guardar el payload
   const payload = JSON.stringify(data);
   sseClients.forEach(res => res.write(`data: ${payload}\n\n`));
   return { success: true, receivers: sseClients.length + 1 };
 });
 
-ipcMain.handle('open-patreon', (event, profile) => {
-  const url = 'https://www.patreon.com/posts/new';
-  const { spawn } = require('child_process');
-  console.log('[Post-Away] open-patreon called with profile:', profile);
-  
-  let browserPath;
-  if (profile === 'nova') {
-    browserPath = path.join(require('os').homedir(), 'AppData', 'Local', 'Programs', 'Opera GX', 'opera.exe');
-  } else {
-    browserPath = 'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe';
-  }
-  
-  console.log('[Post-Away] Launching:', browserPath);
-  const child = spawn(browserPath, [url], { detached: true, stdio: 'ignore' });
+// Nova se publica desde Opera GX y Nicky desde Brave (cada uno con su sesión de Patreon/X)
+function openInProfileBrowser(profile, url) {
+  const browserPath = profile === 'nova'
+    ? path.join(require('os').homedir(), 'AppData', 'Local', 'Programs', 'Opera GX', 'opera.exe')
+    : 'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe';
+  console.log('[Post-Away] Launching:', browserPath, url);
+  const child = require('child_process').spawn(browserPath, [url], { detached: true, stdio: 'ignore' });
+  // Sin esto, si el navegador no está en esa ruta el error tumba el proceso principal
+  child.on('error', e => {
+    console.error('[Post-Away] No se pudo abrir el navegador:', e.message);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      dialog.showMessageBox(mainWindow, { type: 'error', message: 'No se pudo abrir el navegador', detail: browserPath });
+    }
+  });
   child.unref();
+}
+
+ipcMain.handle('open-patreon', (event, profile) => {
+  openInProfileBrowser(profile, 'https://www.patreon.com/posts/new');
 });
 
 ipcMain.handle('fill-twitter', (event, data) => {
@@ -1017,27 +1040,13 @@ ipcMain.handle('set-twitter-feed', (event, feedData) => {
 });
 
 ipcMain.handle('open-twitter', (event, profile, targetUrl) => {
-  const url = targetUrl || 'https://x.com/compose/post';
-  const { spawn } = require('child_process');
-  console.log('[Post-Away] open-twitter called with profile:', profile);
-  
-  let browserPath;
-  if (profile === 'nova') {
-    browserPath = path.join(require('os').homedir(), 'AppData', 'Local', 'Programs', 'Opera GX', 'opera.exe');
-  } else {
-    browserPath = 'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe';
-  }
-  
-  console.log('[Post-Away] Launching for Twitter:', browserPath);
-  const child = spawn(browserPath, [url], { detached: true, stdio: 'ignore' });
-  child.unref();
+  openInProfileBrowser(profile, targetUrl || 'https://x.com/compose/post');
   return { success: true };
 });
 
 ipcMain.handle('get-watermark-images', async (event, folderPath) => {
   try {
     if (!folderPath || !fs.existsSync(folderPath)) return [];
-    const validExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
     let targetDir = folderPath;
     
     const items = fs.readdirSync(folderPath, { withFileTypes: true });
@@ -1051,7 +1060,7 @@ ipcMain.handle('get-watermark-images', async (event, folderPath) => {
     }
     
     const files = fs.readdirSync(targetDir)
-      .filter(f => validExts.includes(path.extname(f).toLowerCase()))
+      .filter(isImage)
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
       .map(f => path.join(targetDir, f));
       
@@ -1064,11 +1073,6 @@ ipcMain.handle('get-watermark-images', async (event, folderPath) => {
 
 ipcMain.handle('copy-clipboard', (event, text) => {
   require('electron').clipboard.writeText(text);
-  return true;
-});
-
-ipcMain.handle('trigger-auto-upload', (event, filePath) => {
-  require('electron').clipboard.writeText(filePath);
   return true;
 });
 
@@ -1137,6 +1141,13 @@ ipcMain.handle('fetch-patreon-links', async (event, creatorUrl, posts) => {
     });
 
     hiddenWin.loadURL(cleanUrl);
+
+    // Si Patreon nunca termina de cargar, no dejar la ventana oculta viva para siempre
+    setTimeout(() => {
+      if (hiddenWin.isDestroyed()) return;
+      hiddenWin.destroy();
+      resolve({ success: false, error: 'Patreon tardó demasiado en responder.' });
+    }, 45000);
 
     hiddenWin.webContents.on('did-finish-load', async () => {
       setTimeout(async () => {
@@ -1255,30 +1266,27 @@ ipcMain.handle('check-is-directory', (event, folderPath) => {
 ipcMain.handle('merge-folder', async (event, sourcePath) => {
   try {
     const targetPath = sourcePath.replace(/_agregados$/i, '');
-    
+
     // Si la carpeta destino no existe, simplemente renombramos la origen
     if (!fs.existsSync(targetPath)) {
       fs.renameSync(sourcePath, targetPath);
       return { success: true, targetPath };
     }
 
-    // Mover el contenido
+    // Revisar choques antes de mover nada: antes fallaba a mitad y dejaba las dos carpetas mezcladas
     const items = fs.readdirSync(sourcePath);
-    for (const item of items) {
-      const oldPath = path.join(sourcePath, item);
-      const newPath = path.join(targetPath, item);
-      
-      // Si ya existe en el destino, intentamos mover de todos modos (puede fallar si es un directorio no vacío)
-      if (fs.existsSync(newPath)) {
-          // Para este caso básico, si existe, asumimos que se sobreescribe o falla
-          // Lo ideal es que sean personajes nuevos que no existían en la original.
-      }
-      fs.renameSync(oldPath, newPath);
+    const conflicts = items.filter(item => fs.existsSync(path.join(targetPath, item)));
+    if (conflicts.length) {
+      return { success: false, error: 'Ya existen en la carpeta original (no se movió nada):\n- ' + conflicts.join('\n- ') };
     }
-    
+
+    for (const item of items) {
+      fs.renameSync(path.join(sourcePath, item), path.join(targetPath, item));
+    }
+
     // Borrar la carpeta origen que ahora debería estar vacía
     fs.rmdirSync(sourcePath);
-    
+
     return { success: true, targetPath };
   } catch (e) {
     console.error("Error merging folder:", e);
@@ -1289,19 +1297,7 @@ ipcMain.handle('merge-folder', async (event, sourcePath) => {
 ipcMain.handle('get-org-folders', async (event, basePath) => {
   try {
     if (!basePath || !fs.existsSync(basePath)) return [];
-    const items = fs.readdirSync(basePath, { withFileTypes: true });
-    const folders = [];
-    for (const item of items) {
-      if (item.isDirectory()) {
-        const monthPath = path.join(basePath, item.name);
-        const dateItems = fs.readdirSync(monthPath, { withFileTypes: true });
-        const dates = dateItems
-            .filter(d => d.isDirectory())
-            .map(d => ({ name: d.name, path: path.join(monthPath, d.name) }));
-        folders.push({ name: item.name, path: monthPath, dates });
-      }
-    }
-    return folders;
+    return orgFolders(basePath);
   } catch (e) {
     console.error("Error getting org folders:", e);
     return [];
@@ -1324,10 +1320,10 @@ ipcMain.handle('create-date-folder', async (event, basePath, month, date) => {
   try {
     const monthPath = path.join(basePath, month);
     if (!fs.existsSync(monthPath)) fs.mkdirSync(monthPath, { recursive: true });
-    
+
     const datePath = path.join(monthPath, date);
     if (!fs.existsSync(datePath)) fs.mkdirSync(datePath, { recursive: true });
-    
+
     return { success: true, path: datePath };
   } catch (e) {
     console.error("Error creating date folder:", e);
@@ -1339,61 +1335,17 @@ ipcMain.handle('move-character-folder', async (event, charPath, targetBase, targ
     try {
         const folderName = path.basename(charPath);
         const sourceDir = path.dirname(charPath);
-        
+
         const nickyDatePath = path.join(targetBase, month, date);
         if (!fs.existsSync(nickyDatePath)) fs.mkdirSync(nickyDatePath, { recursive: true });
-        
-        const nickyDest = path.join(nickyDatePath, folderName);
-        
-        try {
-            fs.renameSync(charPath, nickyDest);
-        } catch (err) {
-            if (err.code === 'EXDEV') {
-                fs.cpSync(charPath, nickyDest, { recursive: true });
-                fs.rmSync(charPath, { recursive: true, force: true });
-            } else {
-                throw err;
-            }
-        }
+        moveDir(charPath, path.join(nickyDatePath, folderName));
 
         if (targetNova) {
-            const allFiles = fs.readdirSync(sourceDir, { withFileTypes: true });
-            const nickyBaseName = folderName.toLowerCase().trim();
-            
-            const novaFolder = allFiles.find(dirent => {
-                if (!dirent.isDirectory()) return false;
-                const name = dirent.name.toLowerCase();
-                
-                // Debe contener "[nova]"
-                if (!name.includes('[nova]')) return false;
-                
-                // Verificamos si contiene el nombre base
-                if (name.includes(nickyBaseName)) return true;
-                
-                // O si quitando la etiqueta [nova] encaja con el nombre original
-                const cleanNova = name.replace(/\[nova\]/g, '').replace(/[\[\]]/g, '').trim();
-                const cleanNicky = nickyBaseName.replace(/\[nicky\]/g, '').replace(/[\[\]]/g, '').trim();
-                
-                return cleanNova === cleanNicky || cleanNova.includes(cleanNicky) || cleanNicky.includes(cleanNova);
-            });
-
+            const novaFolder = findNovaFolder(sourceDir, folderName);
             if (novaFolder) {
-                const novaSrcPath = path.join(sourceDir, novaFolder.name);
                 const novaDatePath = path.join(targetNova, month, date);
                 if (!fs.existsSync(novaDatePath)) fs.mkdirSync(novaDatePath, { recursive: true });
-                
-                const novaDest = path.join(novaDatePath, novaFolder.name);
-                
-                try {
-                    fs.renameSync(novaSrcPath, novaDest);
-                } catch (err) {
-                    if (err.code === 'EXDEV') {
-                        fs.cpSync(novaSrcPath, novaDest, { recursive: true });
-                        fs.rmSync(novaSrcPath, { recursive: true, force: true });
-                    } else {
-                        throw err;
-                    }
-                }
+                moveDir(path.join(sourceDir, novaFolder), path.join(novaDatePath, novaFolder));
             }
         }
 
@@ -1409,58 +1361,19 @@ ipcMain.handle('move-organized-character', async (event, charName, sourceMonth, 
         const nickySrc = path.join(baseOrgPath, sourceMonth, sourceDate, charName);
         const nickyDatePath = path.join(baseOrgPath, targetMonth, targetDate);
         if (!fs.existsSync(nickyDatePath)) fs.mkdirSync(nickyDatePath, { recursive: true });
-        
-        const nickyDest = path.join(nickyDatePath, charName);
 
         if (fs.existsSync(nickySrc)) {
-            try {
-                fs.renameSync(nickySrc, nickyDest);
-            } catch (err) {
-                if (err.code === 'EXDEV') {
-                    fs.cpSync(nickySrc, nickyDest, { recursive: true });
-                    fs.rmSync(nickySrc, { recursive: true, force: true });
-                } else {
-                    throw err;
-                }
-            }
+            moveDir(nickySrc, path.join(nickyDatePath, charName));
         }
 
         if (novaOrgPath) {
             const novaSourceDateDir = path.join(novaOrgPath, sourceMonth, sourceDate);
             if (fs.existsSync(novaSourceDateDir)) {
-                const allFiles = fs.readdirSync(novaSourceDateDir, { withFileTypes: true });
-                const nickyBaseName = charName.toLowerCase().trim();
-                
-                const novaFolder = allFiles.find(dirent => {
-                    if (!dirent.isDirectory()) return false;
-                    const name = dirent.name.toLowerCase();
-                    if (!name.includes('[nova]')) return false;
-                    
-                    if (name.includes(nickyBaseName)) return true;
-                    
-                    const cleanNova = name.replace(/\[nova\]/g, '').replace(/[\[\]]/g, '').trim();
-                    const cleanNicky = nickyBaseName.replace(/\[nicky\]/g, '').replace(/[\[\]]/g, '').trim();
-                    
-                    return cleanNova === cleanNicky || cleanNova.includes(cleanNicky) || cleanNicky.includes(cleanNova);
-                });
-
+                const novaFolder = findNovaFolder(novaSourceDateDir, charName);
                 if (novaFolder) {
-                    const novaSrcPath = path.join(novaSourceDateDir, novaFolder.name);
                     const novaDatePath = path.join(novaOrgPath, targetMonth, targetDate);
                     if (!fs.existsSync(novaDatePath)) fs.mkdirSync(novaDatePath, { recursive: true });
-                    
-                    const novaDest = path.join(novaDatePath, novaFolder.name);
-                    
-                    try {
-                        fs.renameSync(novaSrcPath, novaDest);
-                    } catch (err) {
-                        if (err.code === 'EXDEV') {
-                            fs.cpSync(novaSrcPath, novaDest, { recursive: true });
-                            fs.rmSync(novaSrcPath, { recursive: true, force: true });
-                        } else {
-                            throw err;
-                        }
-                    }
+                    moveDir(path.join(novaSourceDateDir, novaFolder), path.join(novaDatePath, novaFolder));
                 }
             }
         }
@@ -1472,10 +1385,11 @@ ipcMain.handle('move-organized-character', async (event, charName, sourceMonth, 
     }
 });
 
+// A la papelera de Windows, no borrado permanente (borra fechas enteras con todos sus personajes)
 ipcMain.handle('delete-folder', async (event, folderPath) => {
     try {
         if (fs.existsSync(folderPath)) {
-            fs.rmSync(folderPath, { recursive: true, force: true });
+            await shell.trashItem(folderPath);
         }
         return { success: true };
     } catch (err) {
@@ -1488,6 +1402,9 @@ ipcMain.handle('rename-folder', async (event, folderPath, newName) => {
         if (fs.existsSync(folderPath)) {
             const parentDir = path.dirname(folderPath);
             const newPath = path.join(parentDir, newName);
+            if (newPath.toLowerCase() !== folderPath.toLowerCase() && fs.existsSync(newPath)) {
+                return { success: false, error: 'Ya existe una carpeta con ese nombre.' };
+            }
             fs.renameSync(folderPath, newPath);
         }
         return { success: true };
@@ -1574,59 +1491,34 @@ ipcMain.handle('search-characters', async (event, query, basePath, outputPath) =
     }
 });
 
+// Mueve los personajes de Nicky (carpetas sin "nova") de una fecha a destRoot/mes/fecha.
+// Si la fecha de origen queda vacía, se elimina.
+function sendDateFolder(sourcePath, destRoot, targetMonthName, dateName) {
+    if (!fs.existsSync(sourcePath)) {
+        return { success: false, error: 'Carpeta de origen no encontrada.' };
+    }
+
+    const targetPath = path.join(destRoot, targetMonthName, dateName);
+    fs.mkdirSync(targetPath, { recursive: true });
+
+    let movedCount = 0;
+    for (const item of fs.readdirSync(sourcePath, { withFileTypes: true })) {
+        if (item.isDirectory() && !item.name.toLowerCase().includes('nova')) {
+            moveDir(path.join(sourcePath, item.name), path.join(targetPath, item.name));
+            movedCount++;
+        }
+    }
+
+    if (fs.readdirSync(sourcePath).length === 0) {
+        fs.rmdirSync(sourcePath);
+    }
+
+    return { success: true, moved: movedCount };
+}
+
 ipcMain.handle('send-to-rulex', async (event, basePath, rulexPath, targetMonthName, dateName) => {
     try {
-        const sourcePath = basePath;
-        if (!fs.existsSync(sourcePath)) {
-            return { success: false, error: 'Carpeta de origen no encontrada.' };
-        }
-
-        const targetMonthPath = path.join(rulexPath, targetMonthName);
-        if (!fs.existsSync(targetMonthPath)) {
-            fs.mkdirSync(targetMonthPath, { recursive: true });
-        }
-
-        const targetPath = path.join(targetMonthPath, dateName);
-        if (!fs.existsSync(targetPath)) {
-            fs.mkdirSync(targetPath, { recursive: true });
-        }
-
-        // Leer el contenido de la carpeta fecha de origen
-        const items = fs.readdirSync(sourcePath, { withFileTypes: true });
-        let movedCount = 0;
-
-        for (const item of items) {
-            // Ignorar archivos sueltos, solo procesar carpetas (personajes)
-            if (item.isDirectory()) {
-                const folderName = item.name.toLowerCase();
-                // Si la carpeta NO contiene "nova", se considera de Nicky y se mueve
-                if (!folderName.includes('nova')) {
-                    const charSrc = path.join(sourcePath, item.name);
-                    const charDest = path.join(targetPath, item.name);
-                    
-                    try {
-                        fs.renameSync(charSrc, charDest);
-                        movedCount++;
-                    } catch (err) {
-                        if (err.code === 'EXDEV') {
-                            fs.cpSync(charSrc, charDest, { recursive: true });
-                            fs.rmSync(charSrc, { recursive: true, force: true });
-                            movedCount++;
-                        } else {
-                            throw err;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Si la carpeta original quedó vacía, la eliminamos
-        const remainingItems = fs.readdirSync(sourcePath);
-        if (remainingItems.length === 0) {
-            fs.rmdirSync(sourcePath);
-        }
-
-        return { success: true, moved: movedCount };
+        return sendDateFolder(basePath, rulexPath, targetMonthName, dateName);
     } catch (e) {
         console.error("Error sending to Rule y X:", e);
         return { success: false, error: e.message };
@@ -1635,53 +1527,7 @@ ipcMain.handle('send-to-rulex', async (event, basePath, rulexPath, targetMonthNa
 
 ipcMain.handle('send-to-yasubido', async (event, basePath, yaSubidoPath, targetMonthName, dateName) => {
     try {
-        const sourcePath = basePath;
-        if (!fs.existsSync(sourcePath)) {
-            return { success: false, error: 'Carpeta de origen no encontrada.' };
-        }
-
-        const targetMonthPath = path.join(yaSubidoPath, targetMonthName);
-        if (!fs.existsSync(targetMonthPath)) {
-            fs.mkdirSync(targetMonthPath, { recursive: true });
-        }
-
-        const targetPath = path.join(targetMonthPath, dateName);
-        if (!fs.existsSync(targetPath)) {
-            fs.mkdirSync(targetPath, { recursive: true });
-        }
-
-        const items = fs.readdirSync(sourcePath, { withFileTypes: true });
-        let movedCount = 0;
-
-        for (const item of items) {
-            if (item.isDirectory()) {
-                const folderName = item.name.toLowerCase();
-                if (!folderName.includes('nova')) {
-                    const charSrc = path.join(sourcePath, item.name);
-                    const charDest = path.join(targetPath, item.name);
-                    
-                    try {
-                        fs.renameSync(charSrc, charDest);
-                        movedCount++;
-                    } catch (err) {
-                        if (err.code === 'EXDEV') {
-                            fs.cpSync(charSrc, charDest, { recursive: true });
-                            fs.rmSync(charSrc, { recursive: true, force: true });
-                            movedCount++;
-                        } else {
-                            throw err;
-                        }
-                    }
-                }
-            }
-        }
-
-        const remainingItems = fs.readdirSync(sourcePath);
-        if (remainingItems.length === 0) {
-            fs.rmdirSync(sourcePath);
-        }
-
-        return { success: true, moved: movedCount };
+        return sendDateFolder(basePath, yaSubidoPath, targetMonthName, dateName);
     } catch (e) {
         console.error("Error sending to Ya subido:", e);
         return { success: false, error: e.message };
