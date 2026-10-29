@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   fillTwitter: (data) => ipcRenderer.invoke('fill-twitter', data),
   openTwitter: (profile, targetUrl) => ipcRenderer.invoke('open-twitter', profile, targetUrl),
   getAttomList: (outputPath, lista) => ipcRenderer.invoke('get-attom-list', outputPath, lista),
+  setAttomFlag: (outputPath, lista, name, value) => ipcRenderer.invoke('set-attom-flag', outputPath, lista, name, value),
   getWatermarkImages: (folderPath) => ipcRenderer.invoke('get-watermark-images', folderPath),
   setTwitterFeed: (feedData) => ipcRenderer.invoke('set-twitter-feed', feedData),
   onTwitterPostUpdated: (callback) => ipcRenderer.on('twitter-post-updated', callback),

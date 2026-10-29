@@ -755,6 +755,25 @@ ipcMain.handle('get-attom-list', async (event, outputPath, lista) => {
   }
 });
 
+// Marcar/desmarcar desde Post-Away en el mismo archivo de Attom (Attom también lo relee y reescribe por nombre)
+ipcMain.handle('set-attom-flag', async (event, outputPath, lista, name, value) => {
+  if (!['comisiones', 'tendencias'].includes(lista)) return { success: false, error: 'Lista desconocida' };
+  try {
+    const file = path.join(outputPath, '..', 'user', `attom_${lista}.json`);
+    let flags = [];
+    try { flags = JSON.parse(fs.readFileSync(file, 'utf-8')); } catch {}
+    const set = new Set(flags);
+    if (value) set.add(name); else set.delete(name);
+    const list = [...set].sort();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file + '.tmp', JSON.stringify(list, null, 2));
+    fs.renameSync(file + '.tmp', file);
+    return { success: true, list };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
 ipcMain.handle('read-folder', async (event, folderPath) => {
   try {
     const items = await fs.promises.readdir(folderPath, { withFileTypes: true });

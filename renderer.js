@@ -2080,12 +2080,14 @@ function renderGestorCharactersList() {
         const isQcDone = currentSession.qcDone && currentSession.qcDone[post.folderName];
         const isFeatured = !!featured[post.folderName];
         const starBtn = `<button class="btn btn-feature" style="background: ${isFeatured ? 'color-mix(in srgb, var(--amber) 20%, transparent)' : 'var(--line)'}; color: ${isFeatured ? 'var(--amber)' : 'var(--fg-dim)'}; border: 1px solid ${isFeatured ? 'var(--amber)' : 'var(--line)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="${isFeatured ? 'Quitar de destacados' : 'Destacar personaje'}">${isFeatured ? '★' : '☆'}</button>`;
+        const isTrending = (gestorState.tendencias || []).includes(getCleanCharacterName(post.folderName));
+        const trendBtn = `<button class="btn btn-trend" style="background: ${isTrending ? 'color-mix(in srgb, var(--ok) 20%, transparent)' : 'var(--line)'}; color: ${isTrending ? 'var(--ok)' : 'var(--fg-dim)'}; border: 1px solid ${isTrending ? 'var(--ok)' : 'var(--line)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="${isTrending ? 'Quitar de tendencias' : 'Marcar como tendencia'}">📈</button>`;
 
         if (currentSession.viewMode === 'list') {
             card.style.cssText = "padding: 1rem; display: flex; flex-direction: row; align-items: center; gap: 1rem; background: var(--line-ghost); border: 1px solid var(--line); border-radius: 0;";
             card.innerHTML = `
                 <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: var(--fg-hi); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)} ${novaBadge}</div>
-                ${starBtn}
+                ${starBtn}${trendBtn}
                 <div style="font-size: 0.8rem; color: var(--fg-dim); width: 80px; text-align: center;">${post.imagesCount} Img</div>
                 <button class="btn btn-view-images" style="background: color-mix(in srgb, var(--fg) 20%, transparent); color: var(--fg-hi); border: 1px solid color-mix(in srgb, var(--fg) 40%, transparent); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;">🖼️ Ver Imágenes</button>
                 <button class="btn btn-qc" style="background: ${isQcDone ? 'color-mix(in srgb, var(--ok) 20%, transparent)' : 'var(--line)'}; color: ${isQcDone ? 'var(--ok)' : 'var(--fg-hi)'}; border: 1px solid ${isQcDone ? 'var(--ok)' : 'var(--line)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; width: 80px;" title="Marcar Control de Calidad">
@@ -2100,7 +2102,7 @@ function renderGestorCharactersList() {
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                     <div class="char-name-container" style="font-weight: 600; font-size: 0.95rem; color: var(--fg-hi); word-break: break-all; cursor: pointer;" title="Doble clic para renombrar">${getCleanCharacterName(post.folderName)} ${novaBadge}</div>
-                    <div style="display: flex; gap: 0.3rem;">${starBtn}
+                    <div style="display: flex; gap: 0.3rem;">${starBtn}${trendBtn}
                     <button class="btn btn-qc" style="background: ${isQcDone ? 'color-mix(in srgb, var(--ok) 20%, transparent)' : 'var(--line)'}; color: ${isQcDone ? 'var(--ok)' : 'var(--fg-hi)'}; border: 1px solid ${isQcDone ? 'var(--ok)' : 'var(--line)'}; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" title="Marcar Control de Calidad">
                         ${isQcDone ? '✅ QC OK' : '❌ Sin QC'}
                     </button></div>
@@ -2121,6 +2123,19 @@ function renderGestorCharactersList() {
             currentSession.specialRequests[post.folderName] = !isFeatured;
             await saveSession();
             // Actualizar también en la otra lista si es visible
+            if (gestorState.selectedMonth && gestorState.selectedDate) {
+                renderGestorDateContentsList();
+            }
+            renderGestorCharactersList();
+            const idx = gestorState.visibleCharacters.indexOf(post);
+            if (idx >= 0) container.children[idx].focus();
+        };
+
+        // Tendencias se guardan en el archivo de Attom: así Attom y Post-Away ven lo mismo
+        card.querySelector('.btn-trend').onclick = async () => {
+            const res = await window.electronAPI.setAttomFlag(currentSession.outputPath, 'tendencias', getCleanCharacterName(post.folderName), !isTrending);
+            if (!res.success) return alert('No se pudo guardar la tendencia: ' + res.error);
+            gestorState.tendencias = res.list;
             if (gestorState.selectedMonth && gestorState.selectedDate) {
                 renderGestorDateContentsList();
             }
