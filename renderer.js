@@ -2021,7 +2021,7 @@ function renderGestorCharactersList() {
     countEl.innerHTML = `${gestorState.outputCharacters.length} encontrados <span style="color: var(--ok);">(${verifiedCount} verificados)</span> <span style="color: var(--alarm);">(${unverifiedCount} faltan)</span> (Ocultando versiones Nova)`;
 
     const sortType = document.getElementById('gestor-output-sort') ? document.getElementById('gestor-output-sort').value : 'alpha';
-    if (sortType === 'alpha' || sortType === 'featured') {
+    if (sortType === 'alpha' || sortType === 'featured' || sortType === 'trending') {
         gestorState.outputCharacters.sort((a, b) => a.folderName.localeCompare(b.folderName));
     } else if (sortType === 'alpha-desc') {
         gestorState.outputCharacters.sort((a, b) => b.folderName.localeCompare(a.folderName));
@@ -2034,11 +2034,13 @@ function renderGestorCharactersList() {
     const featured = currentSession.specialRequests || {};
     gestorState.visibleCharacters = sortType === 'featured'
         ? gestorState.outputCharacters.filter(c => featured[c.folderName])
+        : sortType === 'trending'
+        ? gestorState.outputCharacters.filter(c => (gestorState.tendencias || []).includes(getCleanCharacterName(c.folderName)))
         : gestorState.outputCharacters;
 
     container.innerHTML = '';
     if (gestorState.visibleCharacters.length === 0) {
-        container.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;">${sortType === 'featured' ? 'No hay personajes destacados.' : 'No hay personajes en Output.'}</div>`;
+        container.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1;">${sortType === 'featured' ? 'No hay personajes destacados.' : sortType === 'trending' ? 'No hay personajes en tendencia.' : 'No hay personajes en Output.'}</div>`;
         return;
     }
 
